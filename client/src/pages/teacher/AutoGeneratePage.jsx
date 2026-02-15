@@ -36,6 +36,30 @@ function hasInvalidScheduleRange(start, end) {
   return endValue < startValue;
 }
 
+function formatForDateTimeLocal(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function calculateScheduledEnd(start, durationMins) {
+  if (!start) {
+    return "";
+  }
+
+  const startDate = new Date(start);
+  if (Number.isNaN(startDate.getTime())) {
+    return "";
+  }
+
+  const minutes = Math.max(0, Number(durationMins || 0));
+  startDate.setMinutes(startDate.getMinutes() + minutes);
+  return formatForDateTimeLocal(startDate);
+}
+
 export default function AutoGeneratePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -73,6 +97,10 @@ export default function AutoGeneratePage() {
 
     setSubjectId(String(subjects[0].id));
   }, [subjectId, subjects]);
+
+  useEffect(() => {
+    setScheduledEnd(calculateScheduledEnd(scheduledStart, durationMins));
+  }, [scheduledStart, durationMins]);
 
   const createSubjectMutation = useMutation({
     mutationFn: (payload) => subjectService.create(payload),
@@ -138,7 +166,7 @@ export default function AutoGeneratePage() {
     <TeacherShell
       subjects={subjects}
       selectedSubjectId={Number(subjectId) || null}
-      onSelectSubject={(id) => navigate(`/teacher?subjectId=${id}`)}
+      onSelectSubject={(id) => navigate(`/teacher/questions/${id}`)}
       onOpenCreateSubject={() => setSubjectDialogOpen(true)}
       onOpenProfile={() => navigate("/teacher/profile")}
       user={user}
@@ -218,11 +246,11 @@ export default function AutoGeneratePage() {
                 <DateTimePicker value={scheduledStart} onChange={setScheduledStart} placeholder="Select start" />
               </div>
               <div className="space-y-2">
-                <Label>Scheduled End</Label>
-                <DateTimePicker value={scheduledEnd} onChange={setScheduledEnd} placeholder="Select end" />
+                <Label>Scheduled End (Auto)</Label>
+                <Input type="datetime-local" value={scheduledEnd} readOnly disabled />
               </div>
               <div className="space-y-2">
-                <Label>Access Code (Optional)</Label>
+                <Label>Access Code</Label>
                 <Input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} placeholder="e.g. 2026CN" />
               </div>
             </div>

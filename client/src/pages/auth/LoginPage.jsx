@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -43,7 +44,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-muted/30 p-4">
+      <Button type="button" variant="outline" size="sm" className="absolute left-4 top-4" onClick={() => navigate(-1)}>
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Teacher Login</CardTitle>

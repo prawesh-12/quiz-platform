@@ -39,7 +39,6 @@ export default function OngoingQuizListPage() {
         <Card>
           <CardHeader>
             <CardTitle>Ongoing Quizzes</CardTitle>
-            <CardDescription>Select a live quiz to open the real-time monitoring view.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {ongoingQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading active quizzes...</p> : null}

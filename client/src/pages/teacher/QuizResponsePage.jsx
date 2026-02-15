@@ -128,7 +128,7 @@ export default function QuizResponsePage() {
     <TeacherShell
       subjects={subjects}
       selectedSubjectId={selectedSubjectId}
-      onSelectSubject={(subjectId) => navigate(`/teacher?subjectId=${subjectId}`)}
+      onSelectSubject={(subjectId) => navigate(`/teacher/questions/${subjectId}`)}
       onOpenCreateSubject={() => navigate("/teacher")}
       onOpenProfile={() => navigate("/teacher/profile")}
       user={user}

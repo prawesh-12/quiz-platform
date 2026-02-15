@@ -183,14 +183,10 @@ export default function QuestionBankPage() {
       <div className="space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <div>
-              <CardTitle>Question Bank</CardTitle>
-              <CardDescription>{selectedSubject?.name || "Select a subject"} question management</CardDescription>
+            <div className="space-y-1.5">
+              <CardTitle>{selectedSubject?.name} Question Bank</CardTitle>
             </div>
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={() => navigate("/teacher")}>
-                Back
-              </Button>
               <Button type="button" onClick={() => setAddOpen(true)} disabled={!selectedSubject}>
                 Add Question
               </Button>

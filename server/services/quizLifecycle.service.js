@@ -21,7 +21,7 @@ export function isValidStatusTransition(currentStatus, nextStatus) {
 export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enforceTransition = true }) {
   const quizResult = await dbClient.query(
     `
-    SELECT id, status, access_token
+    SELECT id, status, access_token, access_code
     FROM quizzes
     WHERE id = $1
     `,
@@ -41,6 +41,12 @@ export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enfor
 
   let accessToken = quiz.access_token;
   if (nextStatus === "active" && !accessToken) {
+    if (!quiz.access_code) {
+      return {
+        error: "Access code is required before activating quiz"
+      };
+    }
+
     accessToken = generateAccessToken();
   }
 

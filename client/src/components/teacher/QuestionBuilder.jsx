@@ -77,12 +77,14 @@ export default function QuestionBuilder({ question, index, onChange, onRemove, c
                 value={option.value}
                 onChange={(event) => updateOption(optionIndex, "value", event.target.value)}
                 placeholder={`Option ${option.key.toUpperCase()}`}
+                className="h-9 py-1"
                 disabled={disabled}
               />
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="h-9 px-2"
                 disabled={disabled}
                 onClick={() => {
                   if (question.options.length <= 2) {
@@ -134,7 +136,7 @@ export default function QuestionBuilder({ question, index, onChange, onRemove, c
             <Input
               type="number"
               min={1}
-              className="w-24"
+              className="h-9 w-20 max-w-[80px] py-1"
               value={question.points}
               onChange={(event) => onChange({ ...question, points: Number(event.target.value || 1) })}
               disabled={disabled}

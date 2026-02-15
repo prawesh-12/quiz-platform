@@ -122,6 +122,48 @@ function hasInvalidScheduleRange(start, end) {
   return endValue < startValue;
 }
 
+function buildShareUrlFromToken(accessToken) {
+  if (!accessToken) {
+    return "";
+  }
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return origin ? `${origin}/quiz/enter/${accessToken}` : "";
+}
+
+function normalizeDateOnlyInput(value) {
+  if (!value) {
+    return "";
+  }
+
+  const raw = String(value).trim();
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) {
+    return match[1];
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function extractApiError(error, fallbackMessage) {
+  const apiData = error?.response?.data;
+  if (apiData?.error !== "Validation failed") {
+    return apiData?.error || fallbackMessage;
+  }
+
+  const fieldErrors = apiData?.details?.fieldErrors || {};
+  const firstFieldError = Object.values(fieldErrors).flat().find(Boolean);
+  return firstFieldError || apiData?.error || fallbackMessage;
+}
+
 function moveItem(list, fromIndex, toIndex) {
   if (toIndex < 0 || toIndex >= list.length) {
     return list;
@@ -206,7 +248,7 @@ export default function ManualQuizPage() {
     setBatch(quiz.batch || "");
     setDivision(quiz.division || "");
     setGroupNos(quiz.group_nos || "");
-    setQuizDate(quiz.quiz_date || "");
+    setQuizDate(normalizeDateOnlyInput(quiz.quiz_date));
     setScheduledStart(quiz.scheduled_start ? String(quiz.scheduled_start).slice(0, 16) : "");
     setScheduledEnd(quiz.scheduled_end ? String(quiz.scheduled_end).slice(0, 16) : "");
     setAccessCode(quiz.access_code || "");
@@ -249,6 +291,9 @@ export default function ManualQuizPage() {
         options: question.options,
         correct_option: question.correct_option
       }));
+  const persistedShareUrl = isExistingQuiz
+    ? buildShareUrlFromToken(quizDetailQuery.data?.quiz?.access_token)
+    : "";
 
   const validateQuestions = () => {
     if (!questions.length) {
@@ -282,7 +327,7 @@ export default function ManualQuizPage() {
     batch: batch || null,
     division: division || null,
     group_nos: groupNos || null,
-    quiz_date: quizDate || null,
+    quiz_date: normalizeDateOnlyInput(quizDate) || null,
     scheduled_start: scheduledStart || null,
     scheduled_end: scheduledEnd || null,
     access_code: accessCode || null,
@@ -316,7 +361,7 @@ export default function ManualQuizPage() {
           }
         });
       } catch (error) {
-        setPageError(error?.response?.data?.error || "Failed to update quiz");
+        setPageError(extractApiError(error, "Failed to update quiz"));
       }
       return;
     }
@@ -337,7 +382,7 @@ export default function ManualQuizPage() {
       navigate(`/teacher/quiz/manual/${response.quiz.id}`, { replace: true });
       toast({ title: "Quiz saved", description: "Draft quiz saved successfully." });
     } catch (error) {
-      setPageError(error?.response?.data?.error || "Failed to save quiz");
+      setPageError(extractApiError(error, "Failed to save quiz"));
     }
   };
 
@@ -346,6 +391,10 @@ export default function ManualQuizPage() {
 
     if (!subjectId) {
       setPageError("Select a subject");
+      return;
+    }
+    if (!accessCode.trim()) {
+      setPageError("Access code is required to activate quiz");
       return;
     }
     if (hasInvalidScheduleRange(scheduledStart, scheduledEnd)) {
@@ -370,7 +419,7 @@ export default function ManualQuizPage() {
 
         activeQuizId = response.quiz.id;
       } catch (error) {
-        setPageError(error?.response?.data?.error || "Failed to create quiz before activation");
+        setPageError(extractApiError(error, "Failed to create quiz before activation"));
         return;
       }
     }
@@ -391,8 +440,15 @@ export default function ManualQuizPage() {
 
       const statusResponse = await quizService.updateStatus(activeQuizId, "active");
       queryClient.invalidateQueries({ queryKey: ["quizzes"] });
+      queryClient.invalidateQueries({ queryKey: ["quizzes", activeQuizId] });
 
-      setShareUrl(statusResponse.share_url || response.share_url || "");
+      const nextShareUrl =
+        statusResponse.share_url ||
+        response.share_url ||
+        buildShareUrlFromToken(statusResponse.quiz?.access_token) ||
+        buildShareUrlFromToken(response.quiz?.access_token);
+
+      setShareUrl(nextShareUrl);
       setShareDialogOpen(true);
       toast({ title: "Quiz is now live", description: "Share the link with students." });
 
@@ -400,7 +456,7 @@ export default function ManualQuizPage() {
         navigate(`/teacher/quiz/manual/${activeQuizId}`, { replace: true });
       }
     } catch (error) {
-      setPageError(error?.response?.data?.error || "Failed to activate quiz");
+      setPageError(extractApiError(error, "Failed to activate quiz"));
     }
   };
 
@@ -452,29 +508,46 @@ export default function ManualQuizPage() {
     <TeacherShell
       subjects={subjects}
       selectedSubjectId={Number(subjectId) || null}
-      onSelectSubject={(id) => navigate(`/teacher?subjectId=${id}`)}
+      onSelectSubject={(id) => navigate(`/teacher/questions/${id}`)}
       onOpenCreateSubject={() => setSubjectDialogOpen(true)}
       onOpenProfile={() => navigate("/teacher/profile")}
       user={user}
       onLogout={logout}
     >
-      <div className="space-y-6">
+      <div className="mx-auto max-w-6xl space-y-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Manual Quiz Page</CardTitle>
-            <CardDescription>
-              {isExistingQuiz
-                ? "Review generated quiz and activate it."
-                : "Create a new quiz by adding questions manually."}
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-4 border-b pb-4">
+            <div>
+              <CardTitle>Manual Quiz Page</CardTitle>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={saveAsDraft}
+                disabled={saveManualMutation.isPending || updateQuizMutation.isPending}
+              >
+                Save as Draft
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setPreviewDialogOpen(true)}>
+                Preview
+              </Button>
+              <Button
+                type="button"
+                onClick={activateQuiz}
+                disabled={saveManualMutation.isPending || updateQuizMutation.isPending}
+              >
+                Save & Activate
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+          <CardContent className="space-y-3 pt-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+              <div className="w-full space-y-2 md:col-span-3">
                 <Label>Quiz Title</Label>
                 <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Untitled quiz" />
               </div>
-              <div className="space-y-2">
+              <div className="w-full space-y-2 md:col-span-2">
                 <Label>Subject</Label>
                 <Select value={subjectId} onValueChange={setSubjectId}>
                   <SelectValue placeholder="Select subject" />
@@ -489,41 +562,46 @@ export default function ManualQuizPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+              <div className="w-full space-y-2">
                 <Label>Duration (mins)</Label>
-                <Input type="number" min={1} value={durationMins} onChange={(event) => setDurationMins(Number(event.target.value || 15))} />
+                <Input
+                  type="number"
+                  min={1}
+                  value={durationMins}
+                  onChange={(event) => setDurationMins(Number(event.target.value || 15))}
+                />
               </div>
-              <div className="space-y-2">
+              <div className="w-full space-y-2">
                 <Label>Batch</Label>
                 <Input value={batch} onChange={(event) => setBatch(event.target.value)} placeholder="2023-2027" />
               </div>
-              <div className="space-y-2">
+              <div className="w-full space-y-2">
                 <Label>Division</Label>
                 <Input value={division} onChange={(event) => setDivision(event.target.value)} placeholder="7" />
               </div>
-              <div className="space-y-2">
+              <div className="w-full space-y-2">
                 <Label>Group</Label>
                 <Input value={groupNos} onChange={(event) => setGroupNos(event.target.value)} placeholder="G13/G14" />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="w-full max-w-xs space-y-2 md:max-w-[200px]">
               <Label>Quiz Date</Label>
-              <Input type="date" value={quizDate} onChange={(event) => setQuizDate(event.target.value)} className="max-w-xs" />
+              <Input type="date" value={quizDate} onChange={(event) => setQuizDate(event.target.value)} />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="w-full space-y-2">
                 <Label>Scheduled Start</Label>
                 <DateTimePicker value={scheduledStart} onChange={setScheduledStart} placeholder="Select start" />
               </div>
-              <div className="space-y-2">
+              <div className="w-full space-y-2">
                 <Label>Scheduled End</Label>
                 <DateTimePicker value={scheduledEnd} onChange={setScheduledEnd} placeholder="Select end" />
               </div>
-              <div className="space-y-2">
-                <Label>Access Code (Optional)</Label>
+              <div className="w-full space-y-2">
+                <Label>Access Code</Label>
                 <Input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} placeholder="e.g. 2026CN" />
               </div>
             </div>
@@ -553,7 +631,7 @@ export default function ManualQuizPage() {
                   </SelectContent>
                 </Select>
 
-                <Input type="file" accept=".xlsx,.xls" onChange={onImportFile} className="max-w-60" />
+                <Input type="file" accept=".xlsx,.xls" onChange={onImportFile} />
               </div>
             </div>
             {importStatus ? <p className="text-xs text-muted-foreground">{importStatus}</p> : null}
@@ -608,17 +686,29 @@ export default function ManualQuizPage() {
 
         {pageError ? <p className="text-sm text-destructive">{pageError}</p> : null}
 
-        <div className="flex flex-wrap gap-3">
-          <Button type="button" variant="outline" onClick={saveAsDraft} disabled={saveManualMutation.isPending || updateQuizMutation.isPending}>
-            Save as Draft
-          </Button>
-          <Button type="button" variant="outline" onClick={() => setPreviewDialogOpen(true)}>
-            Preview
-          </Button>
-          <Button type="button" onClick={activateQuiz} disabled={saveManualMutation.isPending || updateQuizMutation.isPending}>
-            Save & Activate
-          </Button>
-        </div>
+        {shareUrl || persistedShareUrl ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Share Quiz Link</CardTitle>
+              <CardDescription>Copy this link and share it with students.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Input value={shareUrl || persistedShareUrl} readOnly />
+              <Button
+                type="button"
+                onClick={async () => {
+                  const value = shareUrl || persistedShareUrl;
+                  if (!value) return;
+                  await navigator.clipboard.writeText(value);
+                  toast({ title: "Link copied", description: "Quiz link copied to clipboard." });
+                }}
+              >
+                Copy Link
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+
       </div>
 
       <Dialog open={subjectDialogOpen} onOpenChange={setSubjectDialogOpen}>
@@ -665,10 +755,12 @@ export default function ManualQuizPage() {
             <Button
               type="button"
               onClick={async () => {
-                if (!shareUrl) return;
-                await navigator.clipboard.writeText(shareUrl);
+                const value = shareUrl || persistedShareUrl;
+                if (!value) return;
+                await navigator.clipboard.writeText(value);
+                toast({ title: "Link copied", description: "Quiz link copied to clipboard." });
               }}
-              disabled={!shareUrl}
+              disabled={!(shareUrl || persistedShareUrl)}
             >
               Copy Link
             </Button>

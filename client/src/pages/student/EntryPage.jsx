@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
@@ -18,7 +19,7 @@ const entrySchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
   division: z.string().trim().min(1, "Division is required"),
   group_no: z.string().trim().min(1, "Group is required"),
-  access_code: z.string().trim().max(20).optional()
+  access_code: z.string().trim().min(1, "Access code is required").max(20)
 });
 
 export default function EntryPage() {
@@ -72,7 +73,11 @@ export default function EntryPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-muted/30 p-4">
+      <Button type="button" variant="outline" size="sm" className="absolute left-4 top-4" onClick={() => navigate(-1)}>
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>Quiz Entry</CardTitle>
@@ -158,7 +163,7 @@ export default function EntryPage() {
                 name="access_code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Access Code (if provided)</FormLabel>
+                    <FormLabel>Access Code</FormLabel>
                     <FormControl>
                       <Input placeholder="Enter access code" {...field} />
                     </FormControl>
