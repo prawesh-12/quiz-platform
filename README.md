@@ -1,23 +1,4 @@
-# Quiz Platform - Phase 1-3
-
-This repository currently implements **Section 7 - Phase 1, Phase 2, and Phase 3**:
-
-- React client setup with Tailwind + shadcn/ui components for auth pages
-- Express server setup with PostgreSQL connection and auth endpoints
-- SQL schema for all 8 planned tables
-- JWT-based teacher authentication (`register`, `login`, `me`)
-- Client auth context with token rehydration and protected teacher routes
-- Teacher dashboard shell with sidebar + profile footer
-- Subject management (`GET/POST/DELETE /api/subjects`)
-- Question management (`GET/POST/DELETE /api/questions`)
-- Quiz listing with `search` and `status` filters (`GET /api/quizzes`)
-- Generate mode modal (manual vs auto)
-- Manual quiz creation page with question builder and math helper popup
-- Auto-generate quiz page with subject + question count selection
-- Quiz creation endpoints (`POST /api/quizzes/manual`, `POST /api/quizzes/auto-generate`)
-- Quiz detail + update endpoints (`GET /api/quizzes/:id`, `PUT /api/quizzes/:id`)
-- Quiz activation with shareable access link generation
-- Excel bulk import endpoint (`POST /api/questions/bulk-import`) and client parser utility
+# Quiz Platform
 
 ## Project Structure
 
@@ -102,11 +83,6 @@ Client runs on `http://localhost:5173` by default.
 - `GET /api/quizzes/:id`
 - `PUT /api/quizzes/:id`
 
-## Notes
-
-- Authentication is teacher-only in Phase 1.
-- Token key in client localStorage: `quiz_token`.
-- Phase 4+ features are intentionally not implemented yet.
 
 ## Note About Excel Parsing
 
