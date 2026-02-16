@@ -286,11 +286,11 @@ export default function ManualQuizPage() {
   const previewQuestions = isExistingQuiz
     ? (previewQuery.data?.questions || []).map(mapPreviewQuestion)
     : questions.map((question) => ({
-        id: question.id,
-        question_text: question.question_text,
-        options: question.options,
-        correct_option: question.correct_option
-      }));
+      id: question.id,
+      question_text: question.question_text,
+      options: question.options,
+      correct_option: question.correct_option
+    }));
   const persistedShareUrl = isExistingQuiz
     ? buildShareUrlFromToken(quizDetailQuery.data?.quiz?.access_token)
     : "";

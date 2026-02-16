@@ -29,7 +29,7 @@ export default function TeacherShell({
                 onLogout={onLogout}
             />
             <main className="flex min-h-screen flex-col pl-0 md:ml-72 md:h-screen md:overflow-hidden">
-                <div className="flex flex-1 flex-col p-4 md:p-6">
+                <div className="flex flex-1 flex-col p-4 md:p-6 overflow-y-auto">
                     {showBackButton ? (
                         <div className="mb-4">
                             <Button

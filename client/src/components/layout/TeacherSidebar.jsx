@@ -33,7 +33,7 @@ export default function TeacherSidebar({
 
       <div className="mb-3 flex items-center justify-between">
         <Label className="text-sm font-semibold tracking-wide">Subject Questions Database</Label>
-        <Sparkles className="h-4 w-4 text-muted-foreground" />
+        {/* <Sparkles className="h-4 w-4 text-muted-foreground" /> */}
       </div>
       <Separator className="mb-3" />
 
