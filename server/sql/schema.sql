@@ -15,9 +15,23 @@ CREATE TABLE IF NOT EXISTS subjects (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS units (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  subject_id INT REFERENCES subjects(id) ON DELETE CASCADE,
+  order_no INT DEFAULT 1,
+  created_by INT REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE (subject_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS questions (
   id SERIAL PRIMARY KEY,
   subject_id INT REFERENCES subjects(id) ON DELETE CASCADE,
+  unit_id INT REFERENCES units(id) ON DELETE SET NULL,
   question_text TEXT NOT NULL,
   option_a TEXT NOT NULL,
   option_b TEXT NOT NULL,
@@ -28,6 +42,7 @@ CREATE TABLE IF NOT EXISTS questions (
   allow_multiple_answers BOOLEAN DEFAULT FALSE,
   points INT DEFAULT 1,
   is_required BOOLEAN DEFAULT TRUE,
+  in_subject_bank BOOLEAN DEFAULT FALSE,
   created_by INT REFERENCES users(id),
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -98,5 +113,7 @@ CREATE INDEX IF NOT EXISTS idx_student_sessions_quiz_id ON student_sessions(quiz
 CREATE INDEX IF NOT EXISTS idx_student_sessions_session_token ON student_sessions(session_token);
 CREATE INDEX IF NOT EXISTS idx_student_answers_session_id ON student_answers(session_id);
 CREATE INDEX IF NOT EXISTS idx_violation_flags_session_id ON violation_flags(session_id);
+CREATE INDEX IF NOT EXISTS idx_questions_unit_id ON questions(unit_id);
+CREATE INDEX IF NOT EXISTS idx_questions_in_subject_bank ON questions(in_subject_bank);
 CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_start ON quizzes(scheduled_start);
 CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_end ON quizzes(scheduled_end);

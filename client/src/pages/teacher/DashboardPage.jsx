@@ -154,9 +154,8 @@ export default function DashboardPage() {
       onLogout={logout}
       showBackButton={false}
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-6">
-        <Card className="mx-auto max-w-3xl shrink-0">
-          <CardContent className="pt-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
+       <div className="mx-auto w-full max-w-3xl shrink-0">
             <div className="grid grid-cols-3 items-center gap-3">
 
               {/* Left */}
@@ -201,16 +200,13 @@ export default function DashboardPage() {
               </div>
 
             </div>
-          </CardContent>
-        </Card>
+        </div>
 
-
-        <Card className="flex min-h-0 flex-1 flex-col">
+        <Card>
           <CardHeader className="shrink-0">
             <CardTitle>Quiz List</CardTitle>
           </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
-            <div className="min-h-0 flex-1 overflow-y-auto">
+          <CardContent className="pt-0">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {quizzesQuery.isLoading ? (
                   <p className="col-span-full text-sm text-muted-foreground">
@@ -242,7 +238,6 @@ export default function DashboardPage() {
                       onDelete={(item) => setQuizToDelete(item)}
                     />
                 ))}
-              </div>
             </div>
             <div className="shrink-0 pt-3">
               <Pagination

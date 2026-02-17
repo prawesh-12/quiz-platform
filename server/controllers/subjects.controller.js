@@ -77,3 +77,80 @@ export async function deleteSubject(req, res, next) {
     return next(error);
   }
 }
+
+async function assertSubjectOwnership(subjectId, userId) {
+  const result = await query(
+    `SELECT id FROM subjects WHERE id = $1 AND created_by = $2`,
+    [subjectId, userId]
+  );
+  return result.rowCount > 0;
+}
+
+export async function getQuizHistoryBySubject(req, res, next) {
+    try {
+        const { id } = subjectIdParamSchema.parse(req.params);
+
+        const isOwned = await assertSubjectOwnership(id, req.user.userId);
+        if (!isOwned) {
+            return res.status(404).json({ error: "Subject not found" });
+        }
+
+        // Fetch quizzes with their questions
+        // Grouping might be better done in JS if we want a nested structure,
+        // or we can just fetch quizzes and then fetch questions (N+1 but simple)
+        // or separate queries.
+        // The plan says: "Returns all quizzes for the subject, each with their associated questions"
+        // Let's do a join query and organize in JS.
+
+        const result = await query(`
+            SELECT 
+                qz.id as quiz_id, qz.title, qz.quiz_date, qz.status, qz.created_at as quiz_created_at,
+                q.id as question_id, q.question_text, q.correct_option, q.points, q.has_equation,
+                q.option_a, q.option_b, q.option_c, q.option_d,
+                qq.order_no
+            FROM quizzes qz
+            JOIN quiz_questions qq ON qq.quiz_id = qz.id
+            JOIN questions q ON q.id = qq.question_id
+            WHERE qz.subject_id = $1 AND qz.created_by = $2
+            ORDER BY qz.quiz_date DESC NULLS LAST, qz.created_at DESC, qq.order_no ASC
+        `, [id, req.user.userId]);
+
+        const quizzesMap = new Map();
+
+        for (const row of result.rows) {
+            if (!quizzesMap.has(row.quiz_id)) {
+                quizzesMap.set(row.quiz_id, {
+                    id: row.quiz_id,
+                    title: row.title,
+                    quiz_date: row.quiz_date,
+                    status: row.status,
+                    created_at: row.quiz_created_at,
+                    questions: []
+                });
+            }
+
+            if (row.question_id) {
+                quizzesMap.get(row.quiz_id).questions.push({
+                    id: row.question_id,
+                    question_text: row.question_text,
+                    correct_option: row.correct_option,
+                    points: row.points,
+                    has_equation: row.has_equation,
+                    option_a: row.option_a,
+                    option_b: row.option_b,
+                    option_c: row.option_c,
+                    option_d: row.option_d,
+                    order_no: row.order_no
+                });
+            }
+        }
+
+        return res.json({ quizzes: Array.from(quizzesMap.values()) });
+
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ error: "Invalid subject id" });
+        }
+        next(error);
+    }
+}

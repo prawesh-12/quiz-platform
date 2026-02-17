@@ -27,6 +27,8 @@ import { parseQuestionsExcel } from "@/utils/excelParser";
 import { questionService } from "@/services/questionService";
 import { quizService } from "@/services/quizService";
 import { subjectService } from "@/services/subjectService";
+import { unitService } from "@/services/unitService";
+import QuestionPreviewList from "@/components/teacher/QuestionPreviewList";
 
 function createEmptyQuestion() {
   return {
@@ -83,7 +85,39 @@ function mapBuilderQuestionToApi(question) {
     points: Number(question.points || 1),
     has_equation: Boolean(question.has_equation),
     allow_multiple_answers: Boolean(question.allow_multiple_answers),
-    is_required: Boolean(question.is_required)
+    is_required: Boolean(question.is_required),
+    unit_id: question.unit_id || null,
+    new_unit_name: question.new_unit_name || null,
+    in_subject_bank: Boolean(question.in_subject_bank)
+  };
+}
+
+function mapImportedQuestionToBuilder(question) {
+  const options = [
+    { key: "a", value: question.option_a || "" },
+    { key: "b", value: question.option_b || "" }
+  ];
+
+  if (question.option_c) {
+    options.push({ key: "c", value: question.option_c });
+  }
+
+  if (question.option_d) {
+    options.push({ key: "d", value: question.option_d });
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    question_text: question.question_text,
+    options,
+    correct_option: question.correct_option,
+    points: question.points || 1,
+    has_equation: Boolean(question.has_equation),
+    allow_multiple_answers: Boolean(question.allow_multiple_answers),
+    is_required: Boolean(question.is_required),
+    unit_id: null,
+    new_unit_name: null,
+    in_subject_bank: false
   };
 }
 
@@ -203,6 +237,7 @@ export default function ManualQuizPage() {
   const [scheduledEnd, setScheduledEnd] = useState("");
   const [accessCode, setAccessCode] = useState("");
   const [questions, setQuestions] = useState([createEmptyQuestion()]);
+  const [importedQuestions, setImportedQuestions] = useState([]);
   const [pageError, setPageError] = useState("");
 
   const [subjectDialogOpen, setSubjectDialogOpen] = useState(false);
@@ -222,6 +257,13 @@ export default function ManualQuizPage() {
   });
 
   const subjects = subjectsQuery.data?.subjects ?? [];
+
+  const unitsQuery = useQuery({
+    queryKey: ["units", subjectId],
+    queryFn: () => unitService.listBySubject(subjectId),
+    enabled: Boolean(subjectId)
+  });
+  const units = unitsQuery.data?.units ?? [];
 
   const quizDetailQuery = useQuery({
     queryKey: ["quizzes", quizId],
@@ -319,12 +361,17 @@ export default function ManualQuizPage() {
   };
 
   const validateQuestions = () => {
-    if (!questions.length) {
+    const allQuestions = [...questions, ...importedQuestions];
+
+    if (!allQuestions.length) {
       return "Add at least one question";
     }
 
-    for (let index = 0; index < questions.length; index += 1) {
-      const item = questions[index];
+    // Filter out the default empty question if it's the only one and we have imported questions?
+    // Actually, user should remove it if they don't want it.
+    
+    for (let index = 0; index < allQuestions.length; index += 1) {
+      const item = allQuestions[index];
       const optionsMap = Object.fromEntries(item.options.map((option) => [option.key, option.value.trim()]));
 
       if (!item.question_text.trim()) {
@@ -401,7 +448,7 @@ export default function ManualQuizPage() {
     try {
       await saveManualMutation.mutateAsync({
         ...buildQuizPayload(),
-        questions: questions.map(mapBuilderQuestionToApi)
+        questions: [...questions, ...importedQuestions].map(mapBuilderQuestionToApi)
       });
 
       queryClient.invalidateQueries({ queryKey: ["quizzes"] });
@@ -440,7 +487,7 @@ export default function ManualQuizPage() {
       try {
         const response = await saveManualMutation.mutateAsync({
           ...buildQuizPayload(),
-          questions: questions.map(mapBuilderQuestionToApi)
+          questions: [...questions, ...importedQuestions].map(mapBuilderQuestionToApi)
         });
 
         activeQuizId = response.quiz.id;
@@ -492,11 +539,6 @@ export default function ManualQuizPage() {
       return;
     }
 
-    if (!importSubjectId) {
-      setImportStatus("Select a subject before importing");
-      return;
-    }
-
     try {
       const parsed = await parseQuestionsExcel(file);
 
@@ -505,21 +547,17 @@ export default function ManualQuizPage() {
         return;
       }
 
-      const response = await questionService.bulkImport({
-        subject_id: Number(importSubjectId),
-        questions: parsed.questions
-      });
+      const newQuestions = parsed.questions.map(mapImportedQuestionToBuilder);
+      
+      setImportedQuestions((prev) => [...prev, ...newQuestions]);
 
       const warningMessage = parsed.warnings.length ? ` Warnings: ${parsed.warnings.slice(0, 3).join(" | ")}` : "";
-      setImportStatus(`Imported ${response.inserted_count} questions.${warningMessage}`);
+      setImportStatus(`Added ${newQuestions.length} questions to preview.${warningMessage}`);
       toast({
         title: "Import complete",
-        description: `${response.inserted_count} questions imported successfully.`
+        description: `${newQuestions.length} questions added to preview.`
       });
 
-      if (String(importSubjectId) === String(subjectId)) {
-        queryClient.invalidateQueries({ queryKey: ["questions", Number(subjectId)] });
-      }
     } catch (error) {
       setImportStatus(error?.response?.data?.error || error.message || "Import failed");
     } finally {
@@ -639,7 +677,7 @@ export default function ManualQuizPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <Label className="text-xs">Excel Import to Subject Bank</Label>
+                <Label className="text-xs">Import Questions from Excel</Label>
                 <p className="text-xs text-muted-foreground">Subject: {selectedSubjectName}</p>
               </div>
               <div className="flex items-center gap-2">
@@ -660,6 +698,18 @@ export default function ManualQuizPage() {
             {importStatus ? <p className="text-xs text-muted-foreground">{importStatus}</p> : null}
           </CardContent>
         </Card>
+
+        {importedQuestions.length > 0 ? (
+          <QuestionPreviewList
+            questions={importedQuestions}
+            units={units}
+            onUpdateQuestion={(id, updated) =>
+              setImportedQuestions((prev) => prev.map((q) => (q.id === id ? updated : q)))
+            }
+            onRemoveQuestion={(id) => setImportedQuestions((prev) => prev.filter((q) => q.id !== id))}
+            onClearAll={() => setImportedQuestions([])}
+          />
+        ) : null}
 
         <div className="space-y-4">
           {questions.map((question, index) => (

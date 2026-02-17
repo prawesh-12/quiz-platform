@@ -14,5 +14,10 @@ export const subjectService = {
   async remove(id) {
     const response = await api.delete(`/subjects/${id}`);
     return response.data;
+  },
+
+  async getQuizHistory(id) {
+    const response = await api.get(`/subjects/${id}/quiz-history`);
+    return response.data;
   }
 };

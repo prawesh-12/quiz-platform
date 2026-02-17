@@ -14,7 +14,9 @@ const questionInputSchema = z.object({
   points: z.coerce.number().int().positive().optional().default(1),
   has_equation: z.boolean().optional().default(false),
   allow_multiple_answers: z.boolean().optional().default(false),
-  is_required: z.boolean().optional().default(true)
+  is_required: z.boolean().optional().default(true),
+  unit_id: z.coerce.number().int().positive().optional().nullable(),
+  in_subject_bank: z.boolean().optional().default(false)
 });
 
 export const createQuestionSchema = questionInputSchema.extend({
@@ -37,7 +39,9 @@ export const updateQuestionSchema = z
     points: z.coerce.number().int().positive().optional(),
     has_equation: z.boolean().optional(),
     allow_multiple_answers: z.boolean().optional(),
-    is_required: z.boolean().optional()
+    is_required: z.boolean().optional(),
+    unit_id: z.coerce.number().int().positive().optional().nullable(),
+    in_subject_bank: z.boolean().optional()
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one field is required"
@@ -51,7 +55,9 @@ const listQuestionsQuerySchema = z.object({
   subject_id: z.coerce.number().int().positive(),
   search: z.string().trim().max(255).optional(),
   page: z.coerce.number().int().positive().optional().default(1),
-  limit: z.coerce.number().int().positive().max(100).optional().default(10)
+  limit: z.coerce.number().int().positive().max(100).optional().default(10),
+  in_subject_bank: z.enum(["true", "false"]).optional(),
+  unit_id: z.coerce.number().int().optional().nullable()
 });
 
 async function assertSubjectOwnership(subjectId, userId) {
@@ -80,13 +86,15 @@ function mapQuestionInsertValues(payload, userId) {
     payload.allow_multiple_answers,
     payload.points,
     payload.is_required,
-    userId
+    userId,
+    payload.unit_id ?? null,
+    payload.in_subject_bank ?? false
   ];
 }
 
 export async function listQuestions(req, res, next) {
   try {
-    const { subject_id: subjectId, search, page, limit } = listQuestionsQuerySchema.parse(req.query);
+    const { subject_id: subjectId, search, page, limit, in_subject_bank, unit_id: unitId } = listQuestionsQuerySchema.parse(req.query);
     const offset = (page - 1) * limit;
 
     const isOwned = await assertSubjectOwnership(subjectId, req.user.userId);
@@ -94,18 +102,35 @@ export async function listQuestions(req, res, next) {
       return res.status(404).json({ error: "Subject not found" });
     }
 
+    const inSubjectBankFilter = in_subject_bank === "false" ? false : true; 
+
+    const params = [subjectId, req.user.userId, search || null, limit, offset, inSubjectBankFilter];
+    let unitFilter = "";
+
+    if (unitId !== undefined) {
+        if (unitId === null || unitId === -1) {
+            unitFilter = "AND unit_id IS NULL";
+        } else {
+            params.push(unitId);
+            unitFilter = `AND unit_id = $${params.length}`;
+        }
+    }
+
     const result = await query(
       `
       SELECT id, subject_id, question_text, option_a, option_b, option_c, option_d,
              correct_option, has_equation, allow_multiple_answers, points, is_required,
-             created_by, created_at, COUNT(*) OVER()::int AS total_count
+             created_by, created_at, unit_id, in_subject_bank,
+             COUNT(*) OVER()::int AS total_count
       FROM questions
       WHERE subject_id = $1 AND created_by = $2
         AND ($3::text IS NULL OR question_text ILIKE '%' || $3 || '%')
+        AND ($6::boolean IS NULL OR in_subject_bank = $6)
+        ${unitFilter}
       ORDER BY created_at DESC, id DESC
       LIMIT $4 OFFSET $5
       `,
-      [subjectId, req.user.userId, search || null, limit, offset]
+      params
     );
 
     const total = result.rows[0]?.total_count ?? 0;

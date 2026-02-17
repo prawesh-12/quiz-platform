@@ -1,3 +1,5 @@
+import * as XLSX from "xlsx";
+
 const REQUIRED_COLUMNS = ["question_text", "option_a", "option_b", "correct_option"];
 
 function normalizeBoolean(value) {
@@ -27,17 +29,8 @@ function normalizeOption(value) {
 }
 
 export async function parseQuestionsExcel(file) {
-  let xlsxModule;
-  const dynamicImport = new Function("moduleName", "return import(moduleName)");
-
-  try {
-    xlsxModule = await dynamicImport("xlsx");
-  } catch {
-    throw new Error("xlsx dependency is missing. Install it with: npm install xlsx");
-  }
-
   const workbookBuffer = await file.arrayBuffer();
-  const workbook = xlsxModule.read(workbookBuffer, { type: "array" });
+  const workbook = XLSX.read(workbookBuffer, { type: "array" });
   const sheetName = workbook.SheetNames[0];
 
   if (!sheetName) {
@@ -45,7 +38,7 @@ export async function parseQuestionsExcel(file) {
   }
 
   const sheet = workbook.Sheets[sheetName];
-  const rows = xlsxModule.utils.sheet_to_json(sheet, {
+  const rows = XLSX.utils.sheet_to_json(sheet, {
     defval: ""
   });
 

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import TeacherShell from "@/components/layout/TeacherShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import DateTimePicker from "@/components/ui/date-time-picker";
 import {
   Dialog,
@@ -16,11 +17,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { quizService } from "@/services/quizService";
 import { subjectService } from "@/services/subjectService";
+import { unitService } from "@/services/unitService";
 
 function hasInvalidScheduleRange(start, end) {
   if (!start || !end) {
@@ -82,13 +85,22 @@ export default function AutoGeneratePage() {
   const [subjectDialogOpen, setSubjectDialogOpen] = useState(false);
   const [subjectName, setSubjectName] = useState("");
   const [pageError, setPageError] = useState("");
+  
+  const [selectedUnitIds, setSelectedUnitIds] = useState([]);
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects"],
     queryFn: () => subjectService.list()
   });
 
+  const unitsQuery = useQuery({
+    queryKey: ["units", subjectId],
+    enabled: Boolean(subjectId),
+    queryFn: () => unitService.listBySubject(subjectId)
+  });
+
   const subjects = subjectsQuery.data?.subjects ?? [];
+  const units = unitsQuery.data?.units ?? [];
 
   useEffect(() => {
     if (!subjects.length || subjectId) {
@@ -101,6 +113,11 @@ export default function AutoGeneratePage() {
   useEffect(() => {
     setScheduledEnd(calculateScheduledEnd(scheduledStart, durationMins));
   }, [scheduledStart, durationMins]);
+  
+  // Reset selected units when subject changes
+  useEffect(() => {
+    setSelectedUnitIds([]);
+  }, [subjectId]);
 
   const createSubjectMutation = useMutation({
     mutationFn: (payload) => subjectService.create(payload),
@@ -155,11 +172,20 @@ export default function AutoGeneratePage() {
         scheduled_start: scheduledStart || null,
         scheduled_end: scheduledEnd || null,
         access_code: accessCode || null,
-        status: "draft"
+        status: "draft",
+        unit_ids: selectedUnitIds.length > 0 ? selectedUnitIds : undefined
       });
     } catch (error) {
       setPageError(error?.response?.data?.error || "Failed to auto-generate quiz");
     }
+  };
+  
+  const toggleUnit = (unitId) => {
+      setSelectedUnitIds(prev => 
+         prev.includes(unitId) 
+             ? prev.filter(id => id !== unitId)
+             : [...prev, unitId]
+      );
   };
 
   return (
@@ -193,6 +219,34 @@ export default function AutoGeneratePage() {
                 </SelectContent>
               </Select>
             </div>
+            
+            {units.length > 0 ? (
+                <div className="space-y-2">
+                    <Label>Filter by Units (Optional)</Label>
+                    <Card className="border shadow-none">
+                        <ScrollArea className="h-40 p-4">
+                            <div className="space-y-2">
+                                {units.map((unit) => (
+                                    <div key={unit.id} className="flex items-center space-x-2">
+                                        <Checkbox 
+                                            id={`unit-${unit.id}`} 
+                                            checked={selectedUnitIds.includes(unit.id)}
+                                            onCheckedChange={() => toggleUnit(unit.id)}
+                                        />
+                                        <Label 
+                                            htmlFor={`unit-${unit.id}`} 
+                                            className="text-sm font-normal cursor-pointer"
+                                        >
+                                            {unit.name} <span className="text-muted-foreground text-xs">({unit.question_count})</span>
+                                        </Label>
+                                    </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    </Card>
+                    <p className="text-xs text-muted-foreground">Select specific units or leave empty to include all questions from the bank.</p>
+                </div>
+            ) : null}
 
             <div className="space-y-2">
               <Label>Select the Number of Questions</Label>

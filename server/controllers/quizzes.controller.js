@@ -31,7 +31,10 @@ const questionPayloadSchema = z.object({
   points: z.coerce.number().int().positive().optional().default(1),
   has_equation: z.boolean().optional().default(false),
   allow_multiple_answers: z.boolean().optional().default(false),
-  is_required: z.boolean().optional().default(true)
+  is_required: z.boolean().optional().default(true),
+  unit_id: z.coerce.number().int().positive().optional().nullable(),
+  new_unit_name: z.string().trim().min(1).max(100).optional().nullable(),
+  in_subject_bank: z.boolean().optional().default(false)
 });
 
 export const createManualQuizSchema = quizMetaSchema.extend({
@@ -39,7 +42,8 @@ export const createManualQuizSchema = quizMetaSchema.extend({
 });
 
 export const autoGenerateQuizSchema = quizMetaSchema.extend({
-  question_count: z.coerce.number().int().positive()
+  question_count: z.coerce.number().int().positive(),
+  unit_ids: z.array(z.coerce.number().int().positive()).optional()
 });
 
 export const updateQuizSchema = z
@@ -255,20 +259,49 @@ export async function createManualQuiz(req, res, next) {
 
     const quiz = quizResult.rows[0];
     const insertedQuestions = [];
+    const newUnitsMap = new Map(); // cache for created unit names in this request
 
     for (let index = 0; index < payload.questions.length; index += 1) {
       const item = payload.questions[index];
+      let unitId = item.unit_id;
+
+      if (item.new_unit_name) {
+        if (newUnitsMap.has(item.new_unit_name)) {
+            unitId = newUnitsMap.get(item.new_unit_name);
+        } else {
+            // Check if exists first to avoid duplicate error if unique constraint exists (assuming standard names)
+            // or just insert. Let's try insert returning id. 
+            // If we want to prevent duplicate names per subject, we should check.
+            // Simplified: check if exists, if not insert.
+            const existingUnit = await client.query(
+                `SELECT id FROM units WHERE subject_id = $1 AND name = $2 AND created_by = $3`,
+                [metadata.subject_id, item.new_unit_name, req.user.userId]
+            );
+            
+            if (existingUnit.rowCount > 0) {
+                unitId = existingUnit.rows[0].id;
+            } else {
+                const newUnit = await client.query(
+                    `INSERT INTO units (name, subject_id, created_by) VALUES ($1, $2, $3) RETURNING id`,
+                    [item.new_unit_name, metadata.subject_id, req.user.userId]
+                );
+                unitId = newUnit.rows[0].id;
+            }
+            newUnitsMap.set(item.new_unit_name, unitId);
+        }
+      }
 
       const questionResult = await client.query(
         `
         INSERT INTO questions (
           subject_id, question_text, option_a, option_b, option_c, option_d,
-          correct_option, has_equation, allow_multiple_answers, points, is_required, created_by
+          correct_option, has_equation, allow_multiple_answers, points, is_required, created_by,
+          unit_id, in_subject_bank
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING id, subject_id, question_text, option_a, option_b, option_c, option_d,
                   correct_option, has_equation, allow_multiple_answers, points, is_required,
-                  created_by, created_at
+                  created_by, created_at, unit_id, in_subject_bank
         `,
         [
           metadata.subject_id,
@@ -282,7 +315,9 @@ export async function createManualQuiz(req, res, next) {
           item.allow_multiple_answers,
           item.points,
           item.is_required,
-          req.user.userId
+          req.user.userId,
+          unitId ?? null,
+          item.in_subject_bank ?? false
         ]
       );
 
@@ -328,16 +363,24 @@ export async function autoGenerateQuiz(req, res, next) {
       return res.status(404).json({ error: "Subject not found" });
     }
 
-    const availableQuestions = await client.query(
-      `
+    let queryText = `
       SELECT id
       FROM questions
-      WHERE subject_id = $1 AND created_by = $2
-      ORDER BY RANDOM()
-      LIMIT $3
-      `,
-      [metadata.subject_id, req.user.userId, payload.question_count]
-    );
+      WHERE subject_id = $1 AND created_by = $2 AND in_subject_bank = TRUE
+    `;
+    const queryParams = [metadata.subject_id, req.user.userId];
+    let paramIndex = 3;
+
+    if (payload.unit_ids && payload.unit_ids.length > 0) {
+        queryText += ` AND unit_id = ANY($${paramIndex})`;
+        queryParams.push(payload.unit_ids);
+        paramIndex += 1;
+    }
+
+    queryText += ` ORDER BY RANDOM() LIMIT $${paramIndex}`;
+    queryParams.push(payload.question_count);
+
+    const availableQuestions = await client.query(queryText, queryParams);
 
     if (availableQuestions.rowCount < payload.question_count) {
       return res.status(400).json({
