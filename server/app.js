@@ -1,5 +1,10 @@
 import cors from "cors";
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import errorHandler from "./middleware/errorHandler.js";
 import authRouter from "./routes/auth.routes.js";
@@ -36,8 +41,12 @@ app.get("/", (req, res) => {
   res.status(200).json({ message: "Quiz Platform API is running" });
 });
 
-app.use((req, res) => {
-  res.status(404).json({ error: "Route not found" });
+// app.use((req, res) => {
+//   res.status(404).json({ error: "Route not found" });
+// });
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/dist/index.html"));
 });
 
 app.use(errorHandler);
