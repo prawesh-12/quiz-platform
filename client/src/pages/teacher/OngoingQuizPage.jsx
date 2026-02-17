@@ -132,6 +132,13 @@ export default function OngoingQuizPage() {
     }
   });
 
+  const stats = liveStatsQuery.data?.stats;
+  const quiz = liveStatsQuery.data?.quiz;
+  const rows = responsesQuery.data?.responses || [];
+  const subjects = subjectsQuery.data?.subjects || [];
+
+  const isEnded = quiz?.status === "ended";
+
   const shareUrl = quiz?.access_token ? `${window.location.origin}/quiz/enter/${quiz.access_token}` : null;
 
   const copyLink = () => {
@@ -150,12 +157,7 @@ export default function OngoingQuizPage() {
     );
   };
 
-  const stats = liveStatsQuery.data?.stats;
-  const quiz = liveStatsQuery.data?.quiz;
-  const rows = responsesQuery.data?.responses || [];
-  const subjects = subjectsQuery.data?.subjects || [];
 
-  const isEnded = quiz?.status === "ended";
 
   const downloadExport = async () => {
     try {
@@ -231,16 +233,6 @@ export default function OngoingQuizPage() {
                     Export Results
                   </Button>
                 )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => setDeleteDialogOpen(true)}
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 className="mr-1.5 h-4 w-4" />
-                  Delete quiz
-                </Button>
               </div>
             </div>
           </CardHeader>

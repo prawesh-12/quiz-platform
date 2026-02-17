@@ -48,7 +48,7 @@ export default function DashboardPage() {
   const [quizPage, setQuizPage] = useState(1);
   const [quizToDelete, setQuizToDelete] = useState(null);
 
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 18;
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects"],
