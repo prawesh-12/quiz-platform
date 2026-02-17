@@ -32,6 +32,10 @@ app.use("/api/quizzes", quizzesRouter);
 app.use("/api/sessions", sessionsRouter);
 app.use("/api/violations", violationsRouter);
 
+app.get("/", (req, res) => {
+  res.status(200).json({ message: "Quiz Platform API is running" });
+});
+
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
