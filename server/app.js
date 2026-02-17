@@ -14,7 +14,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: https://quiz-platform-frontend-miv2.onrender.com,
+    origin: "https://quiz-platform-frontend-miv2.onrender.com",
     credentials: true
   })
 );
