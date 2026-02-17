@@ -96,6 +96,11 @@ export async function getQuizResponses(req, res, next) {
       };
     });
 
+    // Sort by roll number using natural alphanumeric order
+    responses.sort((a, b) =>
+      (a.roll_no || "").localeCompare(b.roll_no || "", undefined, { numeric: true, sensitivity: "base" })
+    );
+
     return res.status(200).json({
       quiz: quizResult.rows[0],
       data: responses,

@@ -1,19 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Check, X } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import CountdownTimer from "@/components/quiz/CountdownTimer";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,16 +15,7 @@ import {
 } from "@/components/ui/card";
 import { useProctoring } from "@/hooks/useProctoring";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
 import { useTimer } from "@/hooks/useTimer";
 import { useToast } from "@/hooks/useToast";
 import { sessionService } from "@/services/sessionService";
@@ -65,7 +46,7 @@ function QuestionContent({ question }) {
         return (
             <div className="space-y-2">
                 <Badge variant="secondary">Equation</Badge>
-                <pre className="whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-sm">
+                <pre className="whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-base">
                     {question.question_text}
                 </pre>
             </div>
@@ -73,16 +54,14 @@ function QuestionContent({ question }) {
     }
 
     return (
-        <p className="whitespace-pre-wrap text-sm">{question.question_text}</p>
+        <p className="whitespace-pre-wrap text-base">{question.question_text}</p>
     );
 }
 
 export default function QuizPage() {
     const navigate = useNavigate();
     const location = useLocation();
-    const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
     const [submitError, setSubmitError] = useState("");
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [answers, setAnswers] = useState({});
     const [result, setResult] = useState(null);
     const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -183,11 +162,23 @@ export default function QuizPage() {
         onExpire: submitQuiz,
     });
 
-    const currentQuestion = questions[currentQuestionIndex] || null;
     const answeredCount = Object.values(answers).filter(Boolean).length;
-    const progressLabel = questions.length
-        ? `${currentQuestionIndex + 1} / ${questions.length}`
-        : "0 / 0";
+
+    // Block browser back button after submission
+    useEffect(() => {
+        if (!hasSubmitted) {
+            return undefined;
+        }
+
+        window.history.pushState(null, "", window.location.href);
+
+        const handlePopState = () => {
+            window.history.pushState(null, "", window.location.href);
+        };
+
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
+    }, [hasSubmitted]);
 
     useEffect(() => {
         if (!sessionToken || hasSubmitted || !payload) {
@@ -210,174 +201,63 @@ export default function QuizPage() {
         return () => window.clearTimeout(timeout);
     }, [answers, hasSubmitted, payload, progressMutation, sessionToken]);
 
+    // Handle option selection for any question
+    const handleSelectOption = (questionId, optionKey) => {
+        setAnswers((prev) => ({
+            ...prev,
+            [questionId]: optionKey,
+        }));
+    };
+
+    // --- Invalid session ---
     if (!payload || !quiz || !questions.length || !sessionToken) {
         return (
-            <div className="relative flex min-h-screen items-center justify-center bg-muted/30 p-4">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="absolute left-4 top-4"
-                    onClick={() => navigate(-1)}
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                </Button>
-                <Card className="w-full max-w-md">
+            <div className="min-h-screen bg-muted/30 px-4 py-8 flex items-center justify-center">
+                <Card className="w-full max-w-md mx-auto">
                     <CardHeader>
                         <CardTitle>Invalid quiz session</CardTitle>
                         <CardDescription>
                             Start from your quiz entry link to begin the test.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <Button type="button" onClick={() => navigate(-1)}>
-                            Go Back
-                        </Button>
-                    </CardContent>
                 </Card>
             </div>
         );
     }
 
+    // --- Success screen after submission ---
     if (hasSubmitted) {
-        const breakdown = result?.breakdown || [];
-
         return (
-            <div className="relative flex min-h-screen items-center justify-center bg-muted/30 p-4">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="absolute left-4 top-4"
-                    onClick={() => navigate(-1)}
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                </Button>
-                <Card className="w-full max-w-4xl">
-                    <CardHeader>
-                        <CardTitle>Results Summary</CardTitle>
-                        <CardDescription>
-                            Your submission is complete.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                        <p className="text-sm">
-                            Score:{" "}
-                            <span className="font-semibold">
-                                {result?.score ?? 0} /{" "}
-                                {result?.total_points ?? 0}
-                            </span>
-                        </p>
-                        <div className="space-y-2">
-                            <p className="text-xs text-muted-foreground">
-                                Percentage: {result?.percentage ?? 0}%
-                            </p>
-                            <Progress value={result?.percentage ?? 0} />
-                        </div>
-
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>#</TableHead>
-                                    <TableHead>Question</TableHead>
-                                    <TableHead>Your Answer</TableHead>
-                                    <TableHead>Correct Answer</TableHead>
-                                    <TableHead>Result</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {breakdown.map((item) => (
-                                    <TableRow key={item.question_id}>
-                                        <TableCell>{item.order_no}</TableCell>
-                                        <TableCell>
-                                            {item.question_text}
-                                        </TableCell>
-                                        <TableCell>
-                                            {item.selected_option
-                                                ? String(
-                                                      item.selected_option,
-                                                  ).toUpperCase()
-                                                : "-"}
-                                        </TableCell>
-                                        <TableCell>
-                                            {item.correct_option
-                                                ? String(
-                                                      item.correct_option,
-                                                  ).toUpperCase()
-                                                : "-"}
-                                        </TableCell>
-                                        <TableCell>
-                                            {!item.selected_option ? (
-                                                "Unanswered"
-                                            ) : item.is_correct ? (
-                                                <span className="inline-flex items-center gap-1 text-green-600">
-                                                    <Check className="h-4 w-4" />
-                                                    Correct
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 text-destructive">
-                                                    <X className="h-4 w-4" />
-                                                    Incorrect
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        <p className="text-xs text-muted-foreground">
-                            You may close this tab.
-                        </p>
-                        <Button
-                            type="button"
-                            className="w-full"
-                            onClick={() =>
-                                navigate(
-                                    payload.accessToken
-                                        ? `/quiz/enter/${payload.accessToken}`
-                                        : "/login",
-                                    { replace: true },
-                                )
-                            }
-                        >
-                            Exit
-                        </Button>
-                    </CardContent>
-                </Card>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4">
+                <CheckCircle2 className="text-green-500" size={80} />
+                <h1 className="mt-6 text-2xl font-bold">Quiz Submitted!</h1>
+                <p className="mt-2 text-muted-foreground text-center">
+                    Your answers have been recorded successfully.
+                </p>
+                <p className="mt-4 text-sm text-muted-foreground text-center">
+                    {quiz.title}
+                </p>
             </div>
         );
     }
 
+    // --- Active quiz — all questions on one scrollable page ---
     return (
-        <div className="min-h-screen bg-muted/30 p-4">
-            <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-                <div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(-1)}
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back
-                    </Button>
-                </div>
+        <div className="min-h-screen bg-muted/30 px-4 py-4 pb-24">
+            <div className="w-full max-w-md mx-auto flex flex-col gap-4">
+                {/* Quiz header */}
                 <Card>
                     <CardHeader className="space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                                <CardTitle>{quiz.title}</CardTitle>
-                                <CardDescription>
-                                    {quiz.subject_name || "Subject"} • Question{" "}
-                                    {progressLabel}
-                                </CardDescription>
-                            </div>
-                            <Badge variant="outline">
-                                Answered: {answeredCount} / {questions.length}
-                            </Badge>
+                        <div>
+                            <CardTitle>{quiz.title}</CardTitle>
+                            <CardDescription>
+                                {quiz.subject_name || "Subject"} •{" "}
+                                {questions.length} Questions
+                            </CardDescription>
                         </div>
+                        <Badge variant="outline" className="w-fit">
+                            Answered: {answeredCount} / {questions.length}
+                        </Badge>
                         <CountdownTimer
                             secondsLeft={secondsLeft}
                             totalSeconds={totalSeconds}
@@ -385,139 +265,90 @@ export default function QuizPage() {
                     </CardHeader>
                 </Card>
 
-                <Card>
-                    <CardContent className="space-y-6 pt-6">
-                        <div className="space-y-3">
-                            <p className="text-xs uppercase text-muted-foreground">
-                                Question {currentQuestionIndex + 1}
-                            </p>
-                            <QuestionContent question={currentQuestion} />
-                        </div>
-
-                        <RadioGroup className="space-y-3">
-                            {["a", "b", "c", "d"].map((optionKey) => {
-                                const optionValue =
-                                    currentQuestion?.[`option_${optionKey}`];
-                                if (!optionValue) {
-                                    return null;
-                                }
-
-                                const inputId = `question-${currentQuestion.id}-option-${optionKey}`;
-
-                                return (
-                                    <div
-                                        key={optionKey}
-                                        className="flex items-center gap-2 rounded-md border p-3"
-                                    >
-                                        <RadioGroupItem
-                                            id={inputId}
-                                            value={optionKey}
-                                            checked={
-                                                answers[currentQuestion.id] ===
-                                                optionKey
-                                            }
-                                            onChange={(event) =>
-                                                setAnswers((prev) => ({
-                                                    ...prev,
-                                                    [currentQuestion.id]:
-                                                        event.target.value,
-                                                }))
-                                            }
-                                        />
-                                        <Label
-                                            htmlFor={inputId}
-                                            className="w-full cursor-pointer text-sm"
-                                        >
-                                            {optionValue}
-                                        </Label>
-                                    </div>
-                                );
-                            })}
-                        </RadioGroup>
-
-                        {submitError ? (
-                            <p className="text-sm font-medium text-destructive">
-                                {submitError}
-                            </p>
-                        ) : null}
-
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                    setCurrentQuestionIndex((prev) =>
-                                        Math.max(prev - 1, 0),
-                                    )
-                                }
-                                disabled={currentQuestionIndex === 0}
-                            >
-                                Previous
-                            </Button>
-
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() =>
-                                        setCurrentQuestionIndex((prev) =>
-                                            Math.min(
-                                                prev + 1,
-                                                questions.length - 1,
-                                            ),
-                                        )
-                                    }
-                                    disabled={
-                                        currentQuestionIndex >=
-                                        questions.length - 1
-                                    }
-                                >
-                                    Next
-                                </Button>
-                                <Button
-                                    type="button"
-                                    onClick={() => setSubmitDialogOpen(true)}
-                                    disabled={submitMutation.isPending}
-                                >
-                                    {submitMutation.isPending
-                                        ? "Submitting..."
-                                        : "Submit Quiz"}
-                                </Button>
+                {/* All questions */}
+                {questions.map((question, index) => (
+                    <Card key={question.id}>
+                        <CardContent className="space-y-4 pt-6">
+                            {/* Question text */}
+                            <div className="space-y-2">
+                                <p className="text-xs uppercase text-muted-foreground">
+                                    Question {index + 1}
+                                </p>
+                                <QuestionContent question={question} />
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
 
-            <AlertDialog
-                open={submitDialogOpen}
-                onOpenChange={setSubmitDialogOpen}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Submit quiz now?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            You have answered {answeredCount} out of{" "}
-                            {questions.length} questions. This action cannot be
-                            undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={submitMutation.isPending}>
-                            Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            disabled={submitMutation.isPending}
-                            onClick={async () => {
-                                setSubmitDialogOpen(false);
-                                await submitQuiz();
-                            }}
-                        >
-                            Confirm Submit
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                            {/* Options */}
+                            <RadioGroup className="space-y-3">
+                                {["a", "b", "c", "d"].map((optionKey) => {
+                                    const optionValue =
+                                        question?.[`option_${optionKey}`];
+                                    if (!optionValue) {
+                                        return null;
+                                    }
+
+                                    const isSelected =
+                                        answers[question.id] === optionKey;
+                                    const inputId = `question-${question.id}-option-${optionKey}`;
+
+                                    return (
+                                        <div
+                                            key={optionKey}
+                                            className={`flex items-center gap-3 w-full p-4 rounded-lg border cursor-pointer select-none transition-colors ${
+                                                isSelected
+                                                    ? "border-gray-900 dark:border-gray-100 bg-muted/60"
+                                                    : "border-border hover:bg-muted/30"
+                                            }`}
+                                            onClick={() =>
+                                                handleSelectOption(
+                                                    question.id,
+                                                    optionKey,
+                                                )
+                                            }
+                                        >
+                                            <RadioGroupItem
+                                                id={inputId}
+                                                value={optionKey}
+                                                checked={isSelected}
+                                                onChange={() =>
+                                                    handleSelectOption(
+                                                        question.id,
+                                                        optionKey,
+                                                    )
+                                                }
+                                            />
+                                            <Label
+                                                htmlFor={inputId}
+                                                className="w-full cursor-pointer text-base select-none"
+                                            >
+                                                {optionValue}
+                                            </Label>
+                                        </div>
+                                    );
+                                })}
+                            </RadioGroup>
+                        </CardContent>
+                    </Card>
+                ))}
+
+                {/* Submit error */}
+                {submitError ? (
+                    <p className="text-sm font-medium text-destructive">
+                        {submitError}
+                    </p>
+                ) : null}
+
+                {/* Submit button */}
+                <Button
+                    type="button"
+                    className="w-full h-12"
+                    onClick={submitQuiz}
+                    disabled={submitMutation.isPending}
+                >
+                    {submitMutation.isPending
+                        ? "Submitting..."
+                        : "Submit Quiz"}
+                </Button>
+            </div>
         </div>
     );
 }

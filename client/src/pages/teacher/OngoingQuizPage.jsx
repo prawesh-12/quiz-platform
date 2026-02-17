@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { Copy, Trash2 } from "lucide-react";
@@ -54,6 +54,19 @@ function formatDateTime(value) {
   }
 
   return date.toLocaleString();
+}
+
+function formatDateOnly(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function formatOption(value) {
@@ -139,6 +152,50 @@ export default function OngoingQuizPage() {
 
   const isEnded = quiz?.status === "ended";
 
+  // Client-side elapsed timer anchored to quiz.created_at
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const anchorRef = useRef(null);
+
+  useEffect(() => {
+    const anchorDate = quiz?.created_at ? new Date(quiz.created_at) : null;
+    if (!anchorDate || Number.isNaN(anchorDate.getTime()) || isEnded) {
+      // If ended, freeze at last known server value
+      if (isEnded && stats?.elapsed_seconds != null) {
+        setElapsedSeconds(stats.elapsed_seconds);
+      }
+      return undefined;
+    }
+
+    anchorRef.current = anchorDate.getTime();
+
+    const tick = () => {
+      setElapsedSeconds(Math.floor((Date.now() - anchorRef.current) / 1000));
+    };
+
+    tick(); // immediate first tick
+    const intervalId = setInterval(tick, 1000);
+    return () => clearInterval(intervalId);
+  }, [quiz?.created_at, isEnded, stats?.elapsed_seconds]);
+
+  // Auto-stop quiz when duration is reached
+  const stopTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (!quiz || isEnded || stopTriggeredRef.current) return;
+
+    const durationSeconds = (quiz.duration_mins || 0) * 60;
+    // Buffer of 2 seconds to avoid premature stop due to clock skew
+    if (durationSeconds > 0 && elapsedSeconds >= durationSeconds + 2) {
+      stopTriggeredRef.current = true;
+      stopMutation.mutate();
+      toast({
+        title: "Time Limit Reached",
+        description: "The quiz duration has elapsed. Stopping responses...",
+        variant: "default"
+      });
+    }
+  }, [elapsedSeconds, quiz, isEnded, stopMutation, toast]);
+
   const shareUrl = quiz?.access_token ? `${window.location.origin}/quiz/enter/${quiz.access_token}` : null;
 
   const copyLink = () => {
@@ -195,11 +252,13 @@ export default function OngoingQuizPage() {
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
               <CardTitle>{quiz?.title || "Live Quiz View"}</CardTitle>
-              <p className="text-sm text-muted-foreground">Subject: {quiz?.subject_name || "-"}</p>
-              <p className="text-sm text-muted-foreground">
-                Batch: {quiz?.batch || "-"} • Division: {quiz?.division || "-"} • Group: {quiz?.group_nos || "-"}
-              </p>
-              <p className="text-sm text-muted-foreground">Date: {quiz?.quiz_date || "-"}</p>
+              <div className="mt-1 space-y-0.5">
+                <p className="text-sm text-muted-foreground">Subject: {quiz?.subject_name || "-"}</p>
+                <p className="text-sm text-muted-foreground">
+                  Batch: {quiz?.batch || "-"} • Division: {quiz?.division || "-"} • Group: {quiz?.group_nos || "-"}
+                </p>
+                <p className="text-sm text-muted-foreground">Date: {formatDateOnly(quiz?.quiz_date)}</p>
+              </div>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 {quiz?.access_code != null && quiz.access_code !== "" ? (
                   <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-1.5">
@@ -222,7 +281,7 @@ export default function OngoingQuizPage() {
             </div>
             <div className="flex flex-col items-end gap-2 text-right">
               <p className="text-xs text-muted-foreground">Running Time</p>
-              <p className="text-3xl font-bold">{formatTime(stats?.elapsed_seconds || 0)}</p>
+              <p className="text-3xl font-bold">{formatTime(elapsedSeconds)}</p>
               <div className="mt-1 flex flex-col gap-2">
                 {!isEnded ? (
                   <Button type="button" variant="destructive" onClick={() => setStopDialogOpen(true)}>

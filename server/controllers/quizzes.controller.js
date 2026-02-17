@@ -42,8 +42,12 @@ export const createManualQuizSchema = quizMetaSchema.extend({
 });
 
 export const autoGenerateQuizSchema = quizMetaSchema.extend({
-  question_count: z.coerce.number().int().positive(),
-  unit_ids: z.array(z.coerce.number().int().positive()).optional()
+  unit_selections: z.array(
+    z.object({
+      unit_id: z.coerce.number().int().positive(),
+      count: z.coerce.number().int().positive()
+    })
+  ).min(1, "Select at least 1 question")
 });
 
 export const updateQuizSchema = z
@@ -363,29 +367,37 @@ export async function autoGenerateQuiz(req, res, next) {
       return res.status(404).json({ error: "Subject not found" });
     }
 
-    let queryText = `
-      SELECT id
-      FROM questions
-      WHERE subject_id = $1 AND created_by = $2 AND in_subject_bank = TRUE
-    `;
-    const queryParams = [metadata.subject_id, req.user.userId];
-    let paramIndex = 3;
+    // Collect questions per unit
+    const allQuestionIds = [];
 
-    if (payload.unit_ids && payload.unit_ids.length > 0) {
-        queryText += ` AND unit_id = ANY($${paramIndex})`;
-        queryParams.push(payload.unit_ids);
-        paramIndex += 1;
+    for (const selection of payload.unit_selections) {
+      const result = await client.query(
+        `
+        SELECT id
+        FROM questions
+        WHERE unit_id = $1
+          AND in_subject_bank = TRUE
+          AND created_by = $2
+          AND subject_id = $3
+        ORDER BY RANDOM()
+        LIMIT $4
+        `,
+        [selection.unit_id, req.user.userId, metadata.subject_id, selection.count]
+      );
+
+      if (result.rowCount < selection.count) {
+        return res.status(400).json({
+          error: `Not enough questions in unit. Requested ${selection.count}, found ${result.rowCount} for unit_id ${selection.unit_id}`
+        });
+      }
+
+      for (const row of result.rows) {
+        allQuestionIds.push(row.id);
+      }
     }
 
-    queryText += ` ORDER BY RANDOM() LIMIT $${paramIndex}`;
-    queryParams.push(payload.question_count);
-
-    const availableQuestions = await client.query(queryText, queryParams);
-
-    if (availableQuestions.rowCount < payload.question_count) {
-      return res.status(400).json({
-        error: `Not enough questions in subject. Requested ${payload.question_count}, found ${availableQuestions.rowCount}`
-      });
+    if (allQuestionIds.length === 0) {
+      return res.status(400).json({ error: "No questions selected" });
     }
 
     await client.query("BEGIN");
@@ -418,14 +430,13 @@ export async function autoGenerateQuiz(req, res, next) {
 
     const quiz = quizResult.rows[0];
 
-    for (let index = 0; index < availableQuestions.rows.length; index += 1) {
-      const item = availableQuestions.rows[index];
+    for (let index = 0; index < allQuestionIds.length; index += 1) {
       await client.query(
         `
         INSERT INTO quiz_questions (quiz_id, question_id, order_no)
         VALUES ($1, $2, $3)
         `,
-        [quiz.id, item.id, index + 1]
+        [quiz.id, allQuestionIds[index], index + 1]
       );
     }
 
@@ -433,7 +444,7 @@ export async function autoGenerateQuiz(req, res, next) {
 
     return res.status(201).json({
       quiz,
-      question_count: availableQuestions.rowCount
+      question_count: allQuestionIds.length
     });
   } catch (error) {
     try {
@@ -880,17 +891,13 @@ export async function exportQuizResponses(req, res, next) {
     const summaryRowsResult = await query(
       `
       SELECT
-        ss.id AS session_id,
         ss.name,
         ss.roll_no,
         ss.email,
         ss.division,
         ss.group_no,
-        ss.status,
         ss.score,
         ss.total_points,
-        ss.started_at,
-        ss.submitted_at,
         COUNT(vf.id)::int AS violation_count
       FROM student_sessions ss
       LEFT JOIN violation_flags vf ON vf.session_id = ss.id
@@ -901,99 +908,109 @@ export async function exportQuizResponses(req, res, next) {
       [id]
     );
 
-    const answerRowsResult = await query(
-      `
-      SELECT
-        ss.id AS session_id,
-        ss.name,
-        ss.roll_no,
-        qq.order_no,
-        q.question_text,
-        sa.selected_option,
-        q.correct_option,
-        sa.is_correct
-      FROM student_sessions ss
-      INNER JOIN quiz_questions qq ON qq.quiz_id = ss.quiz_id
-      INNER JOIN questions q ON q.id = qq.question_id
-      LEFT JOIN student_answers sa ON sa.session_id = ss.id AND sa.question_id = q.id
-      WHERE ss.quiz_id = $1
-      ORDER BY ss.id ASC, qq.order_no ASC
-      `,
-      [id]
-    );
-
-    const safeTitle = quizResult.rows[0].title.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50) || "quiz";
-    const summaryRows = summaryRowsResult.rows.map((row) => ({
-      session_id: row.session_id,
-      student_name: row.name,
-      roll_no: row.roll_no,
+    const students = summaryRowsResult.rows.map((row) => ({
+      name: row.name,
+      roll_no: row.roll_no || "",
       email: row.email,
       division: row.division,
       group_no: row.group_no,
-      status: row.status,
       score: row.score,
       total_points: row.total_points,
-      started_at: row.started_at,
-      submitted_at: row.submitted_at,
-      violation_count: row.violation_count
+      violation_count: Number(row.violation_count || 0)
     }));
 
-    const answerRows = answerRowsResult.rows.map((row) => ({
-      session_id: row.session_id,
-      student_name: row.name,
-      roll_no: row.roll_no,
-      question_no: row.order_no,
-      question_text: row.question_text,
-      selected_option: row.selected_option ? String(row.selected_option).toUpperCase() : "",
-      correct_option: row.correct_option ? String(row.correct_option).toUpperCase() : "",
-      is_correct: row.is_correct
-    }));
+    // Sort by roll number using natural alphanumeric order
+    students.sort((a, b) =>
+      a.roll_no.localeCompare(b.roll_no, undefined, { numeric: true, sensitivity: "base" })
+    );
 
-    try {
-      const XLSX = await import("xlsx");
-      const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
-      const answersSheet = XLSX.utils.json_to_sheet(answerRows);
+    const ExcelJS = await import("exceljs");
+    const workbook = new ExcelJS.default.Workbook();
+    const sheet = workbook.addWorksheet("Results");
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
-      XLSX.utils.book_append_sheet(workbook, answersSheet, "Answers");
+    // Column definitions
+    sheet.columns = [
+      { header: "S.No.", key: "sno", width: 8 },
+      { header: "Name", key: "name", width: 25 },
+      { header: "Roll Number", key: "roll_no", width: 18 },
+      { header: "Email", key: "email", width: 30 },
+      { header: "Division", key: "division", width: 12 },
+      { header: "Group", key: "group_no", width: 12 },
+      { header: "Score", key: "score", width: 12 },
+      { header: "Violation Count", key: "violation_count", width: 18 }
+    ];
 
-      const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename=\"${safeTitle}_results.xlsx\"`);
-      return res.status(200).send(buffer);
-    } catch {
-      const summaryCsv = toCsv(summaryRows, [
-        "session_id",
-        "student_name",
-        "roll_no",
-        "email",
-        "division",
-        "group_no",
-        "status",
-        "score",
-        "total_points",
-        "started_at",
-        "submitted_at",
-        "violation_count"
-      ]);
+    // Header row styling
+    const headerRow = sheet.getRow(1);
+    headerRow.height = 30;
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF1E3A5F" }
+      };
+      cell.font = { color: { argb: "FFFFFFFF" }, bold: true, size: 12 };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" }
+      };
+    });
 
-      const answersCsv = toCsv(answerRows, [
-        "session_id",
-        "student_name",
-        "roll_no",
-        "question_no",
-        "question_text",
-        "selected_option",
-        "correct_option",
-        "is_correct"
-      ]);
+    // Freeze header row
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
 
-      const csvPayload = [`Summary`, summaryCsv, "", `Answers`, answersCsv].join("\n");
-      res.setHeader("Content-Type", "text/csv; charset=utf-8");
-      res.setHeader("Content-Disposition", `attachment; filename=\"${safeTitle}_results.csv\"`);
-      return res.status(200).send(csvPayload);
+    // Data rows
+    for (let i = 0; i < students.length; i++) {
+      const student = students[i];
+      const row = sheet.addRow({
+        sno: i + 1,
+        name: student.name,
+        roll_no: student.roll_no,
+        email: student.email,
+        division: student.division,
+        group_no: student.group_no,
+        score: `${student.score ?? 0} / ${student.total_points ?? 0}`,
+        violation_count: student.violation_count > 0 ? student.violation_count : "None"
+      });
+
+      row.height = 25;
+      const bgColor = i % 2 === 0 ? "FFFFFFFF" : "FFEBF3FB";
+
+      row.eachCell((cell, colNumber) => {
+        cell.font = { size: 11 };
+        cell.alignment = { horizontal: "left", vertical: "middle" };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: bgColor }
+        };
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" }
+        };
+
+        // Violation Count column special styling
+        if (colNumber === 8 && student.violation_count > 0) {
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFFF4444" }
+          };
+          cell.font = { color: { argb: "FFFFFFFF" }, bold: true, size: 11 };
+        }
+      });
     }
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="quiz_${id}_results.xlsx"`);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return res.status(200).send(Buffer.from(buffer));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Invalid quiz id" });

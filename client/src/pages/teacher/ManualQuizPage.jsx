@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, FileSpreadsheet } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";
@@ -602,7 +602,7 @@ export default function ManualQuizPage() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3 pt-4">
+          <CardContent className="max-w-3xl space-y-3 pt-4">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
               <div className="w-full space-y-2 md:col-span-3">
                 <Label>Quiz Title</Label>
@@ -678,9 +678,9 @@ export default function ManualQuizPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <Label className="text-xs">Import Questions from Excel</Label>
-                <p className="text-xs text-muted-foreground">Subject: {selectedSubjectName}</p>
               </div>
               <div className="flex items-center gap-2">
+                <div className="w-40">
                 <Select value={importSubjectId} onValueChange={setImportSubjectId}>
                   <SelectValue placeholder="Import subject" />
                   <SelectContent>
@@ -691,8 +691,20 @@ export default function ManualQuizPage() {
                     ))}
                   </SelectContent>
                 </Select>
-
-                <Input type="file" accept=".xlsx,.xls" onChange={onImportFile} />
+                </div>
+                <Label htmlFor="excel-import-quiz" className="cursor-pointer">
+                  <div className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Import Excel
+                  </div>
+                </Label>
+                <Input
+                  id="excel-import-quiz"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={onImportFile}
+                />
               </div>
             </div>
             {importStatus ? <p className="text-xs text-muted-foreground">{importStatus}</p> : null}

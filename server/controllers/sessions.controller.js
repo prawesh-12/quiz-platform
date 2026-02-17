@@ -114,6 +114,7 @@ export async function enterSession(req, res, next) {
         q.duration_mins,
         q.quiz_date,
         q.access_code,
+        q.created_at,
         s.name AS subject_name
       FROM quizzes q
       LEFT JOIN subjects s ON s.id = q.subject_id
@@ -170,9 +171,16 @@ export async function enterSession(req, res, next) {
             ({ correct_option, ...question }) => question,
         );
 
+        // Calculate remaining seconds based on global quiz start time (created_at)
+        const totalDurationSeconds = Number(quiz.duration_mins || 15) * 60;
+        const elapsedSeconds = quiz.created_at
+            ? Math.floor((Date.now() - new Date(quiz.created_at).getTime()) / 1000)
+            : 0;
+        const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds);
+
         return res.status(200).json({
             session_token: sessionToken,
-            duration_secs: Number(quiz.duration_mins || 15) * 60,
+            duration_secs: remainingSeconds,
             quiz: {
                 id: quiz.id,
                 title: quiz.title,

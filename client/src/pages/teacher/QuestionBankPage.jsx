@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { FileSpreadsheet, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";
+import QuestionBuilder from "@/components/teacher/QuestionBuilder";
+import QuestionPreviewList from "@/components/teacher/QuestionPreviewList";
 import UnitQuestionsList from "@/components/teacher/UnitQuestionsList";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
@@ -28,12 +30,74 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
+import { parseQuestionsExcel } from "@/utils/excelParser";
 import { questionService } from "@/services/questionService";
 import { subjectService } from "@/services/subjectService";
 import { unitService } from "@/services/unitService";
+
+function createEmptyQuestion() {
+  return {
+    id: crypto.randomUUID(),
+    question_text: "",
+    options: [
+      { key: "a", value: "" },
+      { key: "b", value: "" }
+    ],
+    correct_option: "a",
+    points: 1,
+    has_equation: false,
+    allow_multiple_answers: false,
+    is_required: true
+  };
+}
+
+function mapBuilderQuestionToApi(question, subjectId, unitId) {
+  const optionsMap = Object.fromEntries(question.options.map((o) => [o.key, o.value]));
+  return {
+    subject_id: subjectId,
+    question_text: question.question_text,
+    option_a: optionsMap.a || "",
+    option_b: optionsMap.b || "",
+    option_c: optionsMap.c || null,
+    option_d: optionsMap.d || null,
+    correct_option: question.correct_option,
+    points: Number(question.points || 1),
+    has_equation: Boolean(question.has_equation),
+    allow_multiple_answers: Boolean(question.allow_multiple_answers),
+    is_required: Boolean(question.is_required),
+    unit_id: unitId || null,
+    in_subject_bank: true
+  };
+}
+
+function mapImportedQuestionToBuilder(question) {
+  const options = [
+    { key: "a", value: question.option_a || "" },
+    { key: "b", value: question.option_b || "" }
+  ];
+  if (question.option_c) options.push({ key: "c", value: question.option_c });
+  if (question.option_d) options.push({ key: "d", value: question.option_d });
+
+  return {
+    id: crypto.randomUUID(),
+    question_text: question.question_text,
+    options,
+    correct_option: question.correct_option,
+    points: question.points || 1,
+    has_equation: Boolean(question.has_equation),
+    allow_multiple_answers: Boolean(question.allow_multiple_answers),
+    is_required: Boolean(question.is_required),
+    unit_id: null,
+    new_unit_name: null,
+    in_subject_bank: true
+  };
+}
 
 export default function QuestionBankPage() {
   const navigate = useNavigate();
@@ -46,6 +110,16 @@ export default function QuestionBankPage() {
   const [createUnitOpen, setCreateUnitOpen] = useState(false);
   const [newUnitName, setNewUnitName] = useState("");
   const [deleteUnitItem, setDeleteUnitItem] = useState(null);
+
+  // Add Question state
+  const [addQuestionOpen, setAddQuestionOpen] = useState(false);
+  const [newQuestion, setNewQuestion] = useState(createEmptyQuestion());
+  const [selectedUnitId, setSelectedUnitId] = useState("");
+
+  // Excel Import state
+  const [importedQuestions, setImportedQuestions] = useState([]);
+  const [importStatus, setImportStatus] = useState("");
+  const [isSavingImport, setIsSavingImport] = useState(false);
 
   const subjectNumericId = useMemo(() => Number(subjectId), [subjectId]);
 
@@ -80,10 +154,28 @@ export default function QuestionBankPage() {
     mutationFn: (id) => unitService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["units", subjectNumericId] });
-      // Also invalidate questions as they are unlinked
       queryClient.invalidateQueries({ queryKey: ["questions", subjectNumericId] });
       setDeleteUnitItem(null);
       toast({ title: "Unit deleted", description: "Unit removed, questions are now uncategorized." });
+    }
+  });
+
+  const createQuestionMutation = useMutation({
+    mutationFn: (payload) => questionService.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["questions", subjectNumericId] });
+      queryClient.invalidateQueries({ queryKey: ["units", subjectNumericId] });
+      setAddQuestionOpen(false);
+      setNewQuestion(createEmptyQuestion());
+      setSelectedUnitId("");
+      toast({ title: "Question added", description: "Question has been saved to the bank." });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to add question",
+        description: error?.response?.data?.error || "Something went wrong.",
+        variant: "destructive"
+      });
     }
   });
 
@@ -91,6 +183,92 @@ export default function QuestionBankPage() {
   const selectedSubject = subjects.find((item) => item.id === subjectNumericId);
   const units = unitsQuery.data?.units ?? [];
   const quizzes = historyQuery.data?.quizzes ?? [];
+
+  const handleSaveQuestion = () => {
+    const optionsMap = Object.fromEntries(newQuestion.options.map((o) => [o.key, o.value.trim()]));
+    if (!newQuestion.question_text.trim()) {
+      toast({ title: "Validation", description: "Question text is required.", variant: "destructive" });
+      return;
+    }
+    if (!optionsMap.a || !optionsMap.b) {
+      toast({ title: "Validation", description: "Option A and B are required.", variant: "destructive" });
+      return;
+    }
+
+    const unitId = selectedUnitId ? Number(selectedUnitId) : null;
+    const payload = mapBuilderQuestionToApi(newQuestion, subjectNumericId, unitId);
+    createQuestionMutation.mutate(payload);
+  };
+
+  const onImportFile = async (event) => {
+    setImportStatus("");
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const parsed = await parseQuestionsExcel(file);
+      if (!parsed.questions.length) {
+        setImportStatus(`No valid rows found. ${parsed.warnings.slice(0, 5).join(" | ")}`);
+        return;
+      }
+
+      const newQuestions = parsed.questions.map(mapImportedQuestionToBuilder);
+      setImportedQuestions((prev) => [...prev, ...newQuestions]);
+
+      const warningMsg = parsed.warnings.length ? ` Warnings: ${parsed.warnings.slice(0, 3).join(" | ")}` : "";
+      setImportStatus(`Added ${newQuestions.length} questions to preview.${warningMsg}`);
+      toast({ title: "Import complete", description: `${newQuestions.length} questions added to preview.` });
+    } catch (error) {
+      setImportStatus(error?.response?.data?.error || error.message || "Import failed");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const handleSaveImportedQuestions = async () => {
+    if (!importedQuestions.length) return;
+
+    setIsSavingImport(true);
+    try {
+      const questionsPayload = importedQuestions.map((q) => {
+        const optionsMap = Object.fromEntries(q.options.map((o) => [o.key, o.value]));
+        return {
+          question_text: q.question_text,
+          option_a: optionsMap.a || "",
+          option_b: optionsMap.b || "",
+          option_c: optionsMap.c || null,
+          option_d: optionsMap.d || null,
+          correct_option: q.correct_option,
+          points: Number(q.points || 1),
+          has_equation: Boolean(q.has_equation),
+          allow_multiple_answers: Boolean(q.allow_multiple_answers),
+          is_required: Boolean(q.is_required),
+          unit_id: q.unit_id || null,
+          new_unit_name: q.new_unit_name || null,
+          in_subject_bank: true
+        };
+      });
+
+      await questionService.bulkImport({
+        subject_id: subjectNumericId,
+        questions: questionsPayload
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["questions", subjectNumericId] });
+      queryClient.invalidateQueries({ queryKey: ["units", subjectNumericId] });
+      setImportedQuestions([]);
+      setImportStatus("");
+      toast({ title: "Saved to bank", description: `${questionsPayload.length} questions saved to question bank.` });
+    } catch (error) {
+      toast({
+        title: "Import failed",
+        description: error?.response?.data?.error || "Failed to save questions.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSavingImport(false);
+    }
+  };
 
   return (
     <TeacherShell
@@ -114,12 +292,52 @@ export default function QuestionBankPage() {
           </TabsList>
 
           <TabsContent value="units" className="space-y-4">
-            <div className="flex justify-end">
-              <Button onClick={() => setCreateUnitOpen(true)}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Button onClick={() => { setNewQuestion(createEmptyQuestion()); setSelectedUnitId(""); setAddQuestionOpen(true); }}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Question
+                </Button>
+                <Label htmlFor="excel-import-bank" className="cursor-pointer">
+                  <div className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Import Excel
+                  </div>
+                </Label>
+                <Input
+                  id="excel-import-bank"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  onChange={onImportFile}
+                />
+              </div>
+              <Button onClick={() => setCreateUnitOpen(true)} variant="outline">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Unit
               </Button>
             </div>
+
+            {importStatus ? <p className="text-xs text-muted-foreground">{importStatus}</p> : null}
+
+            {importedQuestions.length > 0 ? (
+              <div className="space-y-4">
+                <QuestionPreviewList
+                  questions={importedQuestions}
+                  units={units}
+                  onUpdateQuestion={(id, updated) =>
+                    setImportedQuestions((prev) => prev.map((q) => (q.id === id ? updated : q)))
+                  }
+                  onRemoveQuestion={(id) => setImportedQuestions((prev) => prev.filter((q) => q.id !== id))}
+                  onClearAll={() => { setImportedQuestions([]); setImportStatus(""); }}
+                />
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveImportedQuestions} disabled={isSavingImport}>
+                    {isSavingImport ? "Saving..." : `Save ${importedQuestions.length} Questions to Bank`}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
 
             <Card>
               <CardContent className="p-0">
@@ -178,7 +396,7 @@ export default function QuestionBankPage() {
                                     <div className="text-left">
                                         <div>{quiz.title}</div>
                                         <div className="text-xs text-muted-foreground">
-                                            {new Date(quiz.quiz_date || quiz.created_at).toLocaleDateString()} • {quiz.questions.length} Questions
+                                            {new Date(quiz.quiz_date || quiz.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} • {quiz.questions.length} Questions
                                         </div>
                                     </div>
                                 </AccordionTrigger>
@@ -186,11 +404,8 @@ export default function QuestionBankPage() {
                                     <div className="p-4 pt-0">
                                          <UnitQuestionsList 
                                             questions={quiz.questions} 
-                                            onDelete={() => {}} // Read-only mostly? Or allow deleting from bank? 
-                                            // Questions in history might be in bank or not. 
-                                            // We probably just want to view them. 
-                                            // UnitQuestionsList has specific delete logic.
-                                            // Let's pass a no-op or make delete optional in UnitQuestionsList
+                                            onDelete={() => {}}
+                                            onEdit={() => {}}
                                          /> 
                                     </div>
                                 </AccordionContent>
@@ -203,6 +418,52 @@ export default function QuestionBankPage() {
         </Tabs>
       </div>
 
+      {/* Add Question Dialog */}
+      <Dialog open={addQuestionOpen} onOpenChange={setAddQuestionOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Add Question to Bank</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pl-2 pr-4">
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Assign to Unit</Label>
+                <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Uncategorized" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Uncategorized</SelectItem>
+                    {units.map((unit) => (
+                      <SelectItem key={unit.id} value={String(unit.id)}>
+                        {unit.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Separator />
+              <QuestionBuilder
+                question={newQuestion}
+                index={0}
+                onChange={setNewQuestion}
+                canRemove={false}
+              />
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddQuestionOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleSaveQuestion}
+              disabled={createQuestionMutation.isPending}
+            >
+              {createQuestionMutation.isPending ? "Saving..." : "Save Question"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Unit Dialog */}
       <Dialog open={createUnitOpen} onOpenChange={setCreateUnitOpen}>
         <DialogContent>
           <DialogHeader>
@@ -227,6 +488,7 @@ export default function QuestionBankPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Unit Confirm */}
       <AlertDialog open={Boolean(deleteUnitItem)} onOpenChange={(open) => !open && setDeleteUnitItem(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -276,6 +538,15 @@ function UnitSection({ unitId, subjectId }) {
         }
     });
 
+    const editQuestionMutation = useMutation({
+        mutationFn: ({ id, data }) => questionService.update(id, data),
+        onSuccess: () => {
+             queryClient.invalidateQueries({ queryKey: ["questions", subjectId] });
+             queryClient.invalidateQueries({ queryKey: ["units", subjectId] });
+             toast({ title: "Question updated", description: "Changes saved." });
+        }
+    });
+
     const questions = questionsQuery.data?.questions ?? [];
 
     if (questionsQuery.isLoading) {
@@ -286,7 +557,8 @@ function UnitSection({ unitId, subjectId }) {
         <div className="p-0">
              <UnitQuestionsList 
                 questions={questions} 
-                onDelete={(id) => deleteQuestionMutation.mutate(id)} 
+                onDelete={(id) => deleteQuestionMutation.mutate(id)}
+                onEdit={(id, data) => editQuestionMutation.mutate({ id, data })}
              />
              {questions.length === 0 ? <div className="p-4 text-center text-sm text-muted-foreground">No questions found.</div> : null}
         </div>

@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { sessionService } from "@/services/sessionService";
@@ -73,27 +72,23 @@ export default function EntryPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Button type="button" variant="outline" size="sm" className="absolute left-4 top-4" onClick={() => navigate(-1)}>
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </Button>
-      <Card className="w-full max-w-lg">
-        <CardHeader>
+    <div className="min-h-screen flex items-center justify-center bg-muted/30">
+      <Card className="w-full max-w-sm mx-4 p-4">
+        <CardHeader className="p-0 mb-3">
           <CardTitle>Quiz Entry</CardTitle>
           <CardDescription>Fill in your details to begin the quiz.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-sm">Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your full name" {...field} />
+                      <Input className="h-9 w-full" placeholder="Enter your full name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -104,10 +99,10 @@ export default function EntryPage() {
                 control={form.control}
                 name="roll_no"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Roll Number</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-sm">Roll Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter roll number" {...field} />
+                      <Input className="h-9 w-full" placeholder="Enter roll number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -118,25 +113,25 @@ export default function EntryPage() {
                 control={form.control}
                 name="email"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-sm">Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="student@example.com" {...field} />
+                      <Input className="h-9 w-full" type="email" placeholder="student@example.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2">
                 <FormField
                   control={form.control}
                   name="division"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Division</FormLabel>
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-sm">Division</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. 7" {...field} />
+                        <Input className="h-9 w-full" placeholder="e.g. 7" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -147,10 +142,10 @@ export default function EntryPage() {
                   control={form.control}
                   name="group_no"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group</FormLabel>
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-sm">Group</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. G13" {...field} />
+                        <Input className="h-9 w-full" placeholder="e.g. G13" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -162,27 +157,24 @@ export default function EntryPage() {
                 control={form.control}
                 name="access_code"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Access Code</FormLabel>
+                  <FormItem className="space-y-1">
+                    <FormLabel className="text-sm">Access Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter access code" {...field} />
+                      <Input className="h-9 w-full" placeholder="Enter access code" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {serverError ? <p className="text-sm font-medium text-destructive">{serverError}</p> : null}
+              {serverError ? <p className="text-sm text-red-500 mt-1">{serverError}</p> : null}
 
-              <Button className="w-full" type="submit" disabled={form.formState.isSubmitting || enterMutation.isPending}>
+              <Button className="w-full h-10 mt-2" type="submit" disabled={form.formState.isSubmitting || enterMutation.isPending}>
                 {form.formState.isSubmitting || enterMutation.isPending ? "Starting quiz..." : "Start Quiz"}
               </Button>
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="text-xs text-muted-foreground">
-          By starting this quiz, your session is monitored for proctoring and saved automatically.
-        </CardFooter>
       </Card>
     </div>
   );

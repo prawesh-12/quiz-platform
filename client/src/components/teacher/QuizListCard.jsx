@@ -20,7 +20,7 @@ function formatDate(value) {
     return "-";
   }
 
-  return date.toLocaleDateString();
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 export default function QuizListCard({ quiz, onViewResponses, onEdit, onDuplicate, onDelete }) {

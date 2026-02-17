@@ -209,12 +209,13 @@ export async function createQuestion(req, res, next) {
       `
       INSERT INTO questions (
         subject_id, question_text, option_a, option_b, option_c, option_d,
-        correct_option, has_equation, allow_multiple_answers, points, is_required, created_by
+        correct_option, has_equation, allow_multiple_answers, points, is_required, created_by,
+        unit_id, in_subject_bank
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING id, subject_id, question_text, option_a, option_b, option_c, option_d,
                 correct_option, has_equation, allow_multiple_answers, points, is_required,
-                created_by, created_at
+                created_by, created_at, unit_id, in_subject_bank
       `,
       mapQuestionInsertValues(payload, req.user.userId)
     );
@@ -241,12 +242,13 @@ export async function bulkImportQuestions(req, res, next) {
         `
         INSERT INTO questions (
           subject_id, question_text, option_a, option_b, option_c, option_d,
-          correct_option, has_equation, allow_multiple_answers, points, is_required, created_by
+          correct_option, has_equation, allow_multiple_answers, points, is_required, created_by,
+          unit_id, in_subject_bank
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING id, subject_id, question_text, option_a, option_b, option_c, option_d,
                   correct_option, has_equation, allow_multiple_answers, points, is_required,
-                  created_by, created_at
+                  created_by, created_at, unit_id, in_subject_bank
         `,
         mapQuestionInsertValues({ ...item, subject_id: subjectId }, req.user.userId)
       );
