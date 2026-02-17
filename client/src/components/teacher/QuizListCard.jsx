@@ -31,7 +31,9 @@ export default function QuizListCard({ quiz, onViewResponses, onEdit, onDuplicat
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-base">{quiz.title}</CardTitle>
-          <Badge variant={quiz.status === "active" ? "default" : "secondary"}>{quiz.status}</Badge>
+          <Badge variant={quiz.status === "active" ? "default" : quiz.status === "scheduled" ? "outline" : "secondary"}>
+            {quiz.status === "scheduled" ? "Scheduled" : quiz.status}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="flex items-center justify-between gap-3">

@@ -132,7 +132,13 @@ export default function AutoGeneratePage() {
     mutationFn: (payload) => quizService.autoGenerate(payload),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["quizzes"] });
-      toast({ title: "Quiz generated", description: "Auto-generated quiz is ready for review." });
+      const isScheduled = data.quiz.status === "scheduled";
+      toast({
+        title: isScheduled ? "Quiz Scheduled" : "Quiz Generated",
+        description: isScheduled
+            ? `Quiz scheduled for ${new Date(data.quiz.scheduled_start).toLocaleString()}`
+            : "Auto-generated quiz is ready for review."
+      });
       navigate(`/teacher/quiz/manual/${data.quiz.id}`);
     }
   });
@@ -335,7 +341,7 @@ export default function AutoGeneratePage() {
               onClick={generateQuiz}
               disabled={autoGenerateMutation.isPending || totalSelected === 0 || hasUnitErrors}
             >
-              {autoGenerateMutation.isPending ? "Generating..." : "Generate Quiz"}
+              {scheduledStart && new Date(scheduledStart) > new Date() ? "Schedule Quiz" : "Generate Quiz"}
             </Button>
           </CardContent>
         </Card>

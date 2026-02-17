@@ -514,17 +514,19 @@ export default function ManualQuizPage() {
       queryClient.invalidateQueries({ queryKey: ["quizzes"] });
       queryClient.invalidateQueries({ queryKey: ["quizzes", activeQuizId] });
 
-      const nextShareUrl =
-        response.share_url ||
-        buildShareUrlFromToken(response.quiz?.access_token);
-
-      setShareUrl(nextShareUrl);
-      setShareDialogOpen(true);
-      toast({ title: "Quiz is now live", description: "Share the link with students." });
-
       if (!isExistingQuiz) {
-        navigate(`/teacher/quiz/manual/${activeQuizId}`, { replace: true });
+        navigate(`/teacher/quiz/ongoing/${activeQuizId}`, { replace: true });
+      } else {
+        navigate(`/teacher/quiz/ongoing/${activeQuizId}`);
       }
+
+      const isScheduled = payload.scheduled_start && new Date(payload.scheduled_start) > new Date();
+      toast({
+        title: isScheduled ? "Quiz Scheduled" : "Quiz Activated",
+        description: isScheduled
+          ? `Quiz scheduled for ${new Date(payload.scheduled_start).toLocaleString()}`
+          : "Quiz is now live."
+      });
     } catch (error) {
       setPageError(extractApiError(error, "Failed to activate quiz"));
     }
@@ -598,7 +600,7 @@ export default function ManualQuizPage() {
                 onClick={activateQuiz}
                 disabled={saveManualMutation.isPending || updateQuizMutation.isPending}
               >
-                Save & Activate
+                {scheduledStart && new Date(scheduledStart) > new Date() ? "Schedule Quiz" : "Save & Activate"}
               </Button>
             </div>
           </CardHeader>

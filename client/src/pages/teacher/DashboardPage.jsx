@@ -71,6 +71,12 @@ export default function DashboardPage() {
       quizService.list({ status: "active", page: 1, limit: 50 }),
   });
 
+  const scheduledQuizzesQuery = useQuery({
+    queryKey: ["quizzes", "scheduled"],
+    queryFn: () =>
+      quizService.list({ status: "scheduled", page: 1, limit: 50 }),
+  });
+
   const createSubjectMutation = useMutation({
     mutationFn: (payload) => subjectService.create(payload),
     onSuccess: () => {
@@ -125,6 +131,7 @@ export default function DashboardPage() {
   const quizzes = quizzesQuery.data?.quizzes ?? [];
   const activeQuizzes = activeQuizzesQuery.data?.quizzes ?? [];
   const activeCount = activeQuizzesQuery.data?.count ?? 0;
+  const scheduledCount = scheduledQuizzesQuery.data?.count ?? 0;
   const quizTotalPages = quizzesQuery.data?.totalPages ?? 1;
 
   const openOngoingQuizView = () => {
@@ -156,15 +163,14 @@ export default function DashboardPage() {
     >
       <div className="flex min-h-0 flex-1 flex-col gap-2">
        <div className="mx-auto w-full max-w-3xl shrink-0">
-            <div className="grid grid-cols-3 items-center gap-3">
-
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {/* Left */}
-              <div className="flex gap-2">
+              <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Input
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="search past quizzes"
-                  className="max-w-xs"
+                  className="w-full sm:max-w-xs"
                 />
                 <Button
                   type="button"
@@ -175,30 +181,35 @@ export default function DashboardPage() {
                 </Button>
               </div>
 
-              {/* Middle */}
-              <div className="flex justify-center">
-                <Button
-                  type="button"
-                  onClick={() => setGenerateModeOpen(true)}
-                >
+              {/* Right Side Actions */}
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <Button type="button" onClick={() => setGenerateModeOpen(true)}>
                   Generate New Quiz
                 </Button>
-              </div>
 
-              {/* Right */}
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={openOngoingQuizView}
-                >
-                  On going Quiz
-                  <Badge className="ml-2 bg-primary-foreground text-primary">
-                    {activeQuizzesQuery.isLoading ? "..." : activeCount}
-                  </Badge>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate("/teacher/quiz/scheduled")}
+                  >
+                    Scheduled
+                    <Badge className="ml-2" variant="secondary">
+                      {scheduledQuizzesQuery.isLoading ? "..." : scheduledCount}
+                    </Badge>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={openOngoingQuizView}
+                  >
+                    Ongoing
+                    <Badge className="ml-2 bg-primary-foreground text-primary">
+                      {activeQuizzesQuery.isLoading ? "..." : activeCount}
+                    </Badge>
+                  </Button>
+                </div>
               </div>
-
             </div>
         </div>
 

@@ -157,7 +157,10 @@ export default function OngoingQuizPage() {
   const anchorRef = useRef(null);
 
   useEffect(() => {
-    const anchorDate = quiz?.created_at ? new Date(quiz.created_at) : null;
+    // Use scheduled_start as the anchor (it is now set upon activation for manual quizzes)
+    // Fallback to created_at only if scheduled_start is missing (legacy data)
+    const anchorTime = quiz?.scheduled_start || quiz?.created_at;
+    const anchorDate = anchorTime ? new Date(anchorTime) : null;
     if (!anchorDate || Number.isNaN(anchorDate.getTime()) || isEnded) {
       // If ended, freeze at last known server value
       if (isEnded && stats?.elapsed_seconds != null) {

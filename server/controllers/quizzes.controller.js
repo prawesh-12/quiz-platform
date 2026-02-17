@@ -5,7 +5,7 @@ import { z } from "zod";
 import pool, { query } from "../config/db.js";
 import { transitionQuizStatus } from "../services/quizLifecycle.service.js";
 
-const quizStatusSchema = z.enum(["draft", "active", "ended"]);
+const quizStatusSchema = z.enum(["draft", "active", "ended", "scheduled"]);
 
 const quizMetaSchema = z.object({
   title: z.string().trim().min(1).max(255),
@@ -253,7 +253,10 @@ export async function createManualQuiz(req, res, next) {
         metadata.batch,
         metadata.division,
         metadata.group_nos,
-        metadata.status,
+        // Override status to 'scheduled' if activating with future start time
+        (metadata.status === 'active' && metadata.scheduled_start && new Date(metadata.scheduled_start) > new Date())
+          ? 'scheduled'
+          : metadata.status,
         metadata.quiz_date,
         metadata.scheduled_start,
         metadata.scheduled_end,
@@ -420,7 +423,10 @@ export async function autoGenerateQuiz(req, res, next) {
         metadata.batch,
         metadata.division,
         metadata.group_nos,
-        metadata.status,
+        // Override status to 'scheduled' if activating with future start time
+        (metadata.status === 'active' && metadata.scheduled_start && new Date(metadata.scheduled_start) > new Date())
+          ? 'scheduled'
+          : metadata.status,
         metadata.quiz_date,
         metadata.scheduled_start,
         metadata.scheduled_end,
@@ -538,17 +544,35 @@ export async function updateQuiz(req, res, next) {
 
     for (const field of fields) {
       if (Object.prototype.hasOwnProperty.call(payload, field)) {
+        let value = payload[field];
+
+        // Logic to force start time to NOW if activating and no start time provided
+        if (field === "scheduled_start" && payload.status === "active" && !value) {
+           value = new Date().toISOString();
+        }
+        
+        // Logic to auto-calculate end time if activating and no end time provided
+        if (field === "scheduled_end" && payload.status === "active" && !value && payload.duration_mins) {
+             const startDate = payload.scheduled_start ? new Date(payload.scheduled_start) : new Date();
+             const endDate = new Date(startDate.getTime() + payload.duration_mins * 60000);
+             value = endDate.toISOString();
+        }
+
+        // Logic to set status to 'scheduled' if activating with future start time
+        if (field === "status" && value === "active" && payload.scheduled_start && new Date(payload.scheduled_start) > new Date()) {
+            value = "scheduled";
+        }
+
         updates.push(`${field} = $${position}`);
         values.push(
           ["batch", "division", "group_nos", "scheduled_start", "scheduled_end", "access_code"].includes(field)
-            ? normalizeNullableText(payload[field])
-            : payload[field]
+            ? normalizeNullableText(value)
+            : value
         );
         position += 1;
       }
     }
-
-    if (nextAccessToken !== existing.access_token) {
+     if (nextAccessToken !== existing.access_token) {
       updates.push(`access_token = $${position}`);
       values.push(nextAccessToken);
       position += 1;

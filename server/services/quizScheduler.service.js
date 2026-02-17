@@ -9,7 +9,7 @@ async function processScheduledTransitions() {
       `
       SELECT id
       FROM quizzes
-      WHERE status = 'draft'
+      WHERE status = 'scheduled'
         AND scheduled_start IS NOT NULL
         AND scheduled_start <= NOW()
       ORDER BY scheduled_start ASC, id ASC
@@ -25,6 +25,7 @@ async function processScheduledTransitions() {
       });
 
       if (result?.error) {
+        console.error(`Scheduler failed to activate quiz ${row.id}:`, result.error);
         await client.query("ROLLBACK");
       } else {
         await client.query("COMMIT");

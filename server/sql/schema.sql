@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS quizzes (
   batch VARCHAR(50),
   division VARCHAR(10),
   group_nos VARCHAR(50),
-  status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'ended')),
+  status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'ended', 'scheduled')),
   quiz_date DATE,
   scheduled_start TIMESTAMP,
   scheduled_end TIMESTAMP,

@@ -9,6 +9,7 @@ import AutoGeneratePage from "@/pages/teacher/AutoGeneratePage";
 import DashboardPage from "@/pages/teacher/DashboardPage";
 import ManualQuizPage from "@/pages/teacher/ManualQuizPage";
 import OngoingQuizListPage from "@/pages/teacher/OngoingQuizListPage";
+import ScheduledQuizListPage from "@/pages/teacher/ScheduledQuizListPage";
 import OngoingQuizPage from "@/pages/teacher/OngoingQuizPage";
 import ProfilePage from "@/pages/teacher/ProfilePage";
 import QuestionBankPage from "@/pages/teacher/QuestionBankPage";
@@ -31,6 +32,8 @@ export default function App() {
           <Route path="/teacher/quiz/manual" element={<ManualQuizPage />} />
           <Route path="/teacher/quiz/manual/:quizId" element={<ManualQuizPage />} />
           <Route path="/teacher/quiz/auto" element={<AutoGeneratePage />} />
+          {/* Scheduled routes */}
+          <Route path="/teacher/quiz/scheduled" element={<ScheduledQuizListPage />} />
           {/* Ongoing routes must come before :quizId/responses so "ongoing" is not matched as quizId */}
           <Route path="/teacher/quiz/ongoing" element={<OngoingQuizListPage />} />
           <Route path="/teacher/quiz/ongoing/:quizId" element={<OngoingQuizPage />} />
