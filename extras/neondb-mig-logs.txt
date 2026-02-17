@@ -1,0 +1,661 @@
+  ~ pg_restore \
+  --host=ep-royal-violet-a1v9h90a-pooler.ap-southeast-1.aws.neon.tech \
+  --port=5432 \
+  --username=neondb_owner \
+  --dbname=neondb \
+  --verbose \
+  "/home/prawesh/All Projects/quiz-platform/extras/quizdb.sql"
+
+pg_restore: connecting to database for restore
+Password: 
+pg_restore: creating TABLE "public.questions"
+pg_restore: while PROCESSING TOC:
+pg_restore: from TOC entry 220; 1259 16418 TABLE questions postgres
+pg_restore: error: could not execute query: ERROR:  relation "questions" already exists
+Command was: CREATE TABLE public.questions (
+    id integer NOT NULL,
+    subject_id integer,
+    question_text text NOT NULL,
+    option_a text NOT NULL,
+    option_b text NOT NULL,
+    option_c text,
+    option_d text,
+    correct_option character(1) NOT NULL,
+    has_equation boolean DEFAULT false,
+    allow_multiple_answers boolean DEFAULT false,
+    points integer DEFAULT 1,
+    is_required boolean DEFAULT true,
+    created_by integer,
+    created_at timestamp without time zone DEFAULT now(),
+    unit_id integer,
+    in_subject_bank boolean DEFAULT false,
+    CONSTRAINT questions_correct_option_check CHECK ((correct_option = ANY (ARRAY['a'::bpchar, 'b'::bpchar, 'c'::bpchar, 'd'::bpchar])))
+);
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER TABLE public.questions OWNER TO postgres;
+
+pg_restore: creating SEQUENCE "public.questions_id_seq"
+pg_restore: from TOC entry 219; 1259 16417 SEQUENCE questions_id_seq postgres
+pg_restore: error: could not execute query: ERROR:  relation "questions_id_seq" already exists
+Command was: CREATE SEQUENCE public.questions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER SEQUENCE public.questions_id_seq OWNER TO postgres;
+
+pg_restore: creating SEQUENCE OWNED BY "public.questions_id_seq"
+pg_restore: creating TABLE "public.quiz_questions"
+pg_restore: from TOC entry 224; 1259 16466 TABLE quiz_questions postgres
+pg_restore: error: could not execute query: ERROR:  relation "quiz_questions" already exists
+Command was: CREATE TABLE public.quiz_questions (
+    id integer NOT NULL,
+    quiz_id integer,
+    question_id integer,
+    order_no integer
+);
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER TABLE public.quiz_questions OWNER TO postgres;
+
+pg_restore: creating SEQUENCE "public.quiz_questions_id_seq"
+pg_restore: from TOC entry 223; 1259 16465 SEQUENCE quiz_questions_id_seq postgres
+pg_restore: error: could not execute query: ERROR:  relation "quiz_questions_id_seq" already exists
+Command was: CREATE SEQUENCE public.quiz_questions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER SEQUENCE public.quiz_questions_id_seq OWNER TO postgres;
+
+pg_restore: creating SEQUENCE OWNED BY "public.quiz_questions_id_seq"
+pg_restore: creating TABLE "public.quizzes"
+pg_restore: from TOC entry 222; 1259 16443 TABLE quizzes postgres
+pg_restore: error: could not execute query: ERROR:  relation "quizzes" already exists
+Command was: CREATE TABLE public.quizzes (
+    id integer NOT NULL,
+    title character varying(255) NOT NULL,
+    subject_id integer,
+    created_by integer,
+    duration_mins integer DEFAULT 15 NOT NULL,
+    batch character varying(50),
+    division character varying(10),
+    group_nos character varying(50),
+    status character varying(20) DEFAULT 'draft'::character varying,
+    quiz_date date,
+    access_token character varying(32),
+    created_at timestamp without time zone DEFAULT now(),
+    scheduled_start timestamp without time zone,
+    scheduled_end timestamp without time zone,
+    access_code character varying(20),
+    CONSTRAINT quizzes_status_check CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'active'::character varying, 'ended'::character varying])::text[])))
+);
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER TABLE public.quizzes OWNER TO postgres;
+
+pg_restore: creating SEQUENCE "public.quizzes_id_seq"
+pg_restore: from TOC entry 221; 1259 16442 SEQUENCE quizzes_id_seq postgres
+pg_restore: error: could not execute query: ERROR:  relation "quizzes_id_seq" already exists
+Command was: CREATE SEQUENCE public.quizzes_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER SEQUENCE public.quizzes_id_seq OWNER TO postgres;
+
+pg_restore: creating SEQUENCE OWNED BY "public.quizzes_id_seq"
+pg_restore: creating TABLE "public.student_answers"
+pg_restore: from TOC entry 228; 1259 16502 TABLE student_answers postgres
+pg_restore: error: could not execute query: ERROR:  relation "student_answers" already exists
+Command was: CREATE TABLE public.student_answers (
+    id integer NOT NULL,
+    session_id integer,
+    question_id integer,
+    selected_option character(1),
+    is_correct boolean,
+    answered_at timestamp without time zone DEFAULT now(),
+    CONSTRAINT student_answers_selected_option_check CHECK ((selected_option = ANY (ARRAY['a'::bpchar, 'b'::bpchar, 'c'::bpchar, 'd'::bpchar])))
+);
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER TABLE public.student_answers OWNER TO postgres;
+
+pg_restore: creating SEQUENCE "public.student_answers_id_seq"
+pg_restore: from TOC entry 227; 1259 16501 SEQUENCE student_answers_id_seq postgres
+pg_restore: error: could not execute query: ERROR:  relation "student_answers_id_seq" already exists
+Command was: CREATE SEQUENCE public.student_answers_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER SEQUENCE public.student_answers_id_seq OWNER TO postgres;
+
+pg_restore: creating SEQUENCE OWNED BY "public.student_answers_id_seq"
+pg_restore: creating TABLE "public.student_sessions"
+pg_restore: from TOC entry 226; 1259 16485 TABLE student_sessions postgres
+pg_restore: error: could not execute query: ERROR:  relation "student_sessions" already exists
+Command was: CREATE TABLE public.student_sessions (
+    id integer NOT NULL,
+    quiz_id integer,
+    name character varying(100) NOT NULL,
+    roll_no character varying(50) NOT NULL,
+    email character varying(150) NOT NULL,
+    division character varying(10) NOT NULL,
+    group_no character varying(10) NOT NULL,
+    session_token character varying(64) NOT NULL,
+    status character varying(20) DEFAULT 'pending'::character varying,
+    score integer,
+    total_points integer,
+    started_at timestamp without time zone DEFAULT now(),
+    submitted_at timestamp without time zone,
+    CONSTRAINT student_sessions_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'submitted'::character varying])::text[])))
+);
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER TABLE public.student_sessions OWNER TO postgres;
+
+pg_restore: creating SEQUENCE "public.student_sessions_id_seq"
+pg_restore: from TOC entry 225; 1259 16484 SEQUENCE student_sessions_id_seq postgres
+pg_restore: error: could not execute query: ERROR:  relation "student_sessions_id_seq" already exists
+Command was: CREATE SEQUENCE public.student_sessions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER SEQUENCE public.student_sessions_id_seq OWNER TO postgres;
+
+pg_restore: creating SEQUENCE OWNED BY "public.student_sessions_id_seq"
+pg_restore: creating TABLE "public.subjects"
+pg_restore: from TOC entry 218; 1259 16403 TABLE subjects postgres
+pg_restore: error: could not execute query: ERROR:  relation "subjects" already exists
+Command was: CREATE TABLE public.subjects (
+    id integer NOT NULL,
+    name character varying(100) NOT NULL,
+    created_by integer,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER TABLE public.subjects OWNER TO postgres;
+
+pg_restore: creating SEQUENCE "public.subjects_id_seq"
+pg_restore: from TOC entry 217; 1259 16402 SEQUENCE subjects_id_seq postgres
+pg_restore: error: could not execute query: ERROR:  relation "subjects_id_seq" already exists
+Command was: CREATE SEQUENCE public.subjects_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER SEQUENCE public.subjects_id_seq OWNER TO postgres;
+
+pg_restore: creating SEQUENCE OWNED BY "public.subjects_id_seq"
+pg_restore: creating TABLE "public.units"
+pg_restore: from TOC entry 232; 1259 16545 TABLE units postgres
+pg_restore: error: could not execute query: ERROR:  relation "units" already exists
+Command was: CREATE TABLE public.units (
+    id integer NOT NULL,
+    name character varying(150) NOT NULL,
+    subject_id integer,
+    order_no integer DEFAULT 1,
+    created_by integer,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER TABLE public.units OWNER TO postgres;
+
+pg_restore: creating SEQUENCE "public.units_id_seq"
+pg_restore: from TOC entry 231; 1259 16544 SEQUENCE units_id_seq postgres
+pg_restore: error: could not execute query: ERROR:  relation "units_id_seq" already exists
+Command was: CREATE SEQUENCE public.units_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER SEQUENCE public.units_id_seq OWNER TO postgres;
+
+pg_restore: creating SEQUENCE OWNED BY "public.units_id_seq"
+pg_restore: creating TABLE "public.users"
+pg_restore: from TOC entry 216; 1259 16390 TABLE users postgres
+pg_restore: error: could not execute query: ERROR:  relation "users" already exists
+Command was: CREATE TABLE public.users (
+    id integer NOT NULL,
+    name character varying(100) NOT NULL,
+    email character varying(150) NOT NULL,
+    password character varying(255) NOT NULL,
+    role character varying(20) DEFAULT 'teacher'::character varying NOT NULL,
+    avatar_url text,
+    created_at timestamp without time zone DEFAULT now()
+);
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER TABLE public.users OWNER TO postgres;
+
+pg_restore: creating SEQUENCE "public.users_id_seq"
+pg_restore: from TOC entry 215; 1259 16389 SEQUENCE users_id_seq postgres
+pg_restore: error: could not execute query: ERROR:  relation "users_id_seq" already exists
+Command was: CREATE SEQUENCE public.users_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
+
+pg_restore: creating SEQUENCE OWNED BY "public.users_id_seq"
+pg_restore: creating TABLE "public.violation_flags"
+pg_restore: from TOC entry 230; 1259 16521 TABLE violation_flags postgres
+pg_restore: error: could not execute query: ERROR:  relation "violation_flags" already exists
+Command was: CREATE TABLE public.violation_flags (
+    id integer NOT NULL,
+    session_id integer,
+    type character varying(50) NOT NULL,
+    description text,
+    occurred_at timestamp without time zone DEFAULT now()
+);
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER TABLE public.violation_flags OWNER TO postgres;
+
+pg_restore: creating SEQUENCE "public.violation_flags_id_seq"
+pg_restore: from TOC entry 229; 1259 16520 SEQUENCE violation_flags_id_seq postgres
+pg_restore: error: could not execute query: ERROR:  relation "violation_flags_id_seq" already exists
+Command was: CREATE SEQUENCE public.violation_flags_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+pg_restore: error: could not execute query: ERROR:  role "postgres" does not exist
+Command was: ALTER SEQUENCE public.violation_flags_id_seq OWNER TO postgres;
+
+pg_restore: creating SEQUENCE OWNED BY "public.violation_flags_id_seq"
+pg_restore: creating DEFAULT "public.questions id"
+pg_restore: creating DEFAULT "public.quiz_questions id"
+pg_restore: creating DEFAULT "public.quizzes id"
+pg_restore: creating DEFAULT "public.student_answers id"
+pg_restore: creating DEFAULT "public.student_sessions id"
+pg_restore: creating DEFAULT "public.subjects id"
+pg_restore: creating DEFAULT "public.units id"
+pg_restore: creating DEFAULT "public.users id"
+pg_restore: creating DEFAULT "public.violation_flags id"
+pg_restore: processing data for table "public.questions"
+pg_restore: from TOC entry 3557; 0 16418 TABLE DATA questions postgres
+pg_restore: error: COPY failed for table "questions": ERROR:  duplicate key value violates unique constraint "questions_pkey"
+DETAIL:  Key (id)=(1) already exists.
+CONTEXT:  COPY questions, line 1
+pg_restore: processing data for table "public.quiz_questions"
+pg_restore: from TOC entry 3561; 0 16466 TABLE DATA quiz_questions postgres
+pg_restore: error: COPY failed for table "quiz_questions": ERROR:  duplicate key value violates unique constraint "quiz_questions_pkey"
+DETAIL:  Key (id)=(59) already exists.
+CONTEXT:  COPY quiz_questions, line 1
+pg_restore: processing data for table "public.quizzes"
+pg_restore: from TOC entry 3559; 0 16443 TABLE DATA quizzes postgres
+pg_restore: error: COPY failed for table "quizzes": ERROR:  duplicate key value violates unique constraint "quizzes_access_token_key"
+DETAIL:  Key (access_token)=(cd3007793ee95e4c) already exists.
+CONTEXT:  COPY quizzes, line 1
+pg_restore: processing data for table "public.student_answers"
+pg_restore: from TOC entry 3565; 0 16502 TABLE DATA student_answers postgres
+pg_restore: error: COPY failed for table "student_answers": ERROR:  duplicate key value violates unique constraint "student_answers_pkey"
+DETAIL:  Key (id)=(673) already exists.
+CONTEXT:  COPY student_answers, line 1
+pg_restore: processing data for table "public.student_sessions"
+pg_restore: from TOC entry 3563; 0 16485 TABLE DATA student_sessions postgres
+pg_restore: error: COPY failed for table "student_sessions": ERROR:  duplicate key value violates unique constraint "student_sessions_pkey"
+DETAIL:  Key (id)=(8) already exists.
+CONTEXT:  COPY student_sessions, line 1
+pg_restore: processing data for table "public.subjects"
+pg_restore: from TOC entry 3555; 0 16403 TABLE DATA subjects postgres
+pg_restore: error: COPY failed for table "subjects": ERROR:  duplicate key value violates unique constraint "subjects_name_key"
+DETAIL:  Key (name)=(Operating System) already exists.
+CONTEXT:  COPY subjects, line 1
+pg_restore: processing data for table "public.units"
+pg_restore: from TOC entry 3569; 0 16545 TABLE DATA units postgres
+pg_restore: error: COPY failed for table "units": ERROR:  duplicate key value violates unique constraint "units_pkey"
+DETAIL:  Key (id)=(4) already exists.
+CONTEXT:  COPY units, line 1
+pg_restore: processing data for table "public.users"
+pg_restore: from TOC entry 3553; 0 16390 TABLE DATA users postgres
+pg_restore: error: COPY failed for table "users": ERROR:  duplicate key value violates unique constraint "users_email_key"
+DETAIL:  Key (email)=(praweshmandal33@gmail.com) already exists.
+CONTEXT:  COPY users, line 1
+pg_restore: processing data for table "public.violation_flags"
+pg_restore: from TOC entry 3567; 0 16521 TABLE DATA violation_flags postgres
+pg_restore: error: COPY failed for table "violation_flags": ERROR:  duplicate key value violates unique constraint "violation_flags_pkey"
+DETAIL:  Key (id)=(16) already exists.
+CONTEXT:  COPY violation_flags, line 1
+pg_restore: executing SEQUENCE SET questions_id_seq
+pg_restore: executing SEQUENCE SET quiz_questions_id_seq
+pg_restore: executing SEQUENCE SET quizzes_id_seq
+pg_restore: executing SEQUENCE SET student_answers_id_seq
+pg_restore: executing SEQUENCE SET student_sessions_id_seq
+pg_restore: executing SEQUENCE SET subjects_id_seq
+pg_restore: executing SEQUENCE SET units_id_seq
+pg_restore: executing SEQUENCE SET users_id_seq
+pg_restore: executing SEQUENCE SET violation_flags_id_seq
+pg_restore: creating CONSTRAINT "public.questions questions_pkey"
+pg_restore: from TOC entry 3366; 2606 16431 CONSTRAINT questions questions_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "questions" are not allowed
+Command was: ALTER TABLE ONLY public.questions
+    ADD CONSTRAINT questions_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.quiz_questions quiz_questions_pkey"
+pg_restore: from TOC entry 3375; 2606 16471 CONSTRAINT quiz_questions quiz_questions_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "quiz_questions" are not allowed
+Command was: ALTER TABLE ONLY public.quiz_questions
+    ADD CONSTRAINT quiz_questions_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.quiz_questions quiz_questions_quiz_id_question_id_key"
+pg_restore: from TOC entry 3377; 2606 16473 CONSTRAINT quiz_questions quiz_questions_quiz_id_question_id_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "quiz_questions_quiz_id_question_id_key" already exists
+Command was: ALTER TABLE ONLY public.quiz_questions
+    ADD CONSTRAINT quiz_questions_quiz_id_question_id_key UNIQUE (quiz_id, question_id);
+
+
+pg_restore: creating CONSTRAINT "public.quizzes quizzes_access_token_key"
+pg_restore: from TOC entry 3370; 2606 16454 CONSTRAINT quizzes quizzes_access_token_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "quizzes_access_token_key" already exists
+Command was: ALTER TABLE ONLY public.quizzes
+    ADD CONSTRAINT quizzes_access_token_key UNIQUE (access_token);
+
+
+pg_restore: creating CONSTRAINT "public.quizzes quizzes_pkey"
+pg_restore: from TOC entry 3372; 2606 16452 CONSTRAINT quizzes quizzes_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "quizzes" are not allowed
+Command was: ALTER TABLE ONLY public.quizzes
+    ADD CONSTRAINT quizzes_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.student_answers student_answers_pkey"
+pg_restore: from TOC entry 3387; 2606 16509 CONSTRAINT student_answers student_answers_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "student_answers" are not allowed
+Command was: ALTER TABLE ONLY public.student_answers
+    ADD CONSTRAINT student_answers_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.student_sessions student_sessions_pkey"
+pg_restore: from TOC entry 3381; 2606 16493 CONSTRAINT student_sessions student_sessions_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "student_sessions" are not allowed
+Command was: ALTER TABLE ONLY public.student_sessions
+    ADD CONSTRAINT student_sessions_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.student_sessions student_sessions_session_token_key"
+pg_restore: from TOC entry 3383; 2606 16495 CONSTRAINT student_sessions student_sessions_session_token_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "student_sessions_session_token_key" already exists
+Command was: ALTER TABLE ONLY public.student_sessions
+    ADD CONSTRAINT student_sessions_session_token_key UNIQUE (session_token);
+
+
+pg_restore: creating CONSTRAINT "public.subjects subjects_name_key"
+pg_restore: from TOC entry 3359; 2606 16411 CONSTRAINT subjects subjects_name_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "subjects_name_key" already exists
+Command was: ALTER TABLE ONLY public.subjects
+    ADD CONSTRAINT subjects_name_key UNIQUE (name);
+
+
+pg_restore: creating CONSTRAINT "public.subjects subjects_pkey"
+pg_restore: from TOC entry 3361; 2606 16409 CONSTRAINT subjects subjects_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "subjects" are not allowed
+Command was: ALTER TABLE ONLY public.subjects
+    ADD CONSTRAINT subjects_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.units units_pkey"
+pg_restore: from TOC entry 3392; 2606 16552 CONSTRAINT units units_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "units" are not allowed
+Command was: ALTER TABLE ONLY public.units
+    ADD CONSTRAINT units_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.units units_subject_id_name_key"
+pg_restore: from TOC entry 3394; 2606 16554 CONSTRAINT units units_subject_id_name_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "units_subject_id_name_key" already exists
+Command was: ALTER TABLE ONLY public.units
+    ADD CONSTRAINT units_subject_id_name_key UNIQUE (subject_id, name);
+
+
+pg_restore: creating CONSTRAINT "public.users users_email_key"
+pg_restore: from TOC entry 3355; 2606 16401 CONSTRAINT users users_email_key postgres
+pg_restore: error: could not execute query: ERROR:  relation "users_email_key" already exists
+Command was: ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key UNIQUE (email);
+
+
+pg_restore: creating CONSTRAINT "public.users users_pkey"
+pg_restore: from TOC entry 3357; 2606 16399 CONSTRAINT users users_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "users" are not allowed
+Command was: ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating CONSTRAINT "public.violation_flags violation_flags_pkey"
+pg_restore: from TOC entry 3390; 2606 16529 CONSTRAINT violation_flags violation_flags_pkey postgres
+pg_restore: error: could not execute query: ERROR:  multiple primary keys for table "violation_flags" are not allowed
+Command was: ALTER TABLE ONLY public.violation_flags
+    ADD CONSTRAINT violation_flags_pkey PRIMARY KEY (id);
+
+
+pg_restore: creating INDEX "public.idx_questions_in_subject_bank"
+pg_restore: from TOC entry 3362; 1259 16572 INDEX idx_questions_in_subject_bank postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_questions_in_subject_bank" already exists
+Command was: CREATE INDEX idx_questions_in_subject_bank ON public.questions USING btree (in_subject_bank);
+
+
+pg_restore: creating INDEX "public.idx_questions_subject_id"
+pg_restore: from TOC entry 3363; 1259 16535 INDEX idx_questions_subject_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_questions_subject_id" already exists
+Command was: CREATE INDEX idx_questions_subject_id ON public.questions USING btree (subject_id);
+
+
+pg_restore: creating INDEX "public.idx_questions_unit_id"
+pg_restore: from TOC entry 3364; 1259 16571 INDEX idx_questions_unit_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_questions_unit_id" already exists
+Command was: CREATE INDEX idx_questions_unit_id ON public.questions USING btree (unit_id);
+
+
+pg_restore: creating INDEX "public.idx_quiz_questions_quiz_id"
+pg_restore: from TOC entry 3373; 1259 16536 INDEX idx_quiz_questions_quiz_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_quiz_questions_quiz_id" already exists
+Command was: CREATE INDEX idx_quiz_questions_quiz_id ON public.quiz_questions USING btree (quiz_id);
+
+
+pg_restore: creating INDEX "public.idx_quizzes_scheduled_end"
+pg_restore: from TOC entry 3367; 1259 16543 INDEX idx_quizzes_scheduled_end postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_quizzes_scheduled_end" already exists
+Command was: CREATE INDEX idx_quizzes_scheduled_end ON public.quizzes USING btree (scheduled_end);
+
+
+pg_restore: creating INDEX "public.idx_quizzes_scheduled_start"
+pg_restore: from TOC entry 3368; 1259 16542 INDEX idx_quizzes_scheduled_start postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_quizzes_scheduled_start" already exists
+Command was: CREATE INDEX idx_quizzes_scheduled_start ON public.quizzes USING btree (scheduled_start);
+
+
+pg_restore: creating INDEX "public.idx_student_answers_session_id"
+pg_restore: from TOC entry 3384; 1259 16539 INDEX idx_student_answers_session_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_student_answers_session_id" already exists
+Command was: CREATE INDEX idx_student_answers_session_id ON public.student_answers USING btree (session_id);
+
+
+pg_restore: creating INDEX "public.idx_student_answers_session_question_unique"
+pg_restore: from TOC entry 3385; 1259 16541 INDEX idx_student_answers_session_question_unique postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_student_answers_session_question_unique" already exists
+Command was: CREATE UNIQUE INDEX idx_student_answers_session_question_unique ON public.student_answers USING btree (session_id, question_id);
+
+
+pg_restore: creating INDEX "public.idx_student_sessions_quiz_id"
+pg_restore: from TOC entry 3378; 1259 16537 INDEX idx_student_sessions_quiz_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_student_sessions_quiz_id" already exists
+Command was: CREATE INDEX idx_student_sessions_quiz_id ON public.student_sessions USING btree (quiz_id);
+
+
+pg_restore: creating INDEX "public.idx_student_sessions_session_token"
+pg_restore: from TOC entry 3379; 1259 16538 INDEX idx_student_sessions_session_token postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_student_sessions_session_token" already exists
+Command was: CREATE INDEX idx_student_sessions_session_token ON public.student_sessions USING btree (session_token);
+
+
+pg_restore: creating INDEX "public.idx_violation_flags_session_id"
+pg_restore: from TOC entry 3388; 1259 16540 INDEX idx_violation_flags_session_id postgres
+pg_restore: error: could not execute query: ERROR:  relation "idx_violation_flags_session_id" already exists
+Command was: CREATE INDEX idx_violation_flags_session_id ON public.violation_flags USING btree (session_id);
+
+
+pg_restore: creating FK CONSTRAINT "public.questions questions_created_by_fkey"
+pg_restore: from TOC entry 3396; 2606 16437 FK CONSTRAINT questions questions_created_by_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "questions_created_by_fkey" for relation "questions" already exists
+Command was: ALTER TABLE ONLY public.questions
+    ADD CONSTRAINT questions_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+pg_restore: creating FK CONSTRAINT "public.questions questions_subject_id_fkey"
+pg_restore: from TOC entry 3397; 2606 16432 FK CONSTRAINT questions questions_subject_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "questions_subject_id_fkey" for relation "questions" already exists
+Command was: ALTER TABLE ONLY public.questions
+    ADD CONSTRAINT questions_subject_id_fkey FOREIGN KEY (subject_id) REFERENCES public.subjects(id) ON DELETE CASCADE;
+
+
+pg_restore: creating FK CONSTRAINT "public.questions questions_unit_id_fkey"
+pg_restore: from TOC entry 3398; 2606 16566 FK CONSTRAINT questions questions_unit_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "questions_unit_id_fkey" for relation "questions" already exists
+Command was: ALTER TABLE ONLY public.questions
+    ADD CONSTRAINT questions_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id) ON DELETE SET NULL;
+
+
+pg_restore: creating FK CONSTRAINT "public.quiz_questions quiz_questions_question_id_fkey"
+pg_restore: from TOC entry 3401; 2606 16479 FK CONSTRAINT quiz_questions quiz_questions_question_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "quiz_questions_question_id_fkey" for relation "quiz_questions" already exists
+Command was: ALTER TABLE ONLY public.quiz_questions
+    ADD CONSTRAINT quiz_questions_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id);
+
+
+pg_restore: creating FK CONSTRAINT "public.quiz_questions quiz_questions_quiz_id_fkey"
+pg_restore: from TOC entry 3402; 2606 16474 FK CONSTRAINT quiz_questions quiz_questions_quiz_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "quiz_questions_quiz_id_fkey" for relation "quiz_questions" already exists
+Command was: ALTER TABLE ONLY public.quiz_questions
+    ADD CONSTRAINT quiz_questions_quiz_id_fkey FOREIGN KEY (quiz_id) REFERENCES public.quizzes(id) ON DELETE CASCADE;
+
+
+pg_restore: creating FK CONSTRAINT "public.quizzes quizzes_created_by_fkey"
+pg_restore: from TOC entry 3399; 2606 16460 FK CONSTRAINT quizzes quizzes_created_by_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "quizzes_created_by_fkey" for relation "quizzes" already exists
+Command was: ALTER TABLE ONLY public.quizzes
+    ADD CONSTRAINT quizzes_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+pg_restore: creating FK CONSTRAINT "public.quizzes quizzes_subject_id_fkey"
+pg_restore: from TOC entry 3400; 2606 16455 FK CONSTRAINT quizzes quizzes_subject_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "quizzes_subject_id_fkey" for relation "quizzes" already exists
+Command was: ALTER TABLE ONLY public.quizzes
+    ADD CONSTRAINT quizzes_subject_id_fkey FOREIGN KEY (subject_id) REFERENCES public.subjects(id);
+
+
+pg_restore: creating FK CONSTRAINT "public.student_answers student_answers_question_id_fkey"
+pg_restore: from TOC entry 3404; 2606 16515 FK CONSTRAINT student_answers student_answers_question_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "student_answers_question_id_fkey" for relation "student_answers" already exists
+Command was: ALTER TABLE ONLY public.student_answers
+    ADD CONSTRAINT student_answers_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id);
+
+
+pg_restore: creating FK CONSTRAINT "public.student_answers student_answers_session_id_fkey"
+pg_restore: from TOC entry 3405; 2606 16510 FK CONSTRAINT student_answers student_answers_session_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "student_answers_session_id_fkey" for relation "student_answers" already exists
+Command was: ALTER TABLE ONLY public.student_answers
+    ADD CONSTRAINT student_answers_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.student_sessions(id) ON DELETE CASCADE;
+
+
+pg_restore: creating FK CONSTRAINT "public.student_sessions student_sessions_quiz_id_fkey"
+pg_restore: from TOC entry 3403; 2606 16496 FK CONSTRAINT student_sessions student_sessions_quiz_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "student_sessions_quiz_id_fkey" for relation "student_sessions" already exists
+Command was: ALTER TABLE ONLY public.student_sessions
+    ADD CONSTRAINT student_sessions_quiz_id_fkey FOREIGN KEY (quiz_id) REFERENCES public.quizzes(id);
+
+
+pg_restore: creating FK CONSTRAINT "public.subjects subjects_created_by_fkey"
+pg_restore: from TOC entry 3395; 2606 16412 FK CONSTRAINT subjects subjects_created_by_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "subjects_created_by_fkey" for relation "subjects" already exists
+Command was: ALTER TABLE ONLY public.subjects
+    ADD CONSTRAINT subjects_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+pg_restore: creating FK CONSTRAINT "public.units units_created_by_fkey"
+pg_restore: from TOC entry 3407; 2606 16560 FK CONSTRAINT units units_created_by_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "units_created_by_fkey" for relation "units" already exists
+Command was: ALTER TABLE ONLY public.units
+    ADD CONSTRAINT units_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+pg_restore: creating FK CONSTRAINT "public.units units_subject_id_fkey"
+pg_restore: from TOC entry 3408; 2606 16555 FK CONSTRAINT units units_subject_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "units_subject_id_fkey" for relation "units" already exists
+Command was: ALTER TABLE ONLY public.units
+    ADD CONSTRAINT units_subject_id_fkey FOREIGN KEY (subject_id) REFERENCES public.subjects(id) ON DELETE CASCADE;
+
+
+pg_restore: creating FK CONSTRAINT "public.violation_flags violation_flags_session_id_fkey"
+pg_restore: from TOC entry 3406; 2606 16530 FK CONSTRAINT violation_flags violation_flags_session_id_fkey postgres
+pg_restore: error: could not execute query: ERROR:  constraint "violation_flags_session_id_fkey" for relation "violation_flags" already exists
+Command was: ALTER TABLE ONLY public.violation_flags
+    ADD CONSTRAINT violation_flags_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.student_sessions(id) ON DELETE CASCADE;
+
+
+pg_restore: warning: errors ignored on restore: 85
+➜  ~ 
+
+
