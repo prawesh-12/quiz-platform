@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";
 import GenerateModeModal from "@/components/teacher/GenerateModeModal";
 import QuizListCard from "@/components/teacher/QuizListCard";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,8 +46,9 @@ export default function DashboardPage() {
   const [subjectName, setSubjectName] = useState("");
   const [generateModeOpen, setGenerateModeOpen] = useState(false);
   const [quizPage, setQuizPage] = useState(1);
-  const [pageLimit, setPageLimit] = useState(4);
-  const listWrapperRef = useRef(null);
+  const [quizToDelete, setQuizToDelete] = useState(null);
+
+  const PAGE_SIZE = 10;
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects"],
@@ -45,12 +56,12 @@ export default function DashboardPage() {
   });
 
   const quizzesQuery = useQuery({
-    queryKey: ["quizzes", committedSearch, quizPage, pageLimit],
+    queryKey: ["quizzes", committedSearch, quizPage, PAGE_SIZE],
     queryFn: () =>
       quizService.list({
         search: committedSearch || undefined,
         page: quizPage,
-        limit: pageLimit,
+        limit: PAGE_SIZE,
       }),
   });
 
@@ -85,6 +96,22 @@ export default function DashboardPage() {
     },
   });
 
+  const deleteQuizMutation = useMutation({
+    mutationFn: (id) => quizService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quizzes"] });
+      setQuizToDelete(null);
+      toast({ title: "Quiz deleted", description: "The quiz has been removed." });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete failed",
+        description: error?.response?.data?.error || "Could not delete quiz.",
+        variant: "destructive",
+      });
+    },
+  });
+
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setCommittedSearch(searchInput.trim());
@@ -99,73 +126,6 @@ export default function DashboardPage() {
   const activeQuizzes = activeQuizzesQuery.data?.quizzes ?? [];
   const activeCount = activeQuizzesQuery.data?.count ?? 0;
   const quizTotalPages = quizzesQuery.data?.totalPages ?? 1;
-
-  const recalcPageLimit = useCallback(() => {
-    const container = listWrapperRef.current;
-    if (!container) {
-      return;
-    }
-
-    const availableHeight = container.getBoundingClientRect().height;
-    if (!availableHeight) {
-      return;
-    }
-
-    const itemNodes = container.querySelectorAll("[data-quiz-item]");
-    if (!itemNodes.length) {
-      return;
-    }
-
-    const firstRect = itemNodes[0].getBoundingClientRect();
-    if (!firstRect?.height) {
-      return;
-    }
-
-    let perItemHeight = firstRect.height;
-
-    if (itemNodes.length > 1) {
-      const secondRect = itemNodes[1].getBoundingClientRect();
-      const gap = secondRect.top - firstRect.bottom;
-      if (Number.isFinite(gap)) {
-        perItemHeight += Math.max(0, gap);
-      }
-    } else {
-      perItemHeight += 12;
-    }
-
-    perItemHeight = Math.max(perItemHeight, 1);
-
-    // Keep the quiz list within the visible area so paging controls drive navigation.
-    const usableHeight = Math.max(0, availableHeight - 8);
-    const computedLimit = Math.max(
-      1,
-      Math.floor(usableHeight / perItemHeight),
-    );
-
-    if (computedLimit !== pageLimit) {
-      setQuizPage(1);
-      setPageLimit(computedLimit);
-    }
-  }, [pageLimit]);
-
-  useEffect(() => {
-    if (!quizzes.length) {
-      return;
-    }
-
-    const frame = window.requestAnimationFrame(() => {
-      recalcPageLimit();
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [quizzes, recalcPageLimit]);
-
-  useEffect(() => {
-    const handler = () => recalcPageLimit();
-    window.addEventListener("resize", handler);
-
-    return () => window.removeEventListener("resize", handler);
-  }, [recalcPageLimit]);
 
   const openOngoingQuizView = () => {
     if (activeCount === 1 && activeQuizzes[0]?.id) {
@@ -194,8 +154,8 @@ export default function DashboardPage() {
       onLogout={logout}
       showBackButton={false}
     >
-      <div className="flex h-full flex-col gap-6">
-        <Card className="mx-auto max-w-3xl">
+      <div className="flex min-h-0 flex-1 flex-col gap-6">
+        <Card className="mx-auto max-w-3xl shrink-0">
           <CardContent className="pt-6">
             <div className="grid grid-cols-3 items-center gap-3">
 
@@ -245,53 +205,46 @@ export default function DashboardPage() {
         </Card>
 
 
-        <Card className="flex flex-1 flex-col overflow-hidden">
+        <Card className="flex min-h-0 flex-1 flex-col">
           <CardHeader className="shrink-0">
             <CardTitle>Quiz List</CardTitle>
           </CardHeader>
-          <CardContent className="flex h-full flex-col overflow-hidden">
-            <div
-              ref={listWrapperRef}
-              className="flex-1 overflow-hidden min-h-0"
-            >
-              <div className="space-y-3">
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {quizzesQuery.isLoading ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="col-span-full text-sm text-muted-foreground">
                     Loading quizzes...
                   </p>
                 ) : null}
                 {quizzesQuery.isError ? (
-                  <p className="text-sm text-destructive">
+                  <p className="col-span-full text-sm text-destructive">
                     {quizzesQuery.error?.response?.data
                       ?.error || "Failed to load quizzes"}
                   </p>
                 ) : null}
-                {!quizzesQuery.isLoading &&
-                  quizzes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
+                {!quizzesQuery.isLoading && quizzes.length === 0 ? (
+                  <p className="col-span-full text-sm text-muted-foreground">
                     No quizzes found for this filter.
                   </p>
                 ) : null}
                 {quizzes.map((quiz) => (
-                  <div key={quiz.id} data-quiz-item>
                     <QuizListCard
+                      key={quiz.id}
                       quiz={quiz}
                       onViewResponses={(item) =>
-                        navigate(
-                          `/teacher/quiz/${item.id}/responses`,
-                        )
+                        navigate(`/teacher/quiz/${item.id}/responses`)
                       }
+                      onEdit={(item) => navigate(`/teacher/quiz/manual/${item.id}`)}
                       onDuplicate={(item) =>
-                        duplicateQuizMutation.mutate(
-                          item.id,
-                        )
+                        duplicateQuizMutation.mutate(item.id)
                       }
+                      onDelete={(item) => setQuizToDelete(item)}
                     />
-                  </div>
                 ))}
               </div>
             </div>
-            <div className="pt-3 shrink-0">
+            <div className="shrink-0 pt-3">
               <Pagination
                 page={quizPage}
                 totalPages={quizTotalPages}
@@ -301,6 +254,32 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog
+        open={Boolean(quizToDelete)}
+        onOpenChange={(open) => !open && setQuizToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this quiz?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the quiz and all associated responses and data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteQuizMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteQuizMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => quizToDelete && deleteQuizMutation.mutate(quizToDelete.id)}
+            >
+              {deleteQuizMutation.isPending ? "Deleting..." : "Delete quiz"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog
         open={createSubjectOpen}

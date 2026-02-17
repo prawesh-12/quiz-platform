@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
@@ -175,6 +176,15 @@ function moveItem(list, fromIndex, toIndex) {
   return next;
 }
 
+function addMinutesToDateTime(dateTimeStr, minutes) {
+  if (!dateTimeStr) return "";
+  const d = new Date(dateTimeStr);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setMinutes(d.getMinutes() + Number(minutes || 0));
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function ManualQuizPage() {
   const navigate = useNavigate();
   const { quizId } = useParams();
@@ -295,6 +305,19 @@ export default function ManualQuizPage() {
     ? buildShareUrlFromToken(quizDetailQuery.data?.quiz?.access_token)
     : "";
 
+  const handleScheduledStartChange = (value) => {
+    setScheduledStart(value);
+    setScheduledEnd(addMinutesToDateTime(value, durationMins));
+  };
+
+  const handleDurationChange = (value) => {
+    const mins = Number(value || 15);
+    setDurationMins(mins);
+    if (scheduledStart) {
+      setScheduledEnd(addMinutesToDateTime(scheduledStart, mins));
+    }
+  };
+
   const validateQuestions = () => {
     if (!questions.length) {
       return "Add at least one question";
@@ -360,6 +383,9 @@ export default function ManualQuizPage() {
             ...(questionIds.length ? { question_ids: questionIds } : {})
           }
         });
+        queryClient.invalidateQueries({ queryKey: ["quizzes"] });
+        toast({ title: "Saved as draft", description: "Quiz has been saved as draft." });
+        navigate("/teacher", { replace: true });
       } catch (error) {
         setPageError(extractApiError(error, "Failed to update quiz"));
       }
@@ -373,14 +399,14 @@ export default function ManualQuizPage() {
     }
 
     try {
-      const response = await saveManualMutation.mutateAsync({
+      await saveManualMutation.mutateAsync({
         ...buildQuizPayload(),
         questions: questions.map(mapBuilderQuestionToApi)
       });
 
       queryClient.invalidateQueries({ queryKey: ["quizzes"] });
-      navigate(`/teacher/quiz/manual/${response.quiz.id}`, { replace: true });
-      toast({ title: "Quiz saved", description: "Draft quiz saved successfully." });
+      toast({ title: "Saved as draft", description: "Quiz has been saved as draft." });
+      navigate("/teacher", { replace: true });
     } catch (error) {
       setPageError(extractApiError(error, "Failed to save quiz"));
     }
@@ -433,19 +459,16 @@ export default function ManualQuizPage() {
         id: activeQuizId,
         payload: {
           ...buildQuizPayload(),
-          status: "draft",
+          status: "active",
           ...(isExistingQuiz && questionIds.length ? { question_ids: questionIds } : {})
         }
       });
 
-      const statusResponse = await quizService.updateStatus(activeQuizId, "active");
       queryClient.invalidateQueries({ queryKey: ["quizzes"] });
       queryClient.invalidateQueries({ queryKey: ["quizzes", activeQuizId] });
 
       const nextShareUrl =
-        statusResponse.share_url ||
         response.share_url ||
-        buildShareUrlFromToken(statusResponse.quiz?.access_token) ||
         buildShareUrlFromToken(response.quiz?.access_token);
 
       setShareUrl(nextShareUrl);
@@ -569,7 +592,7 @@ export default function ManualQuizPage() {
                   type="number"
                   min={1}
                   value={durationMins}
-                  onChange={(event) => setDurationMins(Number(event.target.value || 15))}
+                  onChange={(event) => handleDurationChange(Number(event.target.value || 15))}
                 />
               </div>
               <div className="w-full space-y-2">
@@ -594,7 +617,7 @@ export default function ManualQuizPage() {
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="w-full space-y-2">
                 <Label>Scheduled Start</Label>
-                <DateTimePicker value={scheduledStart} onChange={setScheduledStart} placeholder="Select start" />
+                <DateTimePicker value={scheduledStart} onChange={handleScheduledStartChange} placeholder="Select start" />
               </div>
               <div className="w-full space-y-2">
                 <Label>Scheduled End</Label>
@@ -686,29 +709,6 @@ export default function ManualQuizPage() {
 
         {pageError ? <p className="text-sm text-destructive">{pageError}</p> : null}
 
-        {shareUrl || persistedShareUrl ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Share Quiz Link</CardTitle>
-              <CardDescription>Copy this link and share it with students.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Input value={shareUrl || persistedShareUrl} readOnly />
-              <Button
-                type="button"
-                onClick={async () => {
-                  const value = shareUrl || persistedShareUrl;
-                  if (!value) return;
-                  await navigator.clipboard.writeText(value);
-                  toast({ title: "Link copied", description: "Quiz link copied to clipboard." });
-                }}
-              >
-                Copy Link
-              </Button>
-            </CardContent>
-          </Card>
-        ) : null}
-
       </div>
 
       <Dialog open={subjectDialogOpen} onOpenChange={setSubjectDialogOpen}>
@@ -783,41 +783,43 @@ export default function ManualQuizPage() {
           ) : null}
 
           {!isExistingQuiz || (!previewQuery.isLoading && !previewQuery.isError) ? (
-            <div className="space-y-4">
-              <Card>
-                <CardContent className="space-y-1 pt-5">
-                  <p className="text-base font-semibold">{previewTitle}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Timer: {previewDuration} min • Read-only preview mode
-                  </p>
-                </CardContent>
-              </Card>
-
-              {previewQuestions.length === 0 ? <p className="text-sm text-muted-foreground">No questions to preview.</p> : null}
-
-              {previewQuestions.map((question, index) => (
-                <Card key={question.id}>
-                  <CardContent className="space-y-3 pt-5">
-                    <p className="text-xs uppercase text-muted-foreground">Question {index + 1}</p>
-                    <p className="text-sm">{question.question_text || "-"}</p>
-                    <div className="space-y-2">
-                      {question.options.map((option) => (
-                        <div
-                          key={option.key}
-                          className={
-                            option.key === question.correct_option
-                              ? "rounded-md border border-primary bg-primary/10 p-2 text-sm font-medium"
-                              : "rounded-md border p-2 text-sm text-muted-foreground"
-                          }
-                        >
-                          {option.key.toUpperCase()}. {option.value || "-"}
-                        </div>
-                      ))}
-                    </div>
+            <ScrollArea className="max-h-[70vh] pr-2">
+              <div className="space-y-4">
+                <Card>
+                  <CardContent className="space-y-1 pt-5">
+                    <p className="text-base font-semibold">{previewTitle}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Timer: {previewDuration} min • Read-only preview mode
+                    </p>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+
+                {previewQuestions.length === 0 ? <p className="text-sm text-muted-foreground">No questions to preview.</p> : null}
+
+                {previewQuestions.map((question, index) => (
+                  <Card key={question.id}>
+                    <CardContent className="space-y-3 pt-5">
+                      <p className="text-xs uppercase text-muted-foreground">Question {index + 1}</p>
+                      <p className="text-sm">{question.question_text || "-"}</p>
+                      <div className="space-y-2">
+                        {question.options.map((option) => (
+                          <div
+                            key={option.key}
+                            className={
+                              option.key === question.correct_option
+                                ? "rounded-md border border-primary bg-primary/10 p-2 text-sm font-medium"
+                                : "rounded-md border p-2 text-sm text-muted-foreground"
+                            }
+                          >
+                            {option.key.toUpperCase()}. {option.value || "-"}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
           ) : null}
         </DialogContent>
       </Dialog>

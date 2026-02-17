@@ -62,6 +62,18 @@ function formatAnswerResult(answer) {
   return answer.is_correct ? "Correct" : "Incorrect";
 }
 
+function formatDateOnly(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString();
+}
+
+function formatOptionLabel(option) {
+  if (!option) return "-";
+  return String(option).toUpperCase();
+}
+
 export default function QuizResponsePage() {
   const navigate = useNavigate();
   const { quizId } = useParams();
@@ -72,6 +84,7 @@ export default function QuizResponsePage() {
   const [page, setPage] = useState(1);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [quizDetailsOpen, setQuizDetailsOpen] = useState(false);
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects"],
@@ -95,6 +108,12 @@ export default function QuizResponsePage() {
     queryKey: ["violations", "session", selectedSessionId],
     enabled: detailsOpen && Boolean(selectedSessionId),
     queryFn: () => violationService.getBySession(selectedSessionId)
+  });
+
+  const quizDetailsQuery = useQuery({
+    queryKey: ["quizzes", quizId, "details"],
+    enabled: quizDetailsOpen && Boolean(quizId),
+    queryFn: () => quizService.getById(quizId)
   });
 
   const quiz = responsesQuery.data?.quiz || null;
@@ -145,11 +164,11 @@ export default function QuizResponsePage() {
             </div>
             <div className="flex items-center gap-2">
               <Badge variant={quiz?.status === "active" ? "default" : "secondary"}>{quiz?.status || "-"}</Badge>
+              <Button type="button" variant="outline" onClick={() => setQuizDetailsOpen(true)}>
+                Quiz details
+              </Button>
               <Button type="button" onClick={downloadExport}>
                 Export Results
-              </Button>
-              <Button type="button" variant="outline" onClick={() => navigate("/teacher")}>
-                Back to Dashboard
               </Button>
             </div>
           </CardHeader>
@@ -235,6 +254,101 @@ export default function QuizResponsePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={quizDetailsOpen} onOpenChange={setQuizDetailsOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Quiz Details</DialogTitle>
+            <DialogDescription>Full quiz configuration and questions (read-only).</DialogDescription>
+          </DialogHeader>
+
+          {quizDetailsQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading quiz details...</p>
+          ) : null}
+          {quizDetailsQuery.isError ? (
+            <p className="text-sm text-destructive">
+              {quizDetailsQuery.error?.response?.data?.error || "Failed to load quiz details"}
+            </p>
+          ) : null}
+
+          {quizDetailsQuery.data ? (
+            <ScrollArea className="max-h-[70vh] pr-2">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Quiz Title</p>
+                    <p className="text-sm font-medium">{quizDetailsQuery.data.quiz?.title || "-"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Subject</p>
+                    <p className="text-sm">{quiz?.subject_name ?? quizDetailsQuery.data.quiz?.subject_id ?? "-"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Duration (mins)</p>
+                    <p className="text-sm">{quizDetailsQuery.data.quiz?.duration_mins ?? "-"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Batch</p>
+                    <p className="text-sm">{quizDetailsQuery.data.quiz?.batch || "-"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Division</p>
+                    <p className="text-sm">{quizDetailsQuery.data.quiz?.division || "-"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Group</p>
+                    <p className="text-sm">{quizDetailsQuery.data.quiz?.group_nos || "-"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Quiz Date</p>
+                    <p className="text-sm">{formatDateOnly(quizDetailsQuery.data.quiz?.quiz_date)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Access Code</p>
+                    <p className="text-sm font-mono">{quizDetailsQuery.data.quiz?.access_code || "-"}</p>
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <p className="text-xs font-medium text-muted-foreground">Scheduled Start</p>
+                    <p className="text-sm">{quizDetailsQuery.data.quiz?.scheduled_start ? formatDateTime(quizDetailsQuery.data.quiz.scheduled_start) : "-"}</p>
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <p className="text-xs font-medium text-muted-foreground">Scheduled End</p>
+                    <p className="text-sm">{quizDetailsQuery.data.quiz?.scheduled_end ? formatDateTime(quizDetailsQuery.data.quiz.scheduled_end) : "-"}</p>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h3 className="mb-3 text-sm font-semibold">Questions</h3>
+                  <div className="space-y-4">
+                    {(quizDetailsQuery.data.questions || []).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No questions.</p>
+                    ) : (
+                      (quizDetailsQuery.data.questions || []).map((q, index) => (
+                        <Card key={q.id}>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm">
+                              Q{index + 1}. {q.question_text || "-"}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-1.5 text-sm">
+                            <p><span className="text-muted-foreground">A.</span> {q.option_a ?? "-"}</p>
+                            <p><span className="text-muted-foreground">B.</span> {q.option_b ?? "-"}</p>
+                            {(q.option_c != null && q.option_c !== "") ? <p><span className="text-muted-foreground">C.</span> {q.option_c}</p> : null}
+                            {(q.option_d != null && q.option_d !== "") ? <p><span className="text-muted-foreground">D.</span> {q.option_d}</p> : null}
+                            <p className="pt-2 font-medium text-muted-foreground">
+                              Correct: {formatOptionLabel(q.correct_option)}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={detailsOpen}

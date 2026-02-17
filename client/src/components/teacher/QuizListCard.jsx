@@ -1,4 +1,4 @@
-import { MoreVertical } from "lucide-react";
+import { Copy, MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -23,7 +23,9 @@ function formatDate(value) {
   return date.toLocaleDateString();
 }
 
-export default function QuizListCard({ quiz, onViewResponses, onDuplicate }) {
+export default function QuizListCard({ quiz, onViewResponses, onEdit, onDuplicate, onDelete }) {
+  const canEdit = quiz.status === "draft" || quiz.status === "active";
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -52,7 +54,23 @@ export default function QuizListCard({ quiz, onViewResponses, onDuplicate }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => onDuplicate?.(quiz)}>Duplicate</DropdownMenuItem>
+              {canEdit ? (
+                <DropdownMenuItem className="flex items-center" onClick={() => onEdit?.(quiz)}>
+                  <Pencil className="mr-2 h-4 w-4 shrink-0" />
+                  <span>Edit quiz</span>
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem className="flex items-center" onClick={() => onDuplicate?.(quiz)}>
+                <Copy className="mr-2 h-4 w-4 shrink-0" />
+                <span>Duplicate</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="flex items-center text-destructive focus:bg-destructive/10 focus:text-destructive"
+                onClick={() => onDelete?.(quiz)}
+              >
+                <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+                <span>Delete quiz</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

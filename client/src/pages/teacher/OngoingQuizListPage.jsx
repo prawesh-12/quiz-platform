@@ -34,19 +34,21 @@ export default function OngoingQuizListPage() {
       onOpenProfile={() => navigate("/teacher/profile")}
       user={user}
       onLogout={logout}
+      showBackButton={true}
     >
-      <div className="space-y-4">
+      <div className="min-h-0 flex-1 space-y-4">
         <Card>
           <CardHeader>
             <CardTitle>Ongoing Quizzes</CardTitle>
+            <CardDescription>Active quizzes you can monitor in real time.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {ongoingQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading active quizzes...</p> : null}
             {ongoingQuery.isError ? (
               <p className="text-sm text-destructive">{ongoingQuery.error?.response?.data?.error || "Failed to load active quizzes"}</p>
             ) : null}
-            {!ongoingQuery.isLoading && quizzes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No active quizzes right now.</p>
+            {!ongoingQuery.isLoading && !ongoingQuery.isError && quizzes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No active quizzes right now. Start one from the dashboard.</p>
             ) : null}
 
             {quizzes.map((quiz) => (

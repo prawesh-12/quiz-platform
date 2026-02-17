@@ -644,6 +644,48 @@ export async function updateQuizStatus(req, res, next) {
   }
 }
 
+export async function deleteQuiz(req, res, next) {
+  const client = await pool.connect();
+
+  try {
+    const { id } = quizIdParamSchema.parse(req.params);
+
+    const owned = await assertQuizOwnership(id, req.user.userId, client.query.bind(client));
+    if (!owned) {
+      return res.status(404).json({ error: "Quiz not found" });
+    }
+
+    await client.query("BEGIN");
+
+    await client.query(
+      `DELETE FROM violation_flags WHERE session_id IN (SELECT id FROM student_sessions WHERE quiz_id = $1)`,
+      [id]
+    );
+    await client.query(
+      `DELETE FROM student_answers WHERE session_id IN (SELECT id FROM student_sessions WHERE quiz_id = $1)`,
+      [id]
+    );
+    await client.query("DELETE FROM student_sessions WHERE quiz_id = $1", [id]);
+    await client.query("DELETE FROM quizzes WHERE id = $1 AND created_by = $2", [id, req.user.userId]);
+
+    await client.query("COMMIT");
+
+    return res.status(200).json({ message: "Quiz deleted" });
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // ignore
+    }
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Invalid quiz id" });
+    }
+    return next(error);
+  } finally {
+    client.release();
+  }
+}
+
 export async function getQuizLiveStats(req, res, next) {
   try {
     const { id } = quizIdParamSchema.parse(req.params);
@@ -660,6 +702,8 @@ export async function getQuizLiveStats(req, res, next) {
         q.group_nos,
         q.quiz_date,
         q.status,
+        q.access_code,
+        q.access_token,
         q.created_at
       FROM quizzes q
       LEFT JOIN subjects s ON s.id = q.subject_id

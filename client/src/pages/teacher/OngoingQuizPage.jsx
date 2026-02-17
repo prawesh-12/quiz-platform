@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
+import { Copy, Trash2 } from "lucide-react";
 
 import TeacherShell from "@/components/layout/TeacherShell";
 import FlagBadge from "@/components/teacher/FlagBadge";
@@ -74,6 +75,7 @@ export default function OngoingQuizPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [stopDialogOpen, setStopDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects"],
@@ -112,6 +114,41 @@ export default function OngoingQuizPage() {
       });
     }
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => quizService.delete(quizId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quizzes"] });
+      setDeleteDialogOpen(false);
+      toast({ title: "Quiz deleted", description: "The quiz has been removed." });
+      navigate("/teacher", { replace: true });
+    },
+    onError: (error) => {
+      toast({
+        title: "Delete failed",
+        description: error?.response?.data?.error || "Could not delete quiz.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const shareUrl = quiz?.access_token ? `${window.location.origin}/quiz/enter/${quiz.access_token}` : null;
+
+  const copyLink = () => {
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl).then(
+      () => toast({ title: "Link copied", description: "Quiz link copied to clipboard." }),
+      () => toast({ title: "Copy failed", description: "Could not copy to clipboard.", variant: "destructive" })
+    );
+  };
+
+  const copyAccessCode = () => {
+    if (!quiz?.access_code) return;
+    navigator.clipboard.writeText(quiz.access_code).then(
+      () => toast({ title: "Access code copied", description: "Access code copied to clipboard." }),
+      () => toast({ title: "Copy failed", description: "Could not copy to clipboard.", variant: "destructive" })
+    );
+  };
 
   const stats = liveStatsQuery.data?.stats;
   const quiz = liveStatsQuery.data?.quiz;
@@ -161,19 +198,50 @@ export default function OngoingQuizPage() {
                 Batch: {quiz?.batch || "-"} • Division: {quiz?.division || "-"} • Group: {quiz?.group_nos || "-"}
               </p>
               <p className="text-sm text-muted-foreground">Date: {quiz?.quiz_date || "-"}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {quiz?.access_code != null && quiz.access_code !== "" ? (
+                  <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-1.5">
+                    <span className="text-sm text-muted-foreground">Access code:</span>
+                    <span className="font-mono font-medium">{quiz.access_code}</span>
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={copyAccessCode} title="Copy access code">
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : null}
+                {shareUrl ? (
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={copyLink}>
+                      <Copy className="mr-1.5 h-4 w-4" />
+                      Copy quiz link
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
             </div>
-            <div className="text-right">
+            <div className="flex flex-col items-end gap-2 text-right">
               <p className="text-xs text-muted-foreground">Running Time</p>
               <p className="text-3xl font-bold">{formatTime(stats?.elapsed_seconds || 0)}</p>
-              {!isEnded ? (
-                <Button type="button" variant="destructive" className="mt-3" onClick={() => setStopDialogOpen(true)}>
-                  Stop Responses
+              <div className="mt-1 flex flex-col gap-2">
+                {!isEnded ? (
+                  <Button type="button" variant="destructive" onClick={() => setStopDialogOpen(true)}>
+                    Stop Responses
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={downloadExport}>
+                    Export Results
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="mr-1.5 h-4 w-4" />
+                  Delete quiz
                 </Button>
-              ) : (
-                <Button type="button" className="mt-3" onClick={downloadExport}>
-                  Export Results
-                </Button>
-              )}
+              </div>
             </div>
           </CardHeader>
         </Card>
@@ -247,6 +315,27 @@ export default function OngoingQuizPage() {
             <AlertDialogCancel disabled={stopMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction disabled={stopMutation.isPending} onClick={() => stopMutation.mutate()}>
               {stopMutation.isPending ? "Stopping..." : "Confirm Stop"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this quiz?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the quiz and all associated responses and data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteMutation.mutate()}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete quiz"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

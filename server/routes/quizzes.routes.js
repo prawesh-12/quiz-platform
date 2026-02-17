@@ -5,6 +5,7 @@ import {
   autoGenerateQuizSchema,
   createManualQuiz,
   createManualQuizSchema,
+  deleteQuiz,
   duplicateQuiz,
   exportQuizResponses,
   getQuizById,
@@ -37,5 +38,6 @@ quizzesRouter.post("/auto-generate", validate(autoGenerateQuizSchema), autoGener
 quizzesRouter.post("/:id/duplicate", duplicateQuiz);
 quizzesRouter.put("/:id/status", validate(updateQuizStatusSchema), updateQuizStatus);
 quizzesRouter.put("/:id", validate(updateQuizSchema), updateQuiz);
+quizzesRouter.delete("/:id", deleteQuiz);
 
 export default quizzesRouter;

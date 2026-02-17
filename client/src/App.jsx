@@ -31,6 +31,7 @@ export default function App() {
           <Route path="/teacher/quiz/manual" element={<ManualQuizPage />} />
           <Route path="/teacher/quiz/manual/:quizId" element={<ManualQuizPage />} />
           <Route path="/teacher/quiz/auto" element={<AutoGeneratePage />} />
+          {/* Ongoing routes must come before :quizId/responses so "ongoing" is not matched as quizId */}
           <Route path="/teacher/quiz/ongoing" element={<OngoingQuizListPage />} />
           <Route path="/teacher/quiz/ongoing/:quizId" element={<OngoingQuizPage />} />
           <Route path="/teacher/quiz/:quizId/responses" element={<QuizResponsePage />} />

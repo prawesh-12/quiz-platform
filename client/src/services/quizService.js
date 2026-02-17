@@ -59,6 +59,11 @@ export const quizService = {
     return response.data;
   },
 
+  async delete(id) {
+    const response = await api.delete(`/quizzes/${id}`);
+    return response.data;
+  },
+
   async getLeaderboard(id) {
     const response = await api.get(`/quizzes/${id}/leaderboard`);
     return response.data;
