@@ -27,27 +27,27 @@ function formatDate(value) {
 function getStatusConfig(status) {
   if (status === "active") {
     return {
-      label: "Active",
+      label: "ONGOING",
       badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700"
     };
   }
 
   if (status === "scheduled") {
     return {
-      label: "Scheduled",
+      label: "SCHEDULED",
       badgeClass: "border-blue-200 bg-blue-50 text-blue-700"
     };
   }
 
   if (status === "ended") {
     return {
-      label: "Ended",
+      label: "ENDED",
       badgeClass: "border-rose-200 bg-rose-50 text-rose-700"
     };
   }
 
   return {
-    label: status || "Draft",
+    label: String(status || "draft").toUpperCase(),
     badgeClass: "border-slate-200 bg-slate-100 text-slate-700"
   };
 }

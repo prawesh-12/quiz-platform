@@ -1,6 +1,8 @@
 import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import GenerateModeModal from "@/components/teacher/GenerateModeModal";
 import TeacherSidebar from "@/components/layout/TeacherSidebar";
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +18,7 @@ export default function TeacherShell({
     showBackButton = true,
 }) {
     const navigate = useNavigate();
+    const [generateModeOpen, setGenerateModeOpen] = useState(false);
 
     return (
         <div className="min-h-screen bg-[#f3f5fb] md:h-screen">
@@ -24,6 +27,7 @@ export default function TeacherShell({
                 selectedSubjectId={selectedSubjectId}
                 onSelectSubject={onSelectSubject}
                 onOpenCreateSubject={onOpenCreateSubject}
+                onOpenGenerateQuiz={() => setGenerateModeOpen(true)}
                 onOpenProfile={onOpenProfile}
                 user={user}
                 onLogout={onLogout}
@@ -48,6 +52,7 @@ export default function TeacherShell({
                     <div className="relative">{children}</div>
                 </div>
             </main>
+            <GenerateModeModal open={generateModeOpen} onOpenChange={setGenerateModeOpen} />
         </div>
     );
 }
