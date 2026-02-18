@@ -151,6 +151,19 @@ export default function OngoingQuizPage() {
   const subjects = subjectsQuery.data?.subjects || [];
 
   const isEnded = quiz?.status === "ended";
+  const isScheduled = quiz?.status === "scheduled";
+
+  useEffect(() => {
+    if (!quiz || !isScheduled) {
+      return;
+    }
+
+    toast({
+      title: "Quiz is scheduled",
+      description: "This quiz has not started yet. Opening scheduled quizzes."
+    });
+    navigate("/teacher/quiz/scheduled", { replace: true });
+  }, [isScheduled, navigate, quiz, toast]);
 
   // Client-side elapsed timer anchored to quiz.created_at
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -161,10 +174,13 @@ export default function OngoingQuizPage() {
     // Fallback to created_at only if scheduled_start is missing (legacy data)
     const anchorTime = quiz?.scheduled_start || quiz?.created_at;
     const anchorDate = anchorTime ? new Date(anchorTime) : null;
-    if (!anchorDate || Number.isNaN(anchorDate.getTime()) || isEnded) {
+    if (!anchorDate || Number.isNaN(anchorDate.getTime()) || isEnded || isScheduled) {
       // If ended, freeze at last known server value
       if (isEnded && stats?.elapsed_seconds != null) {
         setElapsedSeconds(stats.elapsed_seconds);
+      }
+      if (isScheduled) {
+        setElapsedSeconds(0);
       }
       return undefined;
     }
@@ -178,13 +194,13 @@ export default function OngoingQuizPage() {
     tick(); // immediate first tick
     const intervalId = setInterval(tick, 1000);
     return () => clearInterval(intervalId);
-  }, [quiz?.created_at, isEnded, stats?.elapsed_seconds]);
+  }, [isEnded, isScheduled, quiz?.created_at, quiz?.scheduled_start, stats?.elapsed_seconds]);
 
   // Auto-stop quiz when duration is reached
   const stopTriggeredRef = useRef(false);
 
   useEffect(() => {
-    if (!quiz || isEnded || stopTriggeredRef.current) return;
+    if (!quiz || isEnded || isScheduled || stopTriggeredRef.current) return;
 
     const durationSeconds = (quiz.duration_mins || 0) * 60;
     // Buffer of 2 seconds to avoid premature stop due to clock skew
@@ -197,7 +213,7 @@ export default function OngoingQuizPage() {
         variant: "default"
       });
     }
-  }, [elapsedSeconds, quiz, isEnded, stopMutation, toast]);
+  }, [elapsedSeconds, isEnded, isScheduled, quiz, stopMutation, toast]);
 
   const shareUrl = quiz?.access_token ? `${window.location.origin}/quiz/enter/${quiz.access_token}` : null;
 

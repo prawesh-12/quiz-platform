@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 import CountdownTimer from "@/components/quiz/CountdownTimer";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,6 @@ import {
 import { useProctoring } from "@/hooks/useProctoring";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useTimer } from "@/hooks/useTimer";
 import { useToast } from "@/hooks/useToast";
 import { sessionService } from "@/services/sessionService";
 import {
@@ -37,6 +36,28 @@ function readStoredPayload() {
     }
 }
 
+function toMillis(value) {
+    if (!value) {
+        return null;
+    }
+
+    const timestamp =
+        value instanceof Date ? value.getTime() : new Date(value).getTime();
+    if (Number.isNaN(timestamp)) {
+        return null;
+    }
+
+    return timestamp;
+}
+
+function secondsUntil(targetMs, nowMs) {
+    if (!targetMs) {
+        return 0;
+    }
+
+    return Math.max(0, Math.ceil((targetMs - nowMs) / 1000));
+}
+
 function QuestionContent({ question }) {
     if (!question) {
         return null;
@@ -53,13 +74,10 @@ function QuestionContent({ question }) {
         );
     }
 
-    return (
-        <p className="whitespace-pre-wrap text-base">{question.question_text}</p>
-    );
+    return <p className="whitespace-pre-wrap text-base">{question.question_text}</p>;
 }
 
 export default function QuizPage() {
-    const navigate = useNavigate();
     const location = useLocation();
     const [submitError, setSubmitError] = useState("");
     const [answers, setAnswers] = useState({});
@@ -77,10 +95,81 @@ export default function QuizPage() {
         "";
     const quiz = payload?.quiz || null;
     const questions = payload?.questions || [];
-    const totalSeconds = Number(
-        payload?.durationSeconds || quiz?.duration_mins * 60 || 0,
+
+    const totalDurationSeconds = Math.max(
+        0,
+        Number(
+            payload?.totalDurationSeconds ||
+                payload?.durationSeconds ||
+                quiz?.duration_mins * 60 ||
+                0,
+        ),
     );
-    const proctoringEnabled = Boolean(payload && sessionToken && !hasSubmitted);
+
+    const initialServerNowMs = toMillis(payload?.serverNow);
+    const initialStartAtMs = toMillis(payload?.startTime || quiz?.scheduled_start);
+    const fallbackEndMs = initialServerNowMs
+        ? initialServerNowMs + totalDurationSeconds * 1000
+        : null;
+    const initialEndAtMs =
+        toMillis(payload?.endTime || quiz?.scheduled_end) || fallbackEndMs;
+
+    const initialOffsetMs = initialServerNowMs
+        ? initialServerNowMs - Date.now()
+        : 0;
+
+    const [serverOffsetMs, setServerOffsetMs] = useState(initialOffsetMs);
+    const [startAtMs, setStartAtMs] = useState(initialStartAtMs);
+    const [endAtMs, setEndAtMs] = useState(initialEndAtMs);
+    const [secondsUntilStart, setSecondsUntilStart] = useState(() => {
+        if (!initialStartAtMs) {
+            return 0;
+        }
+
+        return secondsUntil(initialStartAtMs, Date.now() + initialOffsetMs);
+    });
+    const [secondsLeft, setSecondsLeft] = useState(() => {
+        if (!initialEndAtMs) {
+            return totalDurationSeconds;
+        }
+
+        return secondsUntil(initialEndAtMs, Date.now() + initialOffsetMs);
+    });
+    const [quizState, setQuizState] = useState(
+        payload?.quizState || (secondsUntilStart > 0 ? "scheduled" : "active"),
+    );
+    const autoSubmitTriggeredRef = useRef(false);
+
+    const syncServerTiming = useCallback((response) => {
+        if (response?.server_now) {
+            const serverNowMs = toMillis(response.server_now);
+            if (serverNowMs) {
+                setServerOffsetMs(serverNowMs - Date.now());
+            }
+        }
+
+        if (response?.start_time) {
+            const nextStartMs = toMillis(response.start_time);
+            if (nextStartMs) {
+                setStartAtMs(nextStartMs);
+            }
+        }
+
+        if (response?.end_time) {
+            const nextEndMs = toMillis(response.end_time);
+            if (nextEndMs) {
+                setEndAtMs(nextEndMs);
+            }
+        }
+
+        if (response?.quiz_state) {
+            setQuizState(response.quiz_state);
+        }
+    }, []);
+
+    const proctoringEnabled = Boolean(
+        payload && sessionToken && !hasSubmitted && quizState === "active",
+    );
 
     useProctoring({
         sessionToken,
@@ -94,11 +183,10 @@ export default function QuizPage() {
 
     const progressMutation = useMutation({
         mutationFn: ({ partialAnswers }) =>
-            sessionService.saveProgress(
-                { answers: partialAnswers },
-                sessionToken,
-            ),
+            sessionService.saveProgress({ answers: partialAnswers }, sessionToken),
         onSuccess: (data) => {
+            syncServerTiming(data);
+
             if (data?.session_closed) {
                 setResult({
                     score: data.score ?? 0,
@@ -139,6 +227,7 @@ export default function QuizPage() {
             const response = await submitMutation.mutateAsync({
                 submittedAnswers,
             });
+            syncServerTiming(response);
             setResult(response);
             setHasSubmitted(true);
             toast({
@@ -149,20 +238,76 @@ export default function QuizPage() {
             sessionStorage.removeItem(QUIZ_SESSION_TOKEN_KEY);
             sessionStorage.removeItem(QUIZ_SESSION_PAYLOAD_KEY);
         } catch (error) {
+            const apiData = error?.response?.data;
+            if (apiData) {
+                syncServerTiming(apiData);
+            }
+
+            if (apiData?.quiz_state === "scheduled") {
+                setSubmitError("Quiz has not started yet.");
+                return;
+            }
+
             setSubmitError(
-                error?.response?.data?.error ||
-                    "Failed to submit quiz. Please retry.",
+                apiData?.error || "Failed to submit quiz. Please retry.",
             );
         }
-    }, [answers, hasSubmitted, sessionToken, submitMutation]);
-
-    const { secondsLeft } = useTimer({
-        initialSeconds: totalSeconds,
-        enabled: Boolean(payload && !hasSubmitted),
-        onExpire: submitQuiz,
-    });
+    }, [answers, hasSubmitted, sessionToken, submitMutation, syncServerTiming, toast]);
 
     const answeredCount = Object.values(answers).filter(Boolean).length;
+
+    useEffect(() => {
+        if (!payload || hasSubmitted) {
+            return undefined;
+        }
+
+        const updateFromServerClock = () => {
+            const serverNowMs = Date.now() + serverOffsetMs;
+            const untilStart = secondsUntil(startAtMs, serverNowMs);
+            const untilEnd = endAtMs
+                ? secondsUntil(endAtMs, serverNowMs)
+                : totalDurationSeconds;
+
+            setSecondsUntilStart(untilStart);
+            setSecondsLeft(untilEnd);
+
+            if (untilStart > 0) {
+                setQuizState("scheduled");
+                return;
+            }
+
+            if (untilEnd > 0) {
+                setQuizState("active");
+                return;
+            }
+
+            setQuizState("ended");
+
+            if (!autoSubmitTriggeredRef.current) {
+                autoSubmitTriggeredRef.current = true;
+                submitQuiz();
+            }
+        };
+
+        updateFromServerClock();
+        const timer = window.setInterval(updateFromServerClock, 1000);
+
+        return () => window.clearInterval(timer);
+    }, [
+        payload,
+        hasSubmitted,
+        serverOffsetMs,
+        startAtMs,
+        endAtMs,
+        totalDurationSeconds,
+        submitQuiz,
+    ]);
+
+    useEffect(() => {
+        if (secondsLeft > 0) {
+            autoSubmitTriggeredRef.current = false;
+        }
+    }, [secondsLeft]);
 
     // Block browser back button after submission
     useEffect(() => {
@@ -181,7 +326,7 @@ export default function QuizPage() {
     }, [hasSubmitted]);
 
     useEffect(() => {
-        if (!sessionToken || hasSubmitted || !payload) {
+        if (!sessionToken || hasSubmitted || !payload || quizState !== "active") {
             return undefined;
         }
 
@@ -199,17 +344,26 @@ export default function QuizPage() {
         }, 600);
 
         return () => window.clearTimeout(timeout);
-    }, [answers, hasSubmitted, payload, progressMutation, sessionToken]);
+    }, [
+        answers,
+        hasSubmitted,
+        payload,
+        progressMutation,
+        quizState,
+        sessionToken,
+    ]);
 
-    // Handle option selection for any question
     const handleSelectOption = (questionId, optionKey) => {
+        if (quizState !== "active") {
+            return;
+        }
+
         setAnswers((prev) => ({
             ...prev,
             [questionId]: optionKey,
         }));
     };
 
-    // --- Invalid session ---
     if (!payload || !quiz || !questions.length || !sessionToken) {
         return (
             <div className="min-h-screen bg-muted/30 px-4 py-8 flex items-center justify-center">
@@ -225,7 +379,6 @@ export default function QuizPage() {
         );
     }
 
-    // --- Success screen after submission ---
     if (hasSubmitted) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4">
@@ -241,11 +394,14 @@ export default function QuizPage() {
         );
     }
 
-    // --- Active quiz — all questions on one scrollable page ---
+    const waitingTotalSeconds = Math.max(
+        1,
+        Number(payload?.countdownToStartSeconds || secondsUntilStart || 1),
+    );
+
     return (
         <div className="min-h-screen bg-muted/30 px-4 py-4 pb-24">
             <div className="w-full max-w-md mx-auto flex flex-col gap-4">
-                {/* Quiz header */}
                 <Card>
                     <CardHeader className="space-y-3">
                         <div>
@@ -258,95 +414,111 @@ export default function QuizPage() {
                         <Badge variant="outline" className="w-fit">
                             Answered: {answeredCount} / {questions.length}
                         </Badge>
-                        <CountdownTimer
-                            secondsLeft={secondsLeft}
-                            totalSeconds={totalSeconds}
-                        />
+                        {quizState === "scheduled" ? (
+                            <CountdownTimer
+                                secondsLeft={secondsUntilStart}
+                                totalSeconds={waitingTotalSeconds}
+                            />
+                        ) : (
+                            <CountdownTimer
+                                secondsLeft={secondsLeft}
+                                totalSeconds={Math.max(1, totalDurationSeconds)}
+                            />
+                        )}
                     </CardHeader>
                 </Card>
 
-                {/* All questions */}
-                {questions.map((question, index) => (
-                    <Card key={question.id}>
-                        <CardContent className="space-y-4 pt-6">
-                            {/* Question text */}
-                            <div className="space-y-2">
-                                <p className="text-xs uppercase text-muted-foreground">
-                                    Question {index + 1}
-                                </p>
-                                <QuestionContent question={question} />
-                            </div>
-
-                            {/* Options */}
-                            <RadioGroup className="space-y-3">
-                                {["a", "b", "c", "d"].map((optionKey) => {
-                                    const optionValue =
-                                        question?.[`option_${optionKey}`];
-                                    if (!optionValue) {
-                                        return null;
-                                    }
-
-                                    const isSelected =
-                                        answers[question.id] === optionKey;
-                                    const inputId = `question-${question.id}-option-${optionKey}`;
-
-                                    return (
-                                        <div
-                                            key={optionKey}
-                                            className={`flex items-center gap-3 w-full p-4 rounded-lg border cursor-pointer select-none transition-colors ${
-                                                isSelected
-                                                    ? "border-gray-900 dark:border-gray-100 bg-muted/60"
-                                                    : "border-border hover:bg-muted/30"
-                                            }`}
-                                            onClick={() =>
-                                                handleSelectOption(
-                                                    question.id,
-                                                    optionKey,
-                                                )
-                                            }
-                                        >
-                                            <RadioGroupItem
-                                                id={inputId}
-                                                value={optionKey}
-                                                checked={isSelected}
-                                                onChange={() =>
-                                                    handleSelectOption(
-                                                        question.id,
-                                                        optionKey,
-                                                    )
-                                                }
-                                            />
-                                            <Label
-                                                htmlFor={inputId}
-                                                className="w-full cursor-pointer text-base select-none"
-                                            >
-                                                {optionValue}
-                                            </Label>
-                                        </div>
-                                    );
-                                })}
-                            </RadioGroup>
+                {quizState === "scheduled" ? (
+                    <Card>
+                        <CardContent className="space-y-2 pt-6 text-center">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Quiz has not started yet.
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Your attempt will start automatically when the scheduled
+                                start time is reached.
+                            </p>
                         </CardContent>
                     </Card>
-                ))}
+                ) : null}
 
-                {/* Submit error */}
+                {quizState === "active"
+                    ? questions.map((question, index) => (
+                          <Card key={question.id}>
+                              <CardContent className="space-y-4 pt-6">
+                                  <div className="space-y-2">
+                                      <p className="text-xs uppercase text-muted-foreground">
+                                          Question {index + 1}
+                                      </p>
+                                      <QuestionContent question={question} />
+                                  </div>
+
+                                  <RadioGroup className="space-y-3">
+                                      {["a", "b", "c", "d"].map((optionKey) => {
+                                          const optionValue =
+                                              question?.[`option_${optionKey}`];
+                                          if (!optionValue) {
+                                              return null;
+                                          }
+
+                                          const isSelected =
+                                              answers[question.id] === optionKey;
+                                          const inputId = `question-${question.id}-option-${optionKey}`;
+
+                                          return (
+                                              <div
+                                                  key={optionKey}
+                                                  className={`flex items-center gap-3 w-full p-4 rounded-lg border cursor-pointer select-none transition-colors ${
+                                                      isSelected
+                                                          ? "border-gray-900 dark:border-gray-100 bg-muted/60"
+                                                          : "border-border hover:bg-muted/30"
+                                                  }`}
+                                                  onClick={() =>
+                                                      handleSelectOption(
+                                                          question.id,
+                                                          optionKey,
+                                                      )
+                                                  }
+                                              >
+                                                  <RadioGroupItem
+                                                      id={inputId}
+                                                      value={optionKey}
+                                                      checked={isSelected}
+                                                      onChange={() =>
+                                                          handleSelectOption(
+                                                              question.id,
+                                                              optionKey,
+                                                          )
+                                                      }
+                                                  />
+                                                  <Label
+                                                      htmlFor={inputId}
+                                                      className="w-full cursor-pointer text-base select-none"
+                                                  >
+                                                      {optionValue}
+                                                  </Label>
+                                              </div>
+                                          );
+                                      })}
+                                  </RadioGroup>
+                              </CardContent>
+                          </Card>
+                      ))
+                    : null}
+
                 {submitError ? (
                     <p className="text-sm font-medium text-destructive">
                         {submitError}
                     </p>
                 ) : null}
 
-                {/* Submit button */}
                 <Button
                     type="button"
                     className="w-full h-12"
                     onClick={submitQuiz}
-                    disabled={submitMutation.isPending}
+                    disabled={submitMutation.isPending || quizState !== "active"}
                 >
-                    {submitMutation.isPending
-                        ? "Submitting..."
-                        : "Submit Quiz"}
+                    {submitMutation.isPending ? "Submitting..." : "Submit Quiz"}
                 </Button>
             </div>
         </div>

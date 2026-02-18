@@ -55,7 +55,7 @@ export async function replaceSessionAnswers(dbClient, sessionId, submittedAnswer
       DO UPDATE
       SET selected_option = EXCLUDED.selected_option,
           is_correct = EXCLUDED.is_correct,
-          answered_at = NOW()
+          answered_at = (NOW() AT TIME ZONE 'Asia/Kolkata')
       `,
       [sessionId, answer.question_id, answer.selected_option ?? null, isCorrect ?? answer.is_correct ?? null]
     );
@@ -83,7 +83,7 @@ export async function finalizeSessionSubmission(dbClient, { sessionId, quizId, s
     SET status = 'submitted',
         score = $1,
         total_points = $2,
-        submitted_at = NOW()
+        submitted_at = (NOW() AT TIME ZONE 'Asia/Kolkata')
     WHERE id = $3
     `,
     [score, total_points, sessionId]

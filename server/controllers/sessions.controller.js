@@ -7,6 +7,7 @@ import {
     finalizeSessionSubmission,
     replaceSessionAnswers,
 } from "../services/sessionLifecycle.service.js";
+import { resolveQuizWindow } from "../services/quizTiming.service.js";
 
 const optionSchema = z.enum(["a", "b", "c", "d"]);
 
@@ -101,6 +102,18 @@ function withPercent(score, totalPoints) {
     return Number(((Number(score) / Number(totalPoints)) * 100).toFixed(2));
 }
 
+function timingPayload(window) {
+    return {
+        server_now: window.now.toISOString(),
+        quiz_state: window.phase,
+        start_time: window.startAt.toISOString(),
+        end_time: window.endAt.toISOString(),
+        countdown_to_start_secs: window.secondsUntilStart,
+        duration_secs: window.responseTimerSeconds,
+        total_duration_secs: window.totalDurationSeconds,
+    };
+}
+
 export async function enterSession(req, res, next) {
     try {
         const payload = req.validatedBody;
@@ -113,12 +126,17 @@ export async function enterSession(req, res, next) {
         q.subject_id,
         q.duration_mins,
         q.quiz_date,
+        q.status,
+        q.scheduled_start,
+        q.scheduled_end,
         q.access_code,
         q.created_at,
+        (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp AS server_now,
         s.name AS subject_name
       FROM quizzes q
       LEFT JOIN subjects s ON s.id = q.subject_id
-      WHERE q.access_token = $1 AND q.status = 'active'
+      WHERE q.access_token = $1
+        AND q.status IN ('active', 'scheduled')
       `,
             [payload.access_token],
         );
@@ -149,12 +167,17 @@ export async function enterSession(req, res, next) {
                 .json({ error: "Quiz has no questions configured" });
         }
 
+        const quizWindow = resolveQuizWindow(quiz, quiz.server_now);
+        if (quizWindow.phase === "ended") {
+            return res.status(410).json({ error: "This quiz has already ended" });
+        }
+
         const sessionToken = uuidv4().replaceAll("-", "");
 
         await query(
             `
-      INSERT INTO student_sessions (quiz_id, name, roll_no, email, division, group_no, session_token, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
+      INSERT INTO student_sessions (quiz_id, name, roll_no, email, division, group_no, session_token, status, started_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp)
       `,
             [
                 quiz.id,
@@ -171,16 +194,9 @@ export async function enterSession(req, res, next) {
             ({ correct_option, ...question }) => question,
         );
 
-        // Calculate remaining seconds based on global quiz start time (created_at)
-        const totalDurationSeconds = Number(quiz.duration_mins || 15) * 60;
-        const elapsedSeconds = quiz.created_at
-            ? Math.floor((Date.now() - new Date(quiz.created_at).getTime()) / 1000)
-            : 0;
-        const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds);
-
         return res.status(200).json({
             session_token: sessionToken,
-            duration_secs: remainingSeconds,
+            ...timingPayload(quizWindow),
             quiz: {
                 id: quiz.id,
                 title: quiz.title,
@@ -188,6 +204,9 @@ export async function enterSession(req, res, next) {
                 subject_name: quiz.subject_name,
                 duration_mins: quiz.duration_mins,
                 quiz_date: quiz.quiz_date,
+                status: quizWindow.phase,
+                scheduled_start: quizWindow.startAt.toISOString(),
+                scheduled_end: quizWindow.endAt.toISOString(),
             },
             questions: sanitizedQuestions,
         });
@@ -206,7 +225,18 @@ export async function saveSessionProgress(req, res, next) {
 
         const sessionResult = await client.query(
             `
-      SELECT ss.id, ss.quiz_id, ss.status, ss.score, ss.total_points, q.status AS quiz_status
+      SELECT
+        ss.id,
+        ss.quiz_id,
+        ss.status,
+        ss.score,
+        ss.total_points,
+        q.status AS quiz_status,
+        q.scheduled_start,
+        q.scheduled_end,
+        q.duration_mins,
+        q.created_at,
+        (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp AS server_now
       FROM student_sessions ss
       INNER JOIN quizzes q ON q.id = ss.quiz_id
       WHERE ss.session_token = $1
@@ -219,6 +249,17 @@ export async function saveSessionProgress(req, res, next) {
         }
 
         const session = sessionResult.rows[0];
+        const quizWindow = resolveQuizWindow(
+            {
+                status: session.quiz_status,
+                scheduled_start: session.scheduled_start,
+                scheduled_end: session.scheduled_end,
+                duration_mins: session.duration_mins,
+                created_at: session.created_at,
+            },
+            session.server_now,
+        );
+
         if (session.status !== "pending") {
             const breakdown = await fetchBreakdown(
                 client,
@@ -232,10 +273,18 @@ export async function saveSessionProgress(req, res, next) {
                 total_points: Number(session.total_points ?? 0),
                 percentage: withPercent(session.score, session.total_points),
                 breakdown,
+                ...timingPayload(quizWindow),
             });
         }
 
-        if (session.quiz_status !== "active") {
+        if (quizWindow.phase === "scheduled") {
+            return res.status(409).json({
+                error: "Quiz has not started yet",
+                ...timingPayload(quizWindow),
+            });
+        }
+
+        if (quizWindow.phase !== "active") {
             try {
                 await client.query("BEGIN");
 
@@ -256,6 +305,7 @@ export async function saveSessionProgress(req, res, next) {
                     total_points: result.total_points,
                     percentage: withPercent(result.score, result.total_points),
                     breakdown: result.breakdown,
+                    ...timingPayload(quizWindow),
                 });
             } catch (error) {
                 try {
@@ -274,7 +324,10 @@ export async function saveSessionProgress(req, res, next) {
         });
         await client.query("COMMIT");
 
-        return res.status(200).json({ message: "Progress saved" });
+        return res.status(200).json({
+            message: "Progress saved",
+            ...timingPayload(quizWindow),
+        });
     } catch (error) {
         try {
             await client.query("ROLLBACK");
@@ -304,7 +357,18 @@ export async function submitSession(req, res, next) {
 
         const sessionResult = await client.query(
             `
-      SELECT ss.id, ss.quiz_id, ss.status, ss.score, ss.total_points, q.status AS quiz_status
+      SELECT
+        ss.id,
+        ss.quiz_id,
+        ss.status,
+        ss.score,
+        ss.total_points,
+        q.status AS quiz_status,
+        q.scheduled_start,
+        q.scheduled_end,
+        q.duration_mins,
+        q.created_at,
+        (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp AS server_now
       FROM student_sessions ss
       INNER JOIN quizzes q ON q.id = ss.quiz_id
       WHERE ss.session_token = $1
@@ -317,6 +381,16 @@ export async function submitSession(req, res, next) {
         }
 
         const session = sessionResult.rows[0];
+        const quizWindow = resolveQuizWindow(
+            {
+                status: session.quiz_status,
+                scheduled_start: session.scheduled_start,
+                scheduled_end: session.scheduled_end,
+                duration_mins: session.duration_mins,
+                created_at: session.created_at,
+            },
+            session.server_now,
+        );
 
         if (session.status === "submitted") {
             const breakdown = await fetchBreakdown(
@@ -330,10 +404,18 @@ export async function submitSession(req, res, next) {
                 total_points: Number(session.total_points ?? 0),
                 percentage: withPercent(session.score, session.total_points),
                 breakdown,
+                ...timingPayload(quizWindow),
             });
         }
 
-        if (session.quiz_status !== "active") {
+        if (quizWindow.phase === "scheduled") {
+            return res.status(409).json({
+                error: "Quiz has not started yet",
+                ...timingPayload(quizWindow),
+            });
+        }
+
+        if (quizWindow.phase !== "active") {
             await client.query("BEGIN");
 
             const submittedAnswers = answers.length
@@ -353,6 +435,7 @@ export async function submitSession(req, res, next) {
                 total_points: result.total_points,
                 percentage: withPercent(result.score, result.total_points),
                 breakdown: result.breakdown,
+                ...timingPayload(quizWindow),
             });
         }
 
@@ -380,6 +463,7 @@ export async function submitSession(req, res, next) {
             total_points: result.total_points,
             percentage: withPercent(result.score, result.total_points),
             breakdown: result.breakdown,
+            ...timingPayload(quizWindow),
         });
     } catch (error) {
         try {

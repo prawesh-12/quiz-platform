@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const [quizToDelete, setQuizToDelete] = useState(null);
 
   const PAGE_SIZE = 18;
+  const LIVE_REFRESH_MS = 2000;
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects"],
@@ -62,18 +63,24 @@ export default function DashboardPage() {
         page: quizPage,
         limit: PAGE_SIZE,
       }),
+    refetchInterval: LIVE_REFRESH_MS,
+    refetchIntervalInBackground: true,
   });
 
   const activeQuizzesQuery = useQuery({
     queryKey: ["quizzes", "active"],
     queryFn: () =>
       quizService.list({ status: "active", page: 1, limit: 50 }),
+    refetchInterval: LIVE_REFRESH_MS,
+    refetchIntervalInBackground: true,
   });
 
   const scheduledQuizzesQuery = useQuery({
     queryKey: ["quizzes", "scheduled"],
     queryFn: () =>
       quizService.list({ status: "scheduled", page: 1, limit: 50 }),
+    refetchInterval: LIVE_REFRESH_MS,
+    refetchIntervalInBackground: true,
   });
 
   const createSubjectMutation = useMutation({

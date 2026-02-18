@@ -25,7 +25,13 @@ export function isValidStatusTransition(currentStatus, nextStatus) {
 export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enforceTransition = true }) {
   const quizResult = await dbClient.query(
     `
-    SELECT id, status, access_token, access_code
+    SELECT
+      id,
+      status,
+      access_token,
+      access_code,
+      scheduled_start,
+      (scheduled_start > (NOW() AT TIME ZONE 'Asia/Kolkata')) AS starts_in_future
     FROM quizzes
     WHERE id = $1
     `,
@@ -43,8 +49,13 @@ export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enfor
     };
   }
 
+  let statusToPersist = nextStatus;
+  if (nextStatus === "active" && quiz.starts_in_future) {
+    statusToPersist = "scheduled";
+  }
+
   let accessToken = quiz.access_token;
-  if (nextStatus === "active" && !accessToken) {
+  if ((statusToPersist === "active" || statusToPersist === "scheduled") && !accessToken) {
     if (!quiz.access_code) {
       return {
         error: "Access code is required before activating quiz"
@@ -55,7 +66,7 @@ export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enfor
   }
 
   let autoSubmittedCount = 0;
-  if (nextStatus === "ended") {
+  if (statusToPersist === "ended") {
     autoSubmittedCount = await finalizePendingSessionsForQuiz(dbClient, quizId);
   }
 
@@ -66,17 +77,17 @@ export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enfor
         access_token = COALESCE($2, access_token),
         scheduled_start = CASE
           WHEN $1::varchar = 'active' AND scheduled_start IS NULL 
-          THEN NOW()::timestamp
+          THEN (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp
           ELSE scheduled_start
         END,
         scheduled_end = CASE 
           WHEN $1::varchar = 'active' AND scheduled_end IS NULL AND duration_mins > 0 
-          THEN (NOW() + make_interval(mins => duration_mins))::timestamp
+          THEN ((NOW() AT TIME ZONE 'Asia/Kolkata') + make_interval(mins => duration_mins))::timestamp
           ELSE scheduled_end 
         END
     WHERE id = $3
     `,
-    [nextStatus, accessToken, quizId]
+    [statusToPersist, accessToken, quizId]
   );
 
   const updatedResult = await dbClient.query(

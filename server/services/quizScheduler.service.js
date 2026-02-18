@@ -11,7 +11,7 @@ async function processScheduledTransitions() {
       FROM quizzes
       WHERE status = 'scheduled'
         AND scheduled_start IS NOT NULL
-        AND scheduled_start <= NOW()
+        AND scheduled_start <= (NOW() AT TIME ZONE 'Asia/Kolkata')
       ORDER BY scheduled_start ASC, id ASC
       `
     );
@@ -38,7 +38,7 @@ async function processScheduledTransitions() {
       FROM quizzes
       WHERE status = 'active'
         AND scheduled_end IS NOT NULL
-        AND scheduled_end <= NOW()
+        AND scheduled_end <= (NOW() AT TIME ZONE 'Asia/Kolkata')
       ORDER BY scheduled_end ASC, id ASC
       `
     );
@@ -80,9 +80,9 @@ export function startQuizScheduler() {
     }
   };
 
-  // Trigger once at startup, then every minute.
+  // Trigger once at startup, then poll every second so transitions happen on server clock boundaries.
   run();
-  const timer = setInterval(run, 60 * 1000);
+  const timer = setInterval(run, 1000);
   timer.unref?.();
 
   return {

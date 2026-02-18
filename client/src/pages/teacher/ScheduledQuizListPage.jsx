@@ -34,6 +34,7 @@ export default function ScheduledQuizListPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const LIVE_REFRESH_MS = 2000;
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects"],
@@ -42,11 +43,21 @@ export default function ScheduledQuizListPage() {
 
   const scheduledQuery = useQuery({
     queryKey: ["quizzes", "scheduled", "list"],
-    queryFn: () => quizService.list({ status: "scheduled", page: 1, limit: 50 })
+    queryFn: () => quizService.list({ status: "scheduled", page: 1, limit: 50 }),
+    refetchInterval: LIVE_REFRESH_MS,
+    refetchIntervalInBackground: true
+  });
+
+  const ongoingQuery = useQuery({
+    queryKey: ["quizzes", "active", "ongoing-list"],
+    queryFn: () => quizService.list({ status: "active", page: 1, limit: 50 }),
+    refetchInterval: LIVE_REFRESH_MS,
+    refetchIntervalInBackground: true
   });
 
   const subjects = subjectsQuery.data?.subjects ?? [];
   const quizzes = scheduledQuery.data?.quizzes ?? [];
+  const ongoingQuizzes = ongoingQuery.data?.quizzes ?? [];
 
   const copyLink = (accessToken) => {
     const url = `${window.location.origin}/quiz/enter/${accessToken}`;
@@ -80,7 +91,14 @@ export default function ScheduledQuizListPage() {
               <p className="text-sm text-destructive">{scheduledQuery.error?.response?.data?.error || "Failed to load scheduled quizzes"}</p>
             ) : null}
             {!scheduledQuery.isLoading && !scheduledQuery.isError && quizzes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No scheduled quizzes found.</p>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">No scheduled quizzes found.</p>
+                {ongoingQuizzes.length > 0 ? (
+                  <Button type="button" size="sm" variant="outline" onClick={() => navigate("/teacher/quiz/ongoing")}>
+                    Open Ongoing Quizzes ({ongoingQuizzes.length})
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
 
             {quizzes.map((quiz) => (

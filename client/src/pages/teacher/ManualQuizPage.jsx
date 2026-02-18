@@ -470,6 +470,10 @@ export default function ManualQuizPage() {
       setPageError("Access code is required to activate quiz");
       return;
     }
+    if (!scheduledStart) {
+      setPageError("Scheduled start is required to schedule the quiz");
+      return;
+    }
     if (hasInvalidScheduleRange(scheduledStart, scheduledEnd)) {
       setPageError("Scheduled end must be later than scheduled start");
       return;
@@ -502,29 +506,39 @@ export default function ManualQuizPage() {
         .map((item) => Number(item.id))
         .filter((item) => Number.isInteger(item) && item > 0);
 
+      const activationPayload = {
+        ...buildQuizPayload(),
+        status: "active",
+        ...(isExistingQuiz && questionIds.length ? { question_ids: questionIds } : {})
+      };
+
       const response = await updateQuizMutation.mutateAsync({
         id: activeQuizId,
-        payload: {
-          ...buildQuizPayload(),
-          status: "active",
-          ...(isExistingQuiz && questionIds.length ? { question_ids: questionIds } : {})
-        }
+        payload: activationPayload
       });
 
       queryClient.invalidateQueries({ queryKey: ["quizzes"] });
       queryClient.invalidateQueries({ queryKey: ["quizzes", activeQuizId] });
+      queryClient.invalidateQueries({ queryKey: ["quizzes", "scheduled"] });
 
-      if (!isExistingQuiz) {
-        navigate(`/teacher/quiz/ongoing/${activeQuizId}`, { replace: true });
+      const activatedStatus = response?.quiz?.status || "active";
+      const isScheduled = activatedStatus === "scheduled";
+
+      if (isScheduled) {
+        navigate("/teacher/quiz/scheduled", { replace: !isExistingQuiz });
       } else {
-        navigate(`/teacher/quiz/ongoing/${activeQuizId}`);
+        if (!isExistingQuiz) {
+          navigate(`/teacher/quiz/ongoing/${activeQuizId}`, { replace: true });
+        } else {
+          navigate(`/teacher/quiz/ongoing/${activeQuizId}`);
+        }
       }
 
-      const isScheduled = payload.scheduled_start && new Date(payload.scheduled_start) > new Date();
+      const scheduledStartValue = response?.quiz?.scheduled_start || activationPayload.scheduled_start;
       toast({
         title: isScheduled ? "Quiz Scheduled" : "Quiz Activated",
         description: isScheduled
-          ? `Quiz scheduled for ${new Date(payload.scheduled_start).toLocaleString()}`
+          ? `Quiz scheduled for ${new Date(scheduledStartValue).toLocaleString()}`
           : "Quiz is now live."
       });
     } catch (error) {
@@ -600,7 +614,7 @@ export default function ManualQuizPage() {
                 onClick={activateQuiz}
                 disabled={saveManualMutation.isPending || updateQuizMutation.isPending}
               >
-                {scheduledStart && new Date(scheduledStart) > new Date() ? "Schedule Quiz" : "Save & Activate"}
+                Schedule Quiz
               </Button>
             </div>
           </CardHeader>

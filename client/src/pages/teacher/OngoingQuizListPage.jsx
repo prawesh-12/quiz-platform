@@ -11,6 +11,7 @@ import { subjectService } from "@/services/subjectService";
 export default function OngoingQuizListPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const LIVE_REFRESH_MS = 2000;
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects"],
@@ -19,7 +20,9 @@ export default function OngoingQuizListPage() {
 
   const ongoingQuery = useQuery({
     queryKey: ["quizzes", "active", "ongoing-list"],
-    queryFn: () => quizService.list({ status: "active", page: 1, limit: 50 })
+    queryFn: () => quizService.list({ status: "active", page: 1, limit: 50 }),
+    refetchInterval: LIVE_REFRESH_MS,
+    refetchIntervalInBackground: true
   });
 
   const subjects = subjectsQuery.data?.subjects ?? [];

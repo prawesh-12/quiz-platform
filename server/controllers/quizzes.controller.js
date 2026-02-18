@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import pool, { query } from "../config/db.js";
 import { transitionQuizStatus } from "../services/quizLifecycle.service.js";
+import { planActivationWindow } from "../services/quizTiming.service.js";
 
 const quizStatusSchema = z.enum(["draft", "active", "ended", "scheduled"]);
 
@@ -148,7 +149,7 @@ async function assertSubjectOwnership(subjectId, userId) {
 async function assertQuizOwnership(quizId, userId, dbClient = query) {
   const result = await dbClient(
     `
-    SELECT id, title, status, access_token
+    SELECT id, title, status, access_token, duration_mins, scheduled_start, scheduled_end, access_code
     FROM quizzes
     WHERE id = $1 AND created_by = $2
     `,
@@ -227,6 +228,23 @@ export async function createManualQuiz(req, res, next) {
   try {
     const payload = req.validatedBody;
     const metadata = normalizeQuizMeta(payload, req.user.userId);
+    let activationPlan = null;
+
+    if (metadata.status === "active") {
+      activationPlan = planActivationWindow({
+        requestedStart: metadata.scheduled_start,
+        requestedEnd: metadata.scheduled_end,
+        durationMins: metadata.duration_mins
+      });
+
+      if (activationPlan.error) {
+        return res.status(400).json({ error: activationPlan.error });
+      }
+
+      metadata.status = activationPlan.status;
+      metadata.scheduled_start = activationPlan.scheduledStart;
+      metadata.scheduled_end = activationPlan.scheduledEnd;
+    }
 
     const isOwned = await assertSubjectOwnership(metadata.subject_id, req.user.userId);
     if (!isOwned) {
@@ -253,10 +271,7 @@ export async function createManualQuiz(req, res, next) {
         metadata.batch,
         metadata.division,
         metadata.group_nos,
-        // Override status to 'scheduled' if activating with future start time
-        (metadata.status === 'active' && metadata.scheduled_start && new Date(metadata.scheduled_start) > new Date())
-          ? 'scheduled'
-          : metadata.status,
+        metadata.status,
         metadata.quiz_date,
         metadata.scheduled_start,
         metadata.scheduled_end,
@@ -364,6 +379,23 @@ export async function autoGenerateQuiz(req, res, next) {
   try {
     const payload = req.validatedBody;
     const metadata = normalizeQuizMeta(payload, req.user.userId);
+    let activationPlan = null;
+
+    if (metadata.status === "active") {
+      activationPlan = planActivationWindow({
+        requestedStart: metadata.scheduled_start,
+        requestedEnd: metadata.scheduled_end,
+        durationMins: metadata.duration_mins
+      });
+
+      if (activationPlan.error) {
+        return res.status(400).json({ error: activationPlan.error });
+      }
+
+      metadata.status = activationPlan.status;
+      metadata.scheduled_start = activationPlan.scheduledStart;
+      metadata.scheduled_end = activationPlan.scheduledEnd;
+    }
 
     const isOwned = await assertSubjectOwnership(metadata.subject_id, req.user.userId);
     if (!isOwned) {
@@ -423,10 +455,7 @@ export async function autoGenerateQuiz(req, res, next) {
         metadata.batch,
         metadata.division,
         metadata.group_nos,
-        // Override status to 'scheduled' if activating with future start time
-        (metadata.status === 'active' && metadata.scheduled_start && new Date(metadata.scheduled_start) > new Date())
-          ? 'scheduled'
-          : metadata.status,
+        metadata.status,
         metadata.quiz_date,
         metadata.scheduled_start,
         metadata.scheduled_end,
@@ -520,8 +549,32 @@ export async function updateQuiz(req, res, next) {
       return res.status(404).json({ error: "Quiz not found" });
     }
 
+    const normalizedPayload = { ...payload };
+
+    if (normalizedPayload.status === "active") {
+      const activationPlan = planActivationWindow({
+        requestedStart: Object.prototype.hasOwnProperty.call(normalizedPayload, "scheduled_start")
+          ? normalizedPayload.scheduled_start
+          : existing.scheduled_start,
+        requestedEnd: Object.prototype.hasOwnProperty.call(normalizedPayload, "scheduled_end")
+          ? normalizedPayload.scheduled_end
+          : existing.scheduled_end,
+        durationMins: Object.prototype.hasOwnProperty.call(normalizedPayload, "duration_mins")
+          ? normalizedPayload.duration_mins
+          : existing.duration_mins
+      });
+
+      if (activationPlan.error) {
+        return res.status(400).json({ error: activationPlan.error });
+      }
+
+      normalizedPayload.status = activationPlan.status;
+      normalizedPayload.scheduled_start = activationPlan.scheduledStart;
+      normalizedPayload.scheduled_end = activationPlan.scheduledEnd;
+    }
+
     let nextAccessToken = existing.access_token;
-    if (payload.status === "active" && !nextAccessToken) {
+    if ((normalizedPayload.status === "active" || normalizedPayload.status === "scheduled") && !nextAccessToken) {
       nextAccessToken = generateAccessToken();
     }
 
@@ -543,25 +596,8 @@ export async function updateQuiz(req, res, next) {
     ];
 
     for (const field of fields) {
-      if (Object.prototype.hasOwnProperty.call(payload, field)) {
-        let value = payload[field];
-
-        // Logic to force start time to NOW if activating and no start time provided
-        if (field === "scheduled_start" && payload.status === "active" && !value) {
-           value = new Date().toISOString();
-        }
-        
-        // Logic to auto-calculate end time if activating and no end time provided
-        if (field === "scheduled_end" && payload.status === "active" && !value && payload.duration_mins) {
-             const startDate = payload.scheduled_start ? new Date(payload.scheduled_start) : new Date();
-             const endDate = new Date(startDate.getTime() + payload.duration_mins * 60000);
-             value = endDate.toISOString();
-        }
-
-        // Logic to set status to 'scheduled' if activating with future start time
-        if (field === "status" && value === "active" && payload.scheduled_start && new Date(payload.scheduled_start) > new Date()) {
-            value = "scheduled";
-        }
+      if (Object.prototype.hasOwnProperty.call(normalizedPayload, field)) {
+        const value = normalizedPayload[field];
 
         updates.push(`${field} = $${position}`);
         values.push(
@@ -778,8 +814,11 @@ export async function getQuizLiveStats(req, res, next) {
         q.batch,
         q.division,
         q.group_nos,
+        q.duration_mins,
         q.quiz_date,
         q.status,
+        q.scheduled_start,
+        q.scheduled_end,
         q.access_code,
         q.access_token,
         q.created_at
@@ -818,11 +857,11 @@ export async function getQuizLiveStats(req, res, next) {
 
     const elapsedResult = await query(
       `
-      SELECT EXTRACT(EPOCH FROM (NOW() - COALESCE(MIN(started_at), $2::timestamp)))::int AS elapsed_seconds
+      SELECT EXTRACT(EPOCH FROM ((NOW() AT TIME ZONE 'Asia/Kolkata') - COALESCE(MIN(started_at), $2::timestamp)))::int AS elapsed_seconds
       FROM student_sessions
       WHERE quiz_id = $1
       `,
-      [id, quizResult.rows[0].created_at]
+      [id, quizResult.rows[0].scheduled_start || quizResult.rows[0].created_at]
     );
 
     return res.status(200).json({

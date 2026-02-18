@@ -55,6 +55,12 @@ export default function EntryPage() {
         accessToken,
         sessionToken: data.session_token,
         durationSeconds: Number(data.duration_secs || 0),
+        totalDurationSeconds: Number(data.total_duration_secs || 0),
+        countdownToStartSeconds: Number(data.countdown_to_start_secs || 0),
+        serverNow: data.server_now || null,
+        startTime: data.start_time || null,
+        endTime: data.end_time || null,
+        quizState: data.quiz_state || "active",
         quiz: data.quiz,
         questions: data.questions
       };
