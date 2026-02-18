@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CalendarClock, Search, Sparkles, Timer } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";
@@ -15,9 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -161,104 +160,119 @@ export default function DashboardPage() {
       onLogout={logout}
       showBackButton={false}
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-2">
-       <div className="mx-auto w-full max-w-3xl shrink-0">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              {/* Left */}
-              <div className="flex w-full items-center gap-2 sm:w-auto">
+      <div className="flex min-h-0 flex-1 flex-col gap-5">
+        <section className="shrink-0 rounded-[1.65rem] border border-[#e4e8f4] bg-white p-4 shadow-[0_14px_32px_rgba(20,35,90,0.06)] md:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex w-full flex-wrap items-center gap-2 md:flex-nowrap">
+              <div className="relative w-full md:max-w-xl">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
                   value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="search past quizzes"
-                  className="w-full sm:max-w-xs"
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Search past quizzes"
+                  className="h-11 rounded-xl border-[#d9e0f1] bg-[#fbfcff] pl-10 text-[15px] text-slate-700 placeholder:text-slate-400 focus-visible:ring-[#87a4ff]"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setCommittedSearch(searchInput.trim())}
-                >
-                  Search
-                </Button>
               </div>
-
-              {/* Right Side Actions */}
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                <Button type="button" onClick={() => setGenerateModeOpen(true)}>
-                  Generate New Quiz
-                </Button>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => navigate("/teacher/quiz/scheduled")}
-                  >
-                    Scheduled
-                    <Badge className="ml-2" variant="secondary">
-                      {scheduledQuizzesQuery.isLoading ? "..." : scheduledCount}
-                    </Badge>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={openOngoingQuizView}
-                  >
-                    Ongoing
-                    <Badge className="ml-2 bg-primary-foreground text-primary">
-                      {activeQuizzesQuery.isLoading ? "..." : activeCount}
-                    </Badge>
-                  </Button>
-                </div>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-xl border-[#d9e0f1] bg-white px-5 text-slate-700 hover:bg-[#f7f9ff]"
+                onClick={() => setCommittedSearch(searchInput.trim())}
+              >
+                Search
+              </Button>
             </div>
-        </div>
 
-        <Card>
-          <CardHeader className="shrink-0">
-            <CardTitle>Quiz List</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {quizzesQuery.isLoading ? (
-                  <p className="col-span-full text-sm text-muted-foreground">
-                    Loading quizzes...
-                  </p>
-                ) : null}
-                {quizzesQuery.isError ? (
-                  <p className="col-span-full text-sm text-destructive">
-                    {quizzesQuery.error?.response?.data
-                      ?.error || "Failed to load quizzes"}
-                  </p>
-                ) : null}
-                {!quizzesQuery.isLoading && quizzes.length === 0 ? (
-                  <p className="col-span-full text-sm text-muted-foreground">
-                    No quizzes found for this filter.
-                  </p>
-                ) : null}
-                {quizzes.map((quiz) => (
-                    <QuizListCard
-                      key={quiz.id}
-                      quiz={quiz}
-                      onViewResponses={(item) =>
-                        navigate(`/teacher/quiz/${item.id}/responses`)
-                      }
-                      onEdit={(item) => navigate(`/teacher/quiz/manual/${item.id}`)}
-                      onDuplicate={(item) =>
-                        duplicateQuizMutation.mutate(item.id)
-                      }
-                      onDelete={(item) => setQuizToDelete(item)}
-                    />
-                ))}
+            <div className="flex w-full flex-wrap items-center justify-start gap-2 xl:w-auto xl:justify-end">
+              <Button
+                type="button"
+                className="h-11 rounded-xl bg-gradient-to-r from-[#2647d6] to-[#4562ea] px-5 font-semibold text-white shadow-[0_14px_26px_rgba(52,87,230,0.32)] transition-all hover:from-[#3050da] hover:to-[#4f6cf0]"
+                onClick={() => setGenerateModeOpen(true)}
+              >
+                <Sparkles className="h-4 w-4" />
+                Generate New Quiz
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-full border-[#f6d3cb] bg-[#fff5f2] px-4 text-[#c55344] hover:bg-[#ffefea]"
+                onClick={() => navigate("/teacher/quiz/scheduled")}
+              >
+                <CalendarClock className="h-4 w-4" />
+                Scheduled
+                <span className="ml-1 rounded-full bg-[#ffdfd7] px-2 py-0.5 text-xs font-semibold text-[#b84d3f]">
+                  {scheduledQuizzesQuery.isLoading ? "..." : scheduledCount}
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-full border-[#ccead4] bg-[#effcf3] px-4 text-[#157545] hover:bg-[#e8f8ee]"
+                onClick={openOngoingQuizView}
+              >
+                <Timer className="h-4 w-4" />
+                Ongoing
+                <span className="ml-1 rounded-full bg-[#d6f3df] px-2 py-0.5 text-xs font-semibold text-[#13643c]">
+                  {activeQuizzesQuery.isLoading ? "..." : activeCount}
+                </span>
+              </Button>
             </div>
-            <div className="shrink-0 pt-3">
-              <Pagination
-                page={quizPage}
-                totalPages={quizTotalPages}
-                onPageChange={setQuizPage}
+          </div>
+        </section>
+
+        <section className="flex min-h-0 flex-1 flex-col rounded-[1.65rem] border border-[#e4e8f4] bg-white p-4 shadow-[0_16px_36px_rgba(20,35,90,0.07)] md:p-5">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-[#192242]">Quiz Library</h2>
+              <p className="text-sm text-slate-500">
+                Manage every published, scheduled, and ended quiz from one place.
+              </p>
+            </div>
+            <span className="inline-flex items-center rounded-full bg-[#f2f5ff] px-3 py-1 text-xs font-semibold text-[#3c4c7d]">
+              {quizzesQuery.isLoading ? "Loading..." : `${quizzes.length} quizzes on this page`}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+            {quizzesQuery.isLoading ? (
+              <p className="col-span-full rounded-xl border border-dashed border-[#d3dcf3] bg-[#f8faff] p-6 text-sm text-slate-500">
+                Loading quizzes...
+              </p>
+            ) : null}
+            {quizzesQuery.isError ? (
+              <p className="col-span-full rounded-xl border border-dashed border-rose-300 bg-rose-50 p-6 text-sm text-rose-600">
+                {quizzesQuery.error?.response?.data?.error || "Failed to load quizzes"}
+              </p>
+            ) : null}
+            {!quizzesQuery.isLoading && quizzes.length === 0 ? (
+              <p className="col-span-full rounded-xl border border-dashed border-[#d3dcf3] bg-[#f8faff] p-6 text-sm text-slate-500">
+                No quizzes found for this filter.
+              </p>
+            ) : null}
+            {quizzes.map((quiz) => (
+              <QuizListCard
+                key={quiz.id}
+                quiz={quiz}
+                onViewResponses={(item) =>
+                  navigate(`/teacher/quiz/${item.id}/responses`)
+                }
+                onEdit={(item) => navigate(`/teacher/quiz/manual/${item.id}`)}
+                onDuplicate={(item) =>
+                  duplicateQuizMutation.mutate(item.id)
+                }
+                onDelete={(item) => setQuizToDelete(item)}
               />
-            </div>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+
+          <div className="shrink-0 pt-4">
+            <Pagination
+              page={quizPage}
+              totalPages={quizTotalPages}
+              onPageChange={setQuizPage}
+            />
+          </div>
+        </section>
       </div>
 
       <AlertDialog
