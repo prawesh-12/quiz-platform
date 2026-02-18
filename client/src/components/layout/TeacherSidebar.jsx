@@ -97,7 +97,7 @@ export default function TeacherSidebar({
         <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
           Subject Database
         </p>
-        <div className="mt-2 h-full overflow-y-auto pr-1">
+        <div className="scrollbar-hidden mt-2 h-full overflow-y-auto">
           <div className="space-y-1.5">
           {subjects.length > 0 ? (
             subjects.map((subject) => {

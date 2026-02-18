@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import GenerateModeModal from "@/components/teacher/GenerateModeModal";
 import TeacherSidebar from "@/components/layout/TeacherSidebar";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default function TeacherShell({
     children,
@@ -16,6 +17,8 @@ export default function TeacherShell({
     user,
     onLogout,
     showBackButton = true,
+    contentScrollable = true,
+    contentPaddingClass = "p-4 md:p-7",
 }) {
     const navigate = useNavigate();
     const [generateModeOpen, setGenerateModeOpen] = useState(false);
@@ -33,7 +36,13 @@ export default function TeacherShell({
                 onLogout={onLogout}
             />
             <main className="flex min-h-screen flex-col pl-0 md:ml-[19.5rem] md:h-screen md:overflow-hidden">
-                <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto p-4 md:p-7">
+                <div
+                    className={cn(
+                        "relative flex min-h-0 flex-1 flex-col",
+                        contentPaddingClass,
+                        contentScrollable ? "overflow-y-auto" : "overflow-y-auto md:overflow-hidden"
+                    )}
+                >
                     <div className="pointer-events-none absolute inset-x-7 top-0 h-44 rounded-b-[2.5rem] bg-gradient-to-b from-[#fff0ea] via-[#fff6f2] to-transparent" />
                     {showBackButton ? (
                         <div className="relative mb-4">
@@ -49,7 +58,7 @@ export default function TeacherShell({
                             </Button>
                         </div>
                     ) : null}
-                    <div className="relative">{children}</div>
+                    <div className="relative min-h-0 flex-1">{children}</div>
                 </div>
             </main>
             <GenerateModeModal open={generateModeOpen} onOpenChange={setGenerateModeOpen} />
