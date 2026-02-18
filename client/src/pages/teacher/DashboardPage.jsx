@@ -543,6 +543,24 @@ export default function DashboardPage() {
 
   const kpiCards = [
     {
+      label: "Scheduled Quizzes",
+      value: formatNumber(kpiStats.scheduledQuizzes),
+      icon: CalendarClock,
+      tint: "bg-[#fff3ef] text-[#cb5948]",
+      highlightClass:
+        "border-[#f2d8d0] bg-gradient-to-br from-[#fffaf7] to-[#fff2ee] shadow-[0_12px_26px_rgba(236,115,95,0.12)]",
+      onClick: () => navigate("/teacher/quiz/scheduled"),
+    },
+    {
+      label: "Ongoing Quizzes",
+      value: formatNumber(kpiStats.ongoingQuizzes),
+      icon: Activity,
+      tint: "bg-[#f4eefe] text-[#6a46ca]",
+      highlightClass:
+        "border-[#ddd1fa] bg-gradient-to-br from-[#faf8ff] to-[#f2edff] shadow-[0_12px_26px_rgba(106,70,202,0.12)]",
+      onClick: () => navigate("/teacher/quiz/ongoing"),
+    },
+    {
       label: "Total Quiz Attempts Today",
       value: formatNumber(kpiStats.attemptsToday),
       icon: ClipboardCheck,
@@ -559,18 +577,6 @@ export default function DashboardPage() {
       value: formatNumber(kpiStats.totalParticipants),
       icon: Users,
       tint: "bg-[#fff6e7] text-[#b96b0f]",
-    },
-    {
-      label: "Scheduled Quizzes",
-      value: formatNumber(kpiStats.scheduledQuizzes),
-      icon: CalendarClock,
-      tint: "bg-[#fff3ef] text-[#cb5948]",
-    },
-    {
-      label: "Ongoing Quizzes",
-      value: formatNumber(kpiStats.ongoingQuizzes),
-      icon: Activity,
-      tint: "bg-[#f4eefe] text-[#6a46ca]",
     },
   ];
 
@@ -599,11 +605,31 @@ export default function DashboardPage() {
           {kpiCards.map((card) => {
             const Icon = card.icon;
 
+            const cardClassName = `rounded-[1.35rem] border border-[#e4e8f4] bg-white p-3 shadow-[0_12px_26px_rgba(20,35,90,0.06)] ${card.highlightClass || ""}`;
+
+            if (card.onClick) {
+              return (
+                <button
+                  key={card.label}
+                  type="button"
+                  onClick={card.onClick}
+                  className={`${cardClassName} text-left transition-all hover:-translate-y-[1px] hover:border-[#d4deef]`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[12px] font-medium text-slate-500">{card.label}</p>
+                      <p className="mt-2 text-2xl font-semibold text-[#192242]">{card.value}</p>
+                    </div>
+                    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${card.tint}`}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                  </div>
+                </button>
+              );
+            }
+
             return (
-              <article
-                key={card.label}
-                className="rounded-[1.35rem] border border-[#e4e8f4] bg-white p-3 shadow-[0_12px_26px_rgba(20,35,90,0.06)]"
-              >
+              <article key={card.label} className={cardClassName}>
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-[12px] font-medium text-slate-500">{card.label}</p>

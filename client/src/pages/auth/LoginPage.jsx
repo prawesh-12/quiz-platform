@@ -83,7 +83,11 @@ export default function LoginPage() {
 
               {serverError ? <p className="text-sm font-medium text-destructive">{serverError}</p> : null}
 
-              <Button className="w-full" type="submit" disabled={form.formState.isSubmitting}>
+              <Button
+                className="w-full bg-gradient-to-r from-[#2647d6] to-[#4562ea] text-white shadow-[0_12px_22px_rgba(52,87,230,0.32)] transition-colors hover:from-[#3050da] hover:to-[#4f6cf0] focus-visible:ring-2 focus-visible:ring-[#6f8eff] focus-visible:ring-offset-2"
+                type="submit"
+                disabled={form.formState.isSubmitting}
+              >
                 {form.formState.isSubmitting ? "Signing in..." : "Login"}
               </Button>
             </form>

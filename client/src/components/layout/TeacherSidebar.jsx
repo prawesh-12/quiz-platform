@@ -28,10 +28,10 @@ export default function TeacherSidebar({
     {
       id: "library",
       label: "Quiz Library",
-      to: "/teacher/quiz/scheduled",
+      to: "/teacher/quiz/library",
       icon: LibraryBig,
       type: "link",
-      isActive: location.pathname.startsWith("/teacher/quiz/scheduled")
+      isActive: location.pathname.startsWith("/teacher/quiz/library")
     },
     {
       id: "generate",
