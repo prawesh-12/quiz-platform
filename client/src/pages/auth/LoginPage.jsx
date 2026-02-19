@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -74,7 +73,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" autoComplete="current-password" {...field} />
+                      <Input type="password" placeholder="password" autoComplete="current-password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
