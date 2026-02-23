@@ -16,14 +16,27 @@ import unitsRouter from "./routes/units.routes.js";
 import violationsRouter from "./routes/violations.routes.js";
 
 const app = express();
+const configuredOrigins = (
+  process.env.CLIENT_URLS || process.env.CLIENT_URL || ""
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins =
+  configuredOrigins.length > 0
+    ? configuredOrigins
+    : ["http://localhost:5173", "http://localhost:3000"];
 
 app.use(
   cors({
-    origin: [
-      "https://quiz-platform-ruby-six.vercel.app",
-      "http://localhost:5173",
-      "http://localhost:3000"
-    ],
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true
   })
 );
