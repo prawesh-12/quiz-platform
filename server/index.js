@@ -42,8 +42,8 @@ try {
   process.exit(1);
 }
 
+await startQuizScheduler();
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
-
-startQuizScheduler();

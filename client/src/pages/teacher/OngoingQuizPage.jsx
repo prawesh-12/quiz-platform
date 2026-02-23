@@ -165,36 +165,35 @@ export default function OngoingQuizPage() {
     navigate("/teacher/quiz/scheduled", { replace: true });
   }, [isScheduled, navigate, quiz, toast]);
 
-  // Client-side elapsed timer anchored to quiz.created_at
+  // Keep a smooth local timer, but anchor it to server-computed elapsed seconds.
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const anchorRef = useRef(null);
 
   useEffect(() => {
-    // Use scheduled_start as the anchor (it is now set upon activation for manual quizzes)
-    // Fallback to created_at only if scheduled_start is missing (legacy data)
-    const anchorTime = quiz?.scheduled_start || quiz?.created_at;
-    const anchorDate = anchorTime ? new Date(anchorTime) : null;
-    if (!anchorDate || Number.isNaN(anchorDate.getTime()) || isEnded || isScheduled) {
-      // If ended, freeze at last known server value
-      if (isEnded && stats?.elapsed_seconds != null) {
-        setElapsedSeconds(stats.elapsed_seconds);
-      }
-      if (isScheduled) {
-        setElapsedSeconds(0);
-      }
+    if (!quiz) {
       return undefined;
     }
 
-    anchorRef.current = anchorDate.getTime();
+    if (isScheduled) {
+      setElapsedSeconds(0);
+      return undefined;
+    }
 
-    const tick = () => {
-      setElapsedSeconds(Math.floor((Date.now() - anchorRef.current) / 1000));
-    };
+    const baseElapsed = Number(stats?.elapsed_seconds);
+    const safeBaseElapsed = Number.isFinite(baseElapsed) ? Math.max(0, Math.floor(baseElapsed)) : 0;
+    setElapsedSeconds(safeBaseElapsed);
 
-    tick(); // immediate first tick
-    const intervalId = setInterval(tick, 1000);
+    if (isEnded) {
+      return undefined;
+    }
+
+    const startedAt = Date.now();
+    const intervalId = setInterval(() => {
+      const localDelta = Math.floor((Date.now() - startedAt) / 1000);
+      setElapsedSeconds(safeBaseElapsed + localDelta);
+    }, 1000);
+
     return () => clearInterval(intervalId);
-  }, [isEnded, isScheduled, quiz?.created_at, quiz?.scheduled_start, stats?.elapsed_seconds]);
+  }, [isEnded, isScheduled, quiz, stats?.elapsed_seconds]);
 
   // Auto-stop quiz when duration is reached
   const stopTriggeredRef = useRef(false);

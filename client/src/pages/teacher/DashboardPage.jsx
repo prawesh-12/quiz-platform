@@ -226,6 +226,13 @@ export default function DashboardPage() {
     queryFn: () => subjectService.list(),
   });
 
+  const liveQuizStatusQuery = useQuery({
+    queryKey: ["dashboard", "quiz-statuses"],
+    queryFn: () => fetchAllQuizzes(),
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
+  });
+
   const analyticsQuery = useQuery({
     queryKey: ["dashboard", "analytics"],
     queryFn: async () => {
@@ -269,6 +276,7 @@ export default function DashboardPage() {
   const subjects = subjectsQuery.data?.subjects ?? [];
   const quizzes = analyticsQuery.data?.quizzes ?? [];
   const sessions = analyticsQuery.data?.sessions ?? [];
+  const liveStatusQuizzes = liveQuizStatusQuery.data ?? quizzes;
 
   const kpiStats = useMemo(() => {
     const dayStart = startOfDay(new Date());
@@ -305,8 +313,8 @@ export default function DashboardPage() {
       }
     }
 
-    const scheduledQuizzes = quizzes.filter((quiz) => quiz.status === "scheduled").length;
-    const ongoingQuizzes = quizzes.filter((quiz) => quiz.status === "active").length;
+    const scheduledQuizzes = liveStatusQuizzes.filter((quiz) => quiz.status === "scheduled").length;
+    const ongoingQuizzes = liveStatusQuizzes.filter((quiz) => quiz.status === "active").length;
 
     return {
       attemptsToday,
@@ -315,7 +323,7 @@ export default function DashboardPage() {
       scheduledQuizzes,
       ongoingQuizzes,
     };
-  }, [quizzes, sessions]);
+  }, [liveStatusQuizzes, sessions]);
 
   const quizStats = useMemo(() => {
     const statsByQuiz = new Map();
@@ -773,9 +781,9 @@ export default function DashboardPage() {
               </div>
             </article>
 
-            <article className="min-h-0 flex-1 rounded-[1.45rem] border border-[#e4e8f4] bg-white p-3 shadow-[0_12px_26px_rgba(20,35,90,0.06)]">
-              <h2 className="mb-2 text-base font-semibold text-[#192242]">Top Performing Subjects</h2>
-              <div className="scrollbar-hidden max-h-full space-y-2 overflow-y-auto pr-1">
+            <article className="min-h-0 flex flex-1 flex-col overflow-hidden rounded-[1.45rem] border border-[#e4e8f4] bg-white p-3 shadow-[0_12px_26px_rgba(20,35,90,0.06)]">
+              <h2 className="mb-2 shrink-0 text-base font-semibold text-[#192242]">Top Performing Subjects</h2>
+              <div className="scrollbar-hidden min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {compactTopSubjects.length === 0 ? (
                   <p className="rounded-xl border border-dashed border-[#d3dcf3] bg-[#f8faff] p-3 text-xs text-slate-500">
                     Not enough data yet.

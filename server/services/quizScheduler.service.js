@@ -1,7 +1,7 @@
 import pool from "../config/db.js";
 import { transitionQuizStatus } from "./quizLifecycle.service.js";
 
-async function processScheduledTransitions() {
+export async function processScheduledTransitions() {
   const client = await pool.connect();
 
   try {
@@ -62,7 +62,7 @@ async function processScheduledTransitions() {
   }
 }
 
-export function startQuizScheduler() {
+export async function startQuizScheduler() {
   let inFlight = false;
 
   const run = async () => {
@@ -80,8 +80,8 @@ export function startQuizScheduler() {
     }
   };
 
-  // Trigger once at startup, then poll every second so transitions happen on server clock boundaries.
-  run();
+  // Run once before serving requests, then poll every second so transitions stay aligned to server clock.
+  await run();
   const timer = setInterval(run, 1000);
   timer.unref?.();
 
