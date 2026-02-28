@@ -2,6 +2,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
+import { theme } from "@/theme";
 
 const DialogContext = React.createContext(null);
 
@@ -52,7 +53,13 @@ export function DialogPortal({ children }) {
 }
 
 export function DialogOverlay({ className, ...props }) {
-  return <div className={cn("fixed inset-0 z-50 bg-black/80", className)} {...props} />;
+  return (
+    <div
+      className={cn("fixed inset-0 z-50", className)}
+      style={{ backgroundColor: `${theme.text.primary}66` }}
+      {...props}
+    />
+  );
 }
 
 export function DialogContent({ className, children, ...props }) {
@@ -82,7 +89,7 @@ export function DialogContent({ className, children, ...props }) {
       <DialogOverlay onClick={() => context.setOpen(false)} />
       <div
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl rounded-tr-lg rounded-bl-lg border bg-background p-6 shadow-lg",
+          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-[var(--ds-radius-xl)] border border-[var(--ds-border-default)] bg-[var(--ds-bg-card)] p-6 text-[var(--ds-text-secondary)] shadow-[var(--ds-shadow-tooltip)]",
           className
         )}
         {...props}
@@ -102,11 +109,11 @@ export function DialogFooter({ className, ...props }) {
 }
 
 export function DialogTitle({ className, ...props }) {
-  return <h2 className={cn("text-lg font-semibold leading-none tracking-tight", className)} {...props} />;
+  return <h2 className={cn("text-[15px] font-semibold leading-none text-[var(--ds-text-primary)]", className)} {...props} />;
 }
 
 export function DialogDescription({ className, ...props }) {
-  return <p className={cn("text-sm text-muted-foreground", className)} {...props} />;
+  return <p className={cn("text-[13px] text-[var(--ds-text-muted)]", className)} {...props} />;
 }
 
 export function DialogClose({ asChild = false, children, ...props }) {

@@ -1,16 +1,17 @@
 import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
+import { theme } from "@/theme";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors",
+  "inline-flex items-center rounded-[var(--ds-radius-full)] border px-2.5 py-0.5 text-[11px] font-semibold transition-colors",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground",
-        secondary: "border-transparent bg-secondary text-secondary-foreground",
-        outline: "text-foreground",
-        destructive: "border-transparent bg-destructive text-destructive-foreground"
+        default: "",
+        secondary: "",
+        outline: "",
+        destructive: ""
       }
     },
     defaultVariants: {
@@ -20,5 +21,29 @@ const badgeVariants = cva(
 );
 
 export function Badge({ className, variant, ...props }) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+  const tokenVariant = variant || "default";
+  const styleMap = {
+    default: {
+      backgroundColor: theme.badge.teal.bg,
+      color: theme.badge.teal.color,
+      borderColor: "transparent",
+    },
+    secondary: {
+      backgroundColor: theme.badge.gray.bg,
+      color: theme.badge.gray.color,
+      borderColor: "transparent",
+    },
+    outline: {
+      backgroundColor: theme.bg.card,
+      color: theme.text.secondary,
+      borderColor: theme.border.input,
+    },
+    destructive: {
+      backgroundColor: theme.badge.red.bg,
+      color: theme.badge.red.color,
+      borderColor: "transparent",
+    },
+  };
+
+  return <div className={cn(badgeVariants({ variant }), className)} style={styleMap[tokenVariant]} {...props} />;
 }

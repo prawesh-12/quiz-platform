@@ -56,7 +56,7 @@ export function PopoverContent({ className, children, ...props }) {
   return (
     <div
       className={cn(
-        "absolute z-50 mt-2 w-80 rounded-md border bg-card p-3 shadow-lg",
+        "absolute z-50 mt-2 w-80 rounded-[var(--ds-radius-md)] border border-[var(--ds-border-default)] bg-[var(--ds-bg-card)] p-3 shadow-[var(--ds-shadow-tooltip)]",
         className
       )}
       {...props}

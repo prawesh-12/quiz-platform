@@ -56,7 +56,7 @@ export function DropdownMenuContent({ children, className }) {
   return (
     <div
       className={cn(
-        "absolute right-0 z-50 mt-2 min-w-40 rounded-md border bg-background p-1 shadow-md",
+        "absolute right-0 z-50 mt-2 min-w-40 rounded-[var(--ds-radius-md)] border border-[var(--ds-border-default)] bg-[var(--ds-bg-card)] p-1 shadow-[var(--ds-shadow-tooltip)]",
         className
       )}
     >
@@ -73,7 +73,7 @@ export function DropdownMenuItem({ className, onClick, children, disabled = fals
       type="button"
       disabled={disabled}
       className={cn(
-        "w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
+        "w-full rounded-[var(--ds-radius-sm)] px-2 py-1.5 text-left text-[13px] text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-card-hover)] disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       onClick={(event) => {

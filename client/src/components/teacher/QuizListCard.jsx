@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { theme } from "@/theme";
 
 function formatDate(value) {
   if (!value) {
@@ -28,27 +29,27 @@ function getStatusConfig(status) {
   if (status === "active") {
     return {
       label: "ONGOING",
-      badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700"
+      tone: theme.badge.green,
     };
   }
 
   if (status === "scheduled") {
     return {
       label: "SCHEDULED",
-      badgeClass: "border-blue-200 bg-blue-50 text-blue-700"
+      tone: theme.badge.blue,
     };
   }
 
   if (status === "ended") {
     return {
       label: "ENDED",
-      badgeClass: "border-rose-200 bg-rose-50 text-rose-700"
+      tone: theme.badge.red,
     };
   }
 
   return {
     label: String(status || "draft").toUpperCase(),
-    badgeClass: "border-slate-200 bg-slate-100 text-slate-700"
+    tone: theme.badge.gray,
   };
 }
 
@@ -57,33 +58,45 @@ export default function QuizListCard({ quiz, onViewResponses, onEdit, onDuplicat
   const statusConfig = getStatusConfig(quiz.status);
 
   return (
-    <Card className="group rounded-2xl border border-[#e3e8f5] bg-white shadow-[0_10px_24px_rgba(15,25,56,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#cfdaef] hover:shadow-[0_18px_34px_rgba(15,25,56,0.1)]">
+    <Card
+      className="group rounded-[12px] transition-colors hover:bg-[var(--ds-bg-card-hover)]"
+      style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Quiz</p>
-            <CardTitle className="break-words text-lg font-semibold text-[#18203d]">
+            <p className="text-[11px] uppercase" style={{ color: theme.text.subtle, fontWeight: theme.font.weight.semibold }}>
+              Quiz
+            </p>
+            <CardTitle className="break-words text-[15px]" style={{ color: theme.text.primary }}>
               {quiz.title}
             </CardTitle>
           </div>
           <Badge
             className={cn(
-              "rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide",
-              statusConfig.badgeClass
+              "rounded-[var(--ds-radius-full)] border px-3 py-1 text-[11px] uppercase",
+              "border-transparent"
             )}
+            style={{
+              backgroundColor: statusConfig.tone.bg,
+              color: statusConfig.tone.color,
+              fontWeight: theme.font.weight.semibold,
+            }}
           >
             {statusConfig.label}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-0">
-        <div className="space-y-2 text-sm text-slate-600">
+        <div className="space-y-2 text-[13px]" style={{ color: theme.text.secondary }}>
           <div className="flex items-center gap-2">
-            <BookOpenText className="h-4 w-4 text-slate-400" />
-            <span className="font-medium text-slate-700">{quiz.subject_name || "Unassigned subject"}</span>
+            <BookOpenText className="h-4 w-4" style={{ color: theme.text.subtle }} />
+            <span style={{ color: theme.text.primary, fontWeight: theme.font.weight.medium }}>
+              {quiz.subject_name || "Unassigned subject"}
+            </span>
           </div>
           <div className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-slate-400" />
+            <CalendarDays className="h-4 w-4" style={{ color: theme.text.subtle }} />
             <span>{formatDate(quiz.quiz_date)}</span>
           </div>
         </div>
@@ -93,7 +106,7 @@ export default function QuizListCard({ quiz, onViewResponses, onEdit, onDuplicat
             type="button"
             variant="outline"
             size="sm"
-            className="h-9 flex-1 rounded-xl border-[#d8e0f3] bg-[#f9fbff] font-medium text-[#243162] hover:bg-white"
+            className="h-[38px] flex-1 rounded-[var(--ds-radius-md)]"
             onClick={() => onViewResponses?.(quiz)}
           >
             View Responses
@@ -104,12 +117,12 @@ export default function QuizListCard({ quiz, onViewResponses, onEdit, onDuplicat
                 type="button"
                 variant="outline"
                 size="icon"
-                className="h-9 w-9 rounded-xl border-[#d8e0f3] bg-white hover:bg-[#f5f8ff]"
+                className="h-[38px] w-[38px] rounded-[var(--ds-radius-md)]"
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="rounded-xl border-[#dde4f5]">
+            <DropdownMenuContent className="rounded-[var(--ds-radius-md)]">
               {canEdit ? (
                 <DropdownMenuItem className="flex items-center" onClick={() => onEdit?.(quiz)}>
                   <Pencil className="mr-2 h-4 w-4 shrink-0" />

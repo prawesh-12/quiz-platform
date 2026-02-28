@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { quizService } from "@/services/quizService";
 import { subjectService } from "@/services/subjectService";
+import { theme } from "@/theme";
 
 function formatDateTime(value) {
   if (!value) {
@@ -94,12 +95,13 @@ export default function ScheduledQuizListPage() {
       onOpenProfile={() => navigate("/teacher/profile")}
       user={user}
       onLogout={logout}
-      showBackButton={false}
     >
       <div className="min-h-0 flex-1 space-y-4">
-        <Card className="rounded-[1.5rem] border-[#e4e8f4] shadow-[0_14px_30px_rgba(20,35,90,0.06)]">
+        <Card className="rounded-[12px]" style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}>
           <CardHeader className="space-y-2 pb-4">
-            <CardTitle className="text-2xl text-[#192242]">Scheduled Quizzes</CardTitle>
+            <CardTitle className="text-[24px]" style={{ color: theme.text.primary }}>
+              Scheduled Quizzes
+            </CardTitle>
             <CardDescription>
               All upcoming quizzes with details, access codes, and quick-copy links.
             </CardDescription>
@@ -116,8 +118,13 @@ export default function ScheduledQuizListPage() {
             ) : null}
 
             {!scheduledQuery.isLoading && !scheduledQuery.isError && scheduledQuizzes.length === 0 ? (
-              <div className="space-y-3 rounded-xl border border-dashed border-[#d3dcf3] bg-[#f8faff] p-4">
-                <p className="text-sm text-slate-600">No scheduled quizzes found.</p>
+              <div
+                className="space-y-3 rounded-[12px] border border-dashed p-4"
+                style={{ borderColor: theme.border.default, backgroundColor: theme.bg.content }}
+              >
+                <p className="text-[13px]" style={{ color: theme.text.secondary }}>
+                  No scheduled quizzes found.
+                </p>
                 {ongoingQuizzes.length > 0 ? (
                   <Button type="button" variant="outline" onClick={() => navigate("/teacher/quiz/ongoing")}>
                     <Timer className="h-4 w-4" />
@@ -135,32 +142,41 @@ export default function ScheduledQuizListPage() {
               return (
                 <article
                   key={quiz.id}
-                  className="rounded-2xl border border-[#e3e8f5] bg-white p-4 shadow-[0_10px_24px_rgba(15,25,56,0.05)]"
+                  className="rounded-[12px] border p-4"
+                  style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="space-y-2">
-                      <p className="text-lg font-semibold text-[#18203d]">{quiz.title}</p>
-                      <div className="grid grid-cols-1 gap-2 text-sm text-slate-600 md:grid-cols-2">
+                      <p className="text-[15px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>
+                        {quiz.title}
+                      </p>
+                      <div className="grid grid-cols-1 gap-2 text-[13px] md:grid-cols-2" style={{ color: theme.text.secondary }}>
                         <p>
-                          <span className="font-semibold text-[#243162]">Subject:</span> {quiz.subject_name || "-"}
+                          <span style={{ fontWeight: theme.font.weight.semibold, color: theme.text.primary }}>Subject:</span>{" "}
+                          {quiz.subject_name || "-"}
                         </p>
                         <p className="inline-flex items-center gap-1">
-                          <CalendarClock className="h-4 w-4 text-slate-400" />
+                          <CalendarClock className="h-4 w-4" style={{ color: theme.text.subtle }} />
                           <span>{formatDateTime(quiz.scheduled_start)}</span>
                         </p>
                         <p>
-                          <span className="font-semibold text-[#243162]">Ends:</span> {formatDateTime(quiz.scheduled_end)}
+                          <span style={{ fontWeight: theme.font.weight.semibold, color: theme.text.primary }}>Ends:</span>{" "}
+                          {formatDateTime(quiz.scheduled_end)}
                         </p>
                         <p className="inline-flex items-center gap-1">
-                          <KeyRound className="h-4 w-4 text-slate-400" />
+                          <KeyRound className="h-4 w-4" style={{ color: theme.text.subtle }} />
                           <span>
-                            <span className="font-semibold text-[#243162]">Access Code:</span> {quiz.access_code || "-"}
+                            <span style={{ fontWeight: theme.font.weight.semibold, color: theme.text.primary }}>
+                              Access Code:
+                            </span>{" "}
+                            {quiz.access_code || "-"}
                           </span>
                         </p>
                         <p className="inline-flex items-center gap-1 md:col-span-2">
-                          <LinkIcon className="h-4 w-4 text-slate-400" />
+                          <LinkIcon className="h-4 w-4" style={{ color: theme.text.subtle }} />
                           <span className="truncate">
-                            <span className="font-semibold text-[#243162]">Quiz Link:</span> {quizLink}
+                            <span style={{ fontWeight: theme.font.weight.semibold, color: theme.text.primary }}>Quiz Link:</span>{" "}
+                            {quizLink}
                           </span>
                         </p>
                       </div>
@@ -170,7 +186,7 @@ export default function ScheduledQuizListPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="rounded-xl border-[#d8e0f3] bg-[#f9fbff]"
+                        className="rounded-[var(--ds-radius-md)]"
                         onClick={() => copyLink(quiz.access_token)}
                         disabled={!quiz.access_token}
                       >
@@ -179,7 +195,7 @@ export default function ScheduledQuizListPage() {
                       </Button>
                       <Button
                         type="button"
-                        className="rounded-xl"
+                        className="rounded-[var(--ds-radius-md)]"
                         onClick={() => navigate(`/teacher/quiz/manual/${quiz.id}`)}
                       >
                         View / Edit

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -30,15 +30,86 @@
 
   * {
     @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
   }
 
   body {
     @apply min-h-screen bg-background text-foreground;
-    font-family: "Manrope", "Segoe UI", "Helvetica Neue", sans-serif;
+    font-family: var(--ds-font-family, "Inter", -apple-system, BlinkMacSystemFont, sans-serif);
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
   }
 }
 
 @layer utilities {
+  .ds-shell-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #EAEAEC;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .ds-shell-container {
+    width: 95vw;
+    height: 95vh;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.10);
+    display: flex;
+    flex-direction: row;
+    background: #FFFFFF;
+    flex-shrink: 0;
+  }
+
+  .ds-sidebar-wrapper {
+    display: flex;
+    height: 100%;
+  }
+
+  .ds-sidebar-overlay {
+    display: none;
+  }
+
+  .ds-mobile-menu-button {
+    display: none;
+  }
+
+  .ds-card {
+    background: var(--ds-bg-card);
+    border: 1px solid var(--ds-border-default);
+    border-radius: var(--ds-radius-lg);
+  }
+
+  .ds-section-title {
+    font-size: var(--ds-font-lg);
+    font-weight: 600;
+    color: var(--ds-text-primary);
+  }
+
   .scrollbar-hidden {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -46,5 +117,105 @@
 
   .scrollbar-hidden::-webkit-scrollbar {
     display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .ds-shell-page {
+    width: 100vw;
+    height: 100vh;
+    padding: 0;
+  }
+
+  .ds-shell-container {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .ds-shell-content {
+    padding: 16px !important;
+  }
+
+  .ds-shell-divider {
+    display: none;
+  }
+
+  .ds-shell-main {
+    width: 100%;
+  }
+
+  .ds-sidebar-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 100vh;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.12);
+  }
+
+  .ds-sidebar-wrapper.is-open {
+    transform: translateX(0);
+  }
+
+  .ds-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    display: block;
+  }
+
+  .ds-sidebar-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .ds-teacher-sidebar {
+    width: 260px !important;
+    min-width: 260px !important;
+    height: 100vh !important;
+  }
+
+  .ds-mobile-menu-button {
+    display: inline-flex;
+  }
+
+  .ds-sidebar-collapse-btn {
+    display: none;
+  }
+
+  .ds-dashboard-stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .ds-dashboard-middle-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ds-dashboard-right-col {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+  }
+
+  .ds-dashboard-table-wrap {
+    overflow-x: auto;
+  }
+
+  .ds-dashboard-table {
+    min-width: 600px;
   }
 }

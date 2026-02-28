@@ -1,67 +1,87 @@
-import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import GenerateModeModal from "@/components/teacher/GenerateModeModal";
 import TeacherSidebar from "@/components/layout/TeacherSidebar";
-import { Button } from "@/components/ui/button";
+import TeacherTopBar from "@/components/layout/TeacherTopBar";
 import { cn } from "@/lib/utils";
+import { theme } from "@/theme";
 
 export default function TeacherShell({
-    children,
-    subjects,
-    selectedSubjectId,
-    onSelectSubject,
-    onOpenCreateSubject,
-    onOpenProfile,
-    user,
-    onLogout,
-    showBackButton = true,
-    contentScrollable = true,
-    contentPaddingClass = "p-4 md:p-7",
+  children,
+  subjects,
+  selectedSubjectId,
+  onSelectSubject,
+  onOpenCreateSubject,
+  onOpenProfile,
+  user,
+  onLogout,
+  contentScrollable = true,
+  contentPaddingClass = "",
+  pageClassName = "",
+  pageStyle = undefined,
+  containerClassName = "",
+  containerStyle = undefined,
+  contentStyle = undefined,
 }) {
-    const navigate = useNavigate();
-    const [generateModeOpen, setGenerateModeOpen] = useState(false);
+  const [generateModeOpen, setGenerateModeOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const location = useLocation();
 
-    return (
-        <div className="min-h-screen bg-[#f3f5fb] md:h-screen">
-            <TeacherSidebar
-                subjects={subjects}
-                selectedSubjectId={selectedSubjectId}
-                onSelectSubject={onSelectSubject}
-                onOpenCreateSubject={onOpenCreateSubject}
-                onOpenGenerateQuiz={() => setGenerateModeOpen(true)}
-                onOpenProfile={onOpenProfile}
-                user={user}
-                onLogout={onLogout}
-            />
-            <main className="flex min-h-screen flex-col pl-0 md:ml-[19.5rem] md:h-screen md:overflow-hidden">
-                <div
-                    className={cn(
-                        "relative flex min-h-0 flex-1 flex-col",
-                        contentPaddingClass,
-                        contentScrollable ? "overflow-y-auto" : "overflow-y-auto md:overflow-hidden"
-                    )}
-                >
-                    <div className="pointer-events-none absolute inset-x-7 top-0 h-44 rounded-b-[2.5rem] bg-gradient-to-b from-[#fff0ea] via-[#fff6f2] to-transparent" />
-                    {showBackButton ? (
-                        <div className="relative mb-4">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="rounded-xl border-[#d9deed] bg-white text-[#1f2542] shadow-sm hover:bg-[#f9faff]"
-                                onClick={() => navigate("/teacher")}
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                                Back
-                            </Button>
-                        </div>
-                    ) : null}
-                    <div className="relative min-h-0 flex-1">{children}</div>
-                </div>
-            </main>
-            <GenerateModeModal open={generateModeOpen} onOpenChange={setGenerateModeOpen} />
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
+
+  return (
+    <div className={cn("ds-shell-page", pageClassName)} style={pageStyle}>
+      <div className={cn("ds-shell-container", containerClassName)} style={containerStyle}>
+        <button
+          type="button"
+          className={cn("ds-sidebar-overlay", mobileSidebarOpen ? "is-open" : "")}
+          aria-label="Close sidebar"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+
+        <div className={cn("ds-sidebar-wrapper", mobileSidebarOpen ? "is-open" : "")}>
+          <TeacherSidebar
+            subjects={subjects}
+            selectedSubjectId={selectedSubjectId}
+            onSelectSubject={onSelectSubject}
+            onOpenCreateSubject={onOpenCreateSubject}
+            onOpenGenerateQuiz={() => setGenerateModeOpen(true)}
+            onOpenProfile={onOpenProfile}
+            user={user}
+            onLogout={onLogout}
+            onNavigateMobile={() => setMobileSidebarOpen(false)}
+          />
         </div>
-    );
+
+        <div
+          className="ds-shell-divider h-full w-px shrink-0"
+          style={{ backgroundColor: theme.border.default }}
+        />
+
+        <main
+          className="ds-shell-main flex min-h-0 min-w-0 flex-1 flex-col"
+          style={{ backgroundColor: theme.bg.content }}
+        >
+          <TeacherTopBar onMobileMenuToggle={() => setMobileSidebarOpen((prev) => !prev)} />
+          <div
+            className={cn(
+              "ds-shell-content min-h-0 flex-1",
+              contentScrollable ? "overflow-y-auto" : "overflow-y-hidden"
+            )}
+            style={{
+              backgroundColor: theme.bg.content,
+              padding: "28px 32px",
+              ...contentStyle,
+            }}
+          >
+            <div className={cn("min-h-full", contentPaddingClass)}>{children}</div>
+          </div>
+        </main>
+      </div>
+      <GenerateModeModal open={generateModeOpen} onOpenChange={setGenerateModeOpen} />
+    </div>
+  );
 }

@@ -1,9 +1,45 @@
-import { BookOpen, Home, LibraryBig, Plus, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BookOpen, Home, LibraryBig, PanelLeftClose, PanelRightOpen, Plus, Sparkles } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
 import ProfileFooter from "@/components/layout/ProfileFooter";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { theme } from "@/theme";
+
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "teacher-sidebar-collapsed";
+
+function SidebarItem({ isActive, onClick, to, icon: Icon, label, isSubject = false, isCollapsed = false }) {
+  const Comp = to ? Link : "button";
+  const baseClassName = cn(
+    "flex h-9 w-full items-center rounded-[var(--ds-radius-md)] text-left transition-colors",
+    isCollapsed ? "justify-center px-0" : isSubject ? "px-[14px] text-[13px]" : "gap-2.5 px-[10px] text-[14px]",
+    isActive ? "text-[var(--ds-text-white)]" : "text-[var(--ds-text-secondary)] hover:bg-[var(--ds-bg-input)]"
+  );
+
+  return (
+    <Comp
+      to={to}
+      type={to ? undefined : "button"}
+      className={baseClassName}
+      onClick={onClick}
+      aria-label={isCollapsed ? label : undefined}
+      title={isCollapsed ? label : undefined}
+      style={{
+        backgroundColor: isActive ? theme.bg.activeNav : "transparent",
+        fontWeight: theme.font.weight.medium,
+      }}
+    >
+      {Icon ? (
+        <Icon
+          className="h-4 w-4 shrink-0"
+          style={{ color: isActive ? theme.text.white : theme.text.muted }}
+        />
+      ) : null}
+      {!isCollapsed ? <span className="truncate">{label}</span> : null}
+    </Comp>
+  );
+}
 
 export default function TeacherSidebar({
   subjects,
@@ -13,9 +49,51 @@ export default function TeacherSidebar({
   onOpenGenerateQuiz,
   onOpenProfile,
   user,
-  onLogout
+  onLogout,
+  onNavigateMobile,
 }) {
   const location = useLocation();
+  const [isMobileViewport, setIsMobileViewport] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.matchMedia("(max-width: 767px)").matches;
+  });
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, isCollapsed ? "1" : "0");
+  }, [isCollapsed]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const handleMediaQueryChange = (event) => {
+      setIsMobileViewport(event.matches);
+    };
+
+    setIsMobileViewport(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleMediaQueryChange);
+
+    return () => mediaQuery.removeEventListener("change", handleMediaQueryChange);
+  }, []);
+
+  const effectiveCollapsed = !isMobileViewport && isCollapsed;
+
   const navigationItems = [
     {
       id: "home",
@@ -23,7 +101,7 @@ export default function TeacherSidebar({
       to: "/teacher",
       icon: Home,
       type: "link",
-      isActive: location.pathname === "/teacher"
+      isActive: location.pathname === "/teacher",
     },
     {
       id: "library",
@@ -31,7 +109,7 @@ export default function TeacherSidebar({
       to: "/teacher/quiz/library",
       icon: LibraryBig,
       type: "link",
-      isActive: location.pathname.startsWith("/teacher/quiz/library")
+      isActive: location.pathname.startsWith("/teacher/quiz/library"),
     },
     {
       id: "generate",
@@ -40,103 +118,170 @@ export default function TeacherSidebar({
       type: "action",
       isActive:
         location.pathname.startsWith("/teacher/quiz/manual") ||
-        location.pathname.startsWith("/teacher/quiz/auto")
-    }
+        location.pathname.startsWith("/teacher/quiz/auto"),
+    },
   ];
 
   return (
-    <aside className="z-30 flex h-screen w-full max-w-[19.5rem] flex-col overflow-hidden border-r border-white/10 bg-[#1a1a2e] p-4 text-slate-100 md:fixed md:inset-y-0 md:left-0 md:w-[19.5rem] md:p-5">
-      <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_18px_45px_rgba(7,10,22,0.32)] backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff7e6c] to-[#ff9b7f] text-white shadow-[0_10px_20px_rgba(255,126,108,0.35)]">
-            <BookOpen className="h-5 w-5" />
+    <aside
+      className="ds-teacher-sidebar flex h-full shrink-0 flex-col"
+      style={{
+        width: isMobileViewport ? "260px" : effectiveCollapsed ? "56px" : "220px",
+        minWidth: isMobileViewport ? "260px" : effectiveCollapsed ? "56px" : "220px",
+        transition: "width 0.2s ease",
+        backgroundColor: theme.bg.sidebar,
+        padding: effectiveCollapsed ? "16px 8px" : "16px 12px",
+      }}
+    >
+      <div
+        className={cn("flex", effectiveCollapsed ? "flex-col items-center gap-2" : "items-center justify-between gap-2 px-1")}
+        style={{ marginBottom: "20px" }}
+      >
+        <div className="flex min-w-0 items-center">
+          <span
+            className="inline-flex shrink-0 items-center justify-center"
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
+              background: "#1C1C1E",
+              color: "#FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: effectiveCollapsed ? 0 : "10px",
+              flexShrink: 0,
+            }}
+          >
+            <BookOpen className="h-4 w-4" />
           </span>
-          <p className="text-lg font-semibold text-white">Console</p>
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-          Navigation
-        </p>
-        <div className="mt-2 space-y-1.5">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            const baseClassName = cn(
-              "flex h-11 items-center gap-3 rounded-xl border border-transparent px-3.5 text-[15px] font-medium text-slate-200 transition-all",
-              "hover:border-white/15 hover:bg-white/[0.08] hover:text-white",
-              item.isActive &&
-                "border-[#ff8f81]/40 bg-[#2a3252] text-white shadow-[inset_3px_0_0_0_#ff8f81]"
-            );
-
-            if (item.type === "action") {
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={baseClassName}
-                  onClick={() => onOpenGenerateQuiz?.()}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            }
-
-            return (
-              <Link key={item.id} to={item.to} className={baseClassName}>
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 border-t border-white/10 pt-4">
-        <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-          Subject Database
-        </p>
-        <div className="scrollbar-hidden mt-2 h-full overflow-y-auto">
-          <div className="space-y-1.5">
-          {subjects.length > 0 ? (
-            subjects.map((subject) => {
-              const isSelected = Number(selectedSubjectId) === Number(subject.id);
-
-              return (
-                <button
-                  key={subject.id}
-                  type="button"
-                  className={cn(
-                    "flex h-10 w-full items-center rounded-xl border border-transparent px-3.5 text-left text-sm font-medium text-slate-300 transition-all",
-                    "hover:border-white/15 hover:bg-white/[0.08] hover:text-white",
-                    isSelected && "border-[#9eb7ff]/45 bg-[#2b3456] text-white"
-                  )}
-                  onClick={() => onSelectSubject(subject.id)}
-                >
-                  {subject.name}
-                </button>
-              );
-            })
-          ) : (
-            <p className="rounded-xl border border-dashed border-white/20 bg-white/[0.02] p-3 text-center text-xs text-slate-300">
-              No subjects yet. Create one to start adding questions.
+          {!effectiveCollapsed ? (
+            <p
+              className="truncate leading-none"
+              style={{
+                fontFamily: "'Inter', sans-serif",
+                fontSize: "17px",
+                fontWeight: 700,
+                color: "#1C1C1E",
+                letterSpacing: "-0.3px",
+              }}
+            >
+              QuizLoom
             </p>
-          )}
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className="ds-sidebar-collapse-btn inline-flex h-7 w-7 shrink-0 items-center justify-center transition-colors hover:bg-[var(--ds-bg-card-hover)]"
+          style={{
+            borderRadius: theme.radius.sm,
+            border: `1px solid ${theme.border.input}`,
+            color: theme.text.muted,
+            backgroundColor: theme.bg.card,
+          }}
+          aria-label={effectiveCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          onClick={() => setIsCollapsed((previous) => !previous)}
+        >
+          {effectiveCollapsed ? <PanelRightOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+
+      <div className="space-y-1">
+        {navigationItems.map((item) => (
+          <SidebarItem
+            key={item.id}
+            isActive={item.isActive}
+            to={item.type === "link" ? item.to : undefined}
+            icon={item.icon}
+            label={item.label}
+            isCollapsed={effectiveCollapsed}
+            onClick={() => {
+              if (item.type === "action") {
+                onOpenGenerateQuiz?.();
+              }
+
+              if (isMobileViewport) {
+                onNavigateMobile?.();
+              }
+            }}
+          />
+        ))}
+      </div>
+
+      {!effectiveCollapsed ? (
+        <div
+          className="mt-3 min-h-0 flex-1 pt-3"
+          style={{ borderTop: `1px solid ${theme.border.default}` }}
+        >
+          <p
+            className="mb-1.5 ml-[10px] mt-1 text-[11px] uppercase"
+            style={{
+              color: theme.text.subtle,
+              fontWeight: theme.font.weight.semibold,
+              letterSpacing: "0.06em",
+            }}
+          >
+            Subject Database
+          </p>
+
+          <div className="scrollbar-hidden h-full overflow-y-auto pr-0.5">
+            <div className="space-y-1">
+              {subjects.length > 0 ? (
+                subjects.map((subject) => (
+                  <SidebarItem
+                    key={subject.id}
+                    isSubject
+                    isActive={Number(selectedSubjectId) === Number(subject.id)}
+                    label={subject.name}
+                    onClick={() => {
+                      onSelectSubject(subject.id);
+                      if (isMobileViewport) {
+                        onNavigateMobile?.();
+                      }
+                    }}
+                  />
+                ))
+              ) : (
+                <p
+                  className="p-3 text-center text-[12px]"
+                  style={{
+                    borderRadius: theme.radius.md,
+                    border: `1px dashed ${theme.border.default}`,
+                    backgroundColor: theme.bg.content,
+                    color: theme.text.muted,
+                  }}
+                >
+                  No subjects yet. Create one to start adding questions.
+                </p>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex-1" />
+      )}
 
-      <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+      <div
+        className="mt-3 space-y-2 pt-3"
+        style={{ borderTop: `1px solid ${theme.border.default}` }}
+      >
         <Button
           type="button"
-          className="h-11 w-full rounded-xl bg-gradient-to-r from-[#ff6d61] to-[#ff8768] font-semibold text-white shadow-[0_14px_24px_rgba(255,108,93,0.36)] transition-transform duration-200 hover:-translate-y-0.5 hover:from-[#ff766a] hover:to-[#ff9174]"
+          className={cn("h-[38px] w-full", effectiveCollapsed ? "px-0" : "")}
+          style={{
+            backgroundColor: theme.bg.cta,
+            color: theme.text.white,
+            borderRadius: theme.radius.md,
+            fontSize: theme.font.size.base,
+            fontWeight: theme.font.weight.semibold,
+          }}
           onClick={onOpenCreateSubject}
         >
           <Plus className="h-4 w-4" />
-          Add Subject
+          {!effectiveCollapsed ? "Add Subject" : null}
         </Button>
-        <ProfileFooter user={user} onLogout={onLogout} onOpenProfile={onOpenProfile} />
+
+        <ProfileFooter user={user} onLogout={onLogout} onOpenProfile={onOpenProfile} compact={effectiveCollapsed} />
       </div>
     </aside>
   );

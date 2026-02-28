@@ -37,7 +37,6 @@ export default function OngoingQuizListPage() {
       onOpenProfile={() => navigate("/teacher/profile")}
       user={user}
       onLogout={logout}
-      showBackButton={true}
     >
       <div className="min-h-0 flex-1 space-y-4">
         <Card>

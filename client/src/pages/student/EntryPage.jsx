@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { sessionService } from "@/services/sessionService";
+import { theme } from "@/theme";
 import { QUIZ_SESSION_PAYLOAD_KEY, QUIZ_SESSION_TOKEN_KEY } from "@/utils/sessionKeys";
 
 const entrySchema = z.object({
@@ -78,10 +79,13 @@ export default function EntryPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30">
-      <Card className="w-full max-w-sm mx-4 p-4">
+    <div className="ds-shell-page">
+      <Card
+        className="mx-4 w-full max-w-sm p-4"
+        style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+      >
         <CardHeader className="p-0 mb-3">
-          <CardTitle>Quiz Entry</CardTitle>
+          <CardTitle style={{ color: theme.text.primary }}>Quiz Entry</CardTitle>
           <CardDescription>Fill in your details to begin the quiz.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -173,9 +177,13 @@ export default function EntryPage() {
                 )}
               />
 
-              {serverError ? <p className="text-sm text-red-500 mt-1">{serverError}</p> : null}
+              {serverError ? (
+                <p className="mt-1 text-sm" style={{ color: theme.text.accent }}>
+                  {serverError}
+                </p>
+              ) : null}
 
-              <Button className="w-full h-10 mt-2" type="submit" disabled={form.formState.isSubmitting || enterMutation.isPending}>
+              <Button className="mt-2 h-10 w-full" type="submit" disabled={form.formState.isSubmitting || enterMutation.isPending}>
                 {form.formState.isSubmitting || enterMutation.isPending ? "Starting quiz..." : "Start Quiz"}
               </Button>
             </form>

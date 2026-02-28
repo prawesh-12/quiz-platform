@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { quizService } from "@/services/quizService";
 import { subjectService } from "@/services/subjectService";
+import { theme } from "@/theme";
 
 const PAGE_SIZE = 12;
 const FETCH_LIMIT = 100;
@@ -144,24 +145,31 @@ export default function QuizLibraryPage() {
       onOpenProfile={() => navigate("/teacher/profile")}
       user={user}
       onLogout={logout}
-      showBackButton={false}
     >
       <div className="flex min-h-0 flex-1 flex-col gap-5">
-        <section className="rounded-[1.65rem] border border-[#e4e8f4] bg-white p-5 shadow-[0_14px_32px_rgba(20,35,90,0.06)]">
-          <h1 className="text-2xl font-semibold text-[#192242]">Quiz Library</h1>
-          <p className="mt-1 text-sm text-slate-500">
+        <section
+          className="rounded-[12px] border p-5"
+          style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+        >
+          <h1 className="text-[24px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+            Quiz Library
+          </h1>
+          <p className="mt-1 text-[13px]" style={{ color: theme.text.muted }}>
             Manage every published, scheduled, and ended quiz from one place.
           </p>
 
           <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative w-full max-w-[36rem]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
+                  style={{ color: theme.text.muted }}
+                />
                 <Input
                   value={searchInput}
                   onChange={onSearchChange}
                   placeholder="Search quizzes by name or subject"
-                  className="h-11 rounded-xl border-[#d9e0f1] bg-[#fbfcff] pl-10 text-[15px] text-slate-700 placeholder:text-slate-400 focus-visible:ring-[#87a4ff]"
+                  className="h-[38px] rounded-[var(--ds-radius-md)] pl-10"
                 />
               </div>
               <div className="w-full sm:w-[15rem]">
@@ -176,28 +184,43 @@ export default function QuizLibraryPage() {
               </div>
             </div>
 
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            <p
+              className="text-[11px] uppercase"
+              style={{ color: theme.text.subtle, fontWeight: theme.font.weight.semibold, letterSpacing: "0.06em" }}
+            >
               {quizzesQuery.isLoading ? "Loading..." : `${filteredQuizzes.length} quiz item(s)`}
             </p>
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-1 flex-col rounded-[1.65rem] border border-[#e4e8f4] bg-white p-4 shadow-[0_16px_34px_rgba(20,35,90,0.07)] md:p-5">
+        <section
+          className="flex min-h-0 flex-1 flex-col rounded-[12px] border p-4 md:p-5"
+          style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+        >
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
             {quizzesQuery.isLoading ? (
-              <p className="col-span-full rounded-xl border border-dashed border-[#d3dcf3] bg-[#f8faff] p-6 text-sm text-slate-500">
+              <p
+                className="col-span-full rounded-[12px] border border-dashed p-6 text-[13px]"
+                style={{ borderColor: theme.border.default, backgroundColor: theme.bg.content, color: theme.text.muted }}
+              >
                 Loading quizzes...
               </p>
             ) : null}
 
             {quizzesQuery.isError ? (
-              <p className="col-span-full rounded-xl border border-dashed border-rose-300 bg-rose-50 p-6 text-sm text-rose-600">
+              <p
+                className="col-span-full rounded-[12px] border border-dashed p-6 text-[13px]"
+                style={{ borderColor: theme.border.default, backgroundColor: theme.badge.red.bg, color: theme.badge.red.color }}
+              >
                 {quizzesQuery.error?.response?.data?.error || "Failed to load quizzes"}
               </p>
             ) : null}
 
             {!quizzesQuery.isLoading && !quizzesQuery.isError && pagedQuizzes.length === 0 ? (
-              <p className="col-span-full rounded-xl border border-dashed border-[#d3dcf3] bg-[#f8faff] p-6 text-sm text-slate-500">
+              <p
+                className="col-span-full rounded-[12px] border border-dashed p-6 text-[13px]"
+                style={{ borderColor: theme.border.default, backgroundColor: theme.bg.content, color: theme.text.muted }}
+              >
                 No quizzes found for this filter.
               </p>
             ) : null}

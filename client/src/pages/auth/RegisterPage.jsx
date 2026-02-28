@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authService } from "@/services/authService";
+import { theme } from "@/theme";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -43,14 +44,17 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-muted/30 p-4">
+    <div className="ds-shell-page">
       <Button type="button" variant="outline" size="sm" className="absolute left-4 top-4" onClick={() => navigate(-1)}>
         <ArrowLeft className="h-4 w-4" />
         Back
       </Button>
-      <Card className="w-full max-w-md">
+      <Card
+        className="w-full max-w-md"
+        style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+      >
         <CardHeader>
-          <CardTitle>Teacher Registration</CardTitle>
+          <CardTitle style={{ color: theme.text.primary }}>Teacher Registration</CardTitle>
           <CardDescription>Create a teacher account for quiz management.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -108,7 +112,7 @@ export default function RegisterPage() {
         </CardContent>
         <CardFooter className="justify-center text-sm text-muted-foreground">
           Already have an account?&nbsp;
-          <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/login">
+          <Link className="font-medium underline-offset-4 hover:underline" style={{ color: theme.text.accent }} to="/login">
             Login
           </Link>
         </CardFooter>

@@ -36,9 +36,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
+import { cn } from "@/lib/utils";
 import { quizService } from "@/services/quizService";
 import { responseService } from "@/services/responseService";
 import { subjectService } from "@/services/subjectService";
+import { theme } from "@/theme";
 
 const QUIZ_FETCH_LIMIT = 100;
 const RESPONSE_FETCH_LIMIT = 100;
@@ -554,42 +556,37 @@ export default function DashboardPage() {
       label: "Scheduled Quizzes",
       value: formatNumber(kpiStats.scheduledQuizzes),
       icon: CalendarClock,
-      tint: "bg-[#fff3ef] text-[#cb5948]",
-      highlightClass:
-        "border-[#f2d8d0] bg-gradient-to-br from-[#fffaf7] to-[#fff2ee] shadow-[0_12px_26px_rgba(236,115,95,0.12)]",
+      tone: theme.badge.blue,
       onClick: () => navigate("/teacher/quiz/scheduled"),
     },
     {
       label: "Ongoing Quizzes",
       value: formatNumber(kpiStats.ongoingQuizzes),
       icon: Activity,
-      tint: "bg-[#f4eefe] text-[#6a46ca]",
-      highlightClass:
-        "border-[#ddd1fa] bg-gradient-to-br from-[#faf8ff] to-[#f2edff] shadow-[0_12px_26px_rgba(106,70,202,0.12)]",
+      tone: theme.badge.red,
       onClick: () => navigate("/teacher/quiz/ongoing"),
     },
     {
       label: "Total Quiz Attempts Today",
       value: formatNumber(kpiStats.attemptsToday),
       icon: ClipboardCheck,
-      tint: "bg-[#fff2ee] text-[#c95345]",
+      tone: theme.badge.green,
     },
     {
       label: "New Participants Today",
       value: formatNumber(kpiStats.newParticipantsToday),
       icon: UserPlus,
-      tint: "bg-[#f2edff] text-[#6441c7]",
+      tone: theme.badge.gray,
     },
     {
       label: "Total Participants",
       value: formatNumber(kpiStats.totalParticipants),
       icon: Users,
-      tint: "bg-[#fff6e7] text-[#b96b0f]",
+      tone: theme.badge.teal,
     },
   ];
 
   const compactRecentQuizActivity = recentQuizActivity.slice(0, 4);
-  const compactTopSubjects = topSubjects.slice(0, 4);
 
   return (
     <TeacherShell
@@ -600,20 +597,62 @@ export default function DashboardPage() {
       onOpenProfile={() => navigate("/teacher/profile")}
       user={user}
       onLogout={logout}
-      showBackButton={false}
       contentScrollable={false}
-      contentPaddingClass="p-3 md:p-4"
+      contentPaddingClass="h-full"
+      containerStyle={{
+        "--ds-sidebar-width": "220px",
+      }}
+      contentStyle={{
+        height: "100%",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        padding: "24px 28px",
+        boxSizing: "border-box",
+      }}
     >
-      <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)_minmax(0,0.9fr)] gap-3">
-        <section className="rounded-[1.55rem] border border-[#e4e8f4] bg-white px-4 py-3 shadow-[0_12px_26px_rgba(20,35,90,0.06)]">
-          <h1 className="text-xl font-semibold text-[#192242]">Quiz Dashboard</h1>
-        </section>
+      <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ color: theme.text.secondary }}>
 
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="ds-dashboard-stats-row mb-4 shrink-0 flex gap-3">
           {kpiCards.map((card) => {
             const Icon = card.icon;
+            const labelFontSize = card.label.length > 20 ? "10.5px" : "11px";
+            const cardContent = (
+              <div className="flex h-full min-h-[90px] items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p
+                    style={{
+                      fontSize: labelFontSize,
+                      color: theme.text.muted,
+                      fontWeight: theme.font.weight.medium,
+                      whiteSpace: "nowrap",
+                      overflow: "visible",
+                      textOverflow: "unset",
+                    }}
+                  >
+                    {card.label}
+                  </p>
+                  <p
+                    className="mt-2 text-[28px] leading-none"
+                    style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}
+                  >
+                    {card.value}
+                  </p>
+                </div>
+                <span
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center"
+                  style={{ borderRadius: theme.radius.md, backgroundColor: card.tone.bg, color: card.tone.color }}
+                >
+                  <Icon className="h-[18px] w-[18px]" />
+                </span>
+              </div>
+            );
 
-            const cardClassName = `rounded-[1.35rem] border border-[#e4e8f4] bg-white p-3 shadow-[0_12px_26px_rgba(20,35,90,0.06)] ${card.highlightClass || ""}`;
+            const baseClassName = "h-[102px] min-w-0 flex-1 rounded-[12px] border p-[16px] px-5";
+            const baseStyle = {
+              borderColor: theme.border.default,
+              backgroundColor: theme.bg.card,
+            };
 
             if (card.onClick) {
               return (
@@ -621,123 +660,164 @@ export default function DashboardPage() {
                   key={card.label}
                   type="button"
                   onClick={card.onClick}
-                  className={`${cardClassName} text-left transition-all hover:-translate-y-[1px] hover:border-[#d4deef]`}
+                  className={cn(
+                    baseClassName,
+                    "cursor-pointer text-left transition-all duration-150 ease-in-out hover:-translate-y-[2px] hover:border-[#1C1C1E] hover:shadow-[0_6px_20px_rgba(0,0,0,0.10)]"
+                  )}
+                  style={baseStyle}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-[12px] font-medium text-slate-500">{card.label}</p>
-                      <p className="mt-2 text-2xl font-semibold text-[#192242]">{card.value}</p>
-                    </div>
-                    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${card.tint}`}>
-                      <Icon className="h-4 w-4" />
-                    </span>
-                  </div>
+                  {cardContent}
                 </button>
               );
             }
 
             return (
-              <article key={card.label} className={cardClassName}>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-[12px] font-medium text-slate-500">{card.label}</p>
-                    <p className="mt-2 text-2xl font-semibold text-[#192242]">{card.value}</p>
-                  </div>
-                  <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${card.tint}`}>
-                    <Icon className="h-4 w-4" />
-                  </span>
-                </div>
+              <article key={card.label} className={cn(baseClassName, "cursor-default")} style={baseStyle}>
+                {cardContent}
               </article>
             );
           })}
         </section>
 
-        <section className="grid min-h-0 grid-cols-1 gap-3 xl:grid-cols-[3fr_2fr]">
-          <article className="rounded-[1.45rem] border border-[#e4e8f4] bg-white p-3 shadow-[0_12px_26px_rgba(20,35,90,0.06)]">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-[#192242]">Unique Participants</h2>
-                <p className="text-xs text-slate-500">Trend view across the selected date range.</p>
-              </div>
+        <section className="ds-dashboard-middle-row mb-4 flex min-h-0 flex-1 gap-4">
+          <article
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-5 px-6"
+            style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+          >
+            <div className="mb-3 flex flex-nowrap items-center gap-3">
+              <h2
+                className="shrink-0"
+                style={{ color: "#1C1C1E", fontSize: "15px", fontWeight: 600, whiteSpace: "nowrap" }}
+              >
+                Unique Participants
+              </h2>
 
-              <div className="flex flex-wrap items-end gap-1.5">
-                <div>
-                  <Label htmlFor="trend-start-date" className="text-[11px] font-semibold text-slate-500">
-                    Start Date
-                  </Label>
-                  <Input
-                    id="trend-start-date"
-                    type="date"
-                    value={startDateInput}
-                    onChange={(event) => setStartDateInput(event.target.value)}
-                    className="mt-1 h-8 w-[138px] rounded-lg border-[#d8e0f1] bg-[#fbfcff] text-xs"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="trend-end-date" className="text-[11px] font-semibold text-slate-500">
-                    End Date
-                  </Label>
-                  <Input
-                    id="trend-end-date"
-                    type="date"
-                    value={endDateInput}
-                    onChange={(event) => setEndDateInput(event.target.value)}
-                    className="mt-1 h-8 w-[138px] rounded-lg border-[#d8e0f1] bg-[#fbfcff] text-xs"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  className="h-8 rounded-lg bg-gradient-to-r from-[#ff6d61] to-[#ff8768] px-3 text-xs font-semibold text-white shadow-[0_8px_16px_rgba(255,108,93,0.25)] hover:from-[#ff766a] hover:to-[#ff9073]"
-                  onClick={loadTrendData}
-                  disabled={analyticsQuery.isFetching}
+              <div className="min-w-0 flex-1" />
+
+              <div className="shrink-0 flex items-center gap-2">
+                <Label
+                  htmlFor="trend-start-date"
+                  style={{ color: "#999", fontSize: "12px", fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0 }}
                 >
-                  <TrendingUp className="h-3.5 w-3.5" />
-                  Load Data
-                </Button>
+                  Start Date
+                </Label>
+                <Input
+                  id="trend-start-date"
+                  type="date"
+                  value={startDateInput}
+                  onChange={(event) => setStartDateInput(event.target.value)}
+                  className="h-8 w-[120px] px-2 text-[12px]"
+                  style={{ border: "1px solid #E4E4E4", borderRadius: "8px", height: "32px", padding: "0 8px", fontSize: "12px", width: "120px" }}
+                />
               </div>
+              <div className="shrink-0 flex items-center gap-2">
+                <Label
+                  htmlFor="trend-end-date"
+                  style={{ color: "#999", fontSize: "12px", fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0 }}
+                >
+                  End Date
+                </Label>
+                <Input
+                  id="trend-end-date"
+                  type="date"
+                  value={endDateInput}
+                  onChange={(event) => setEndDateInput(event.target.value)}
+                  className="h-8 w-[120px] px-2 text-[12px]"
+                  style={{ border: "1px solid #E4E4E4", borderRadius: "8px", height: "32px", padding: "0 8px", fontSize: "12px", width: "120px" }}
+                />
+              </div>
+              <Button
+                type="button"
+                className="h-8 shrink-0 whitespace-nowrap text-[13px]"
+                style={{
+                  background: "#E8442A",
+                  color: "#FFFFFF",
+                  borderRadius: "8px",
+                  padding: "7px 14px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                }}
+                onClick={loadTrendData}
+                disabled={analyticsQuery.isFetching}
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                Load Data
+              </Button>
             </div>
 
-            <div className="mt-2 rounded-xl border border-[#e6ebf7] bg-[#fcfdff] p-2">
+            <div
+              className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-4"
+              style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+            >
               {analyticsQuery.isLoading ? (
-                <p className="text-xs text-slate-500">Loading dashboard analytics...</p>
+                <p className="text-[12px]" style={{ color: theme.text.muted }}>
+                  Loading dashboard analytics...
+                </p>
               ) : null}
 
               {analyticsQuery.isError ? (
-                <p className="text-xs text-rose-600">
+                <p className="text-[12px]" style={{ color: theme.text.accent }}>
                   {analyticsQuery.error?.response?.data?.error || "Failed to load dashboard analytics."}
                 </p>
               ) : null}
 
               {!analyticsQuery.isLoading && !analyticsQuery.isError ? (
-                <div className="h-[235px] w-full">
+                <div className="h-full min-h-0 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                    <AreaChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id="participantsAreaFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ff6d61" stopOpacity={0.28} />
-                          <stop offset="95%" stopColor="#ff6d61" stopOpacity={0.03} />
+                          <stop offset="5%" stopColor="#3B9EBF" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#3B9EBF" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid stroke="#d7deef" strokeDasharray="4 5" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis allowDecimals={false} tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <CartesianGrid stroke={theme.border.light} strokeDasharray="3 4" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fill: theme.text.subtle, fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        tick={{ fill: theme.text.subtle, fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
                       <Tooltip
-                        cursor={{ stroke: "#ff6d61", strokeWidth: 1, strokeDasharray: "3 3" }}
-                        contentStyle={{
-                          borderRadius: "12px",
-                          border: "1px solid #e2e8f0",
-                          boxShadow: "0 10px 22px rgba(15,23,42,0.08)",
+                        cursor={{
+                          stroke: "#3B9EBF",
+                          strokeWidth: 1,
+                          strokeDasharray: "3 3",
                         }}
-                        formatter={(value) => [`${value}`, "Participants"]}
-                        labelFormatter={(label) => `Date: ${label}`}
+                        contentStyle={{
+                          borderRadius: theme.radius.md,
+                          border: `1px solid ${theme.border.default}`,
+                          boxShadow: theme.shadow.tooltip,
+                          padding: "10px 12px",
+                        }}
+                        formatter={(value) => [
+                          <span key="participants-value" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                            {value}
+                          </span>,
+                          "Participants",
+                        ]}
+                        labelFormatter={(label) => (
+                          <span style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>{`Date: ${label}`}</span>
+                        )}
                       />
                       <Area
                         type="monotone"
                         dataKey="value"
-                        stroke="#ff6d61"
-                        strokeWidth={2.75}
+                        stroke="#3B9EBF"
+                        strokeWidth={2}
                         fill="url(#participantsAreaFill)"
-                        activeDot={{ r: 4.5, fill: "#ff6d61", stroke: "#ffffff", strokeWidth: 2 }}
+                        activeDot={{
+                          r: 4,
+                          fill: "#3B9EBF",
+                          stroke: theme.text.white,
+                          strokeWidth: 2,
+                        }}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -746,102 +826,114 @@ export default function DashboardPage() {
             </div>
           </article>
 
-          <div className="flex min-h-0 flex-col gap-3">
-            <article className="shrink-0 rounded-[1.45rem] border border-[#e4e8f4] bg-white p-3 shadow-[0_12px_26px_rgba(20,35,90,0.06)]">
-              <h2 className="mb-2 text-base font-semibold text-[#192242]">Quiz Stats</h2>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-[#e9edf7] bg-[#fcfdff] p-2.5">
-                  <div className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#edf4ff] text-[#2e5bd4]">
-                    <Users className="h-3.5 w-3.5" />
+          <div className="ds-dashboard-right-col flex w-[320px] shrink-0 min-h-0 flex-col gap-3 overflow-hidden">
+            <article
+              className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-5"
+              style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+            >
+              <h2 className="mb-4 text-[15px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>
+                Quiz Stats
+              </h2>
+              <div className="grid w-full grid-cols-2 gap-[10px]">
+                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
+                  <div className="mb-2 inline-flex h-7 w-7 items-center justify-center" style={{ color: theme.text.teal }}>
+                    <Users className="h-[28px] w-[28px]" />
                   </div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Participants</p>
-                  <p className="mt-0.5 text-lg font-semibold text-[#192242]">{formatNumber(quizStats.participants)}</p>
-                </div>
-                <div className="rounded-xl border border-[#e9edf7] bg-[#fcfdff] p-2.5">
-                  <div className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#f3ecff] text-[#6a43c5]">
-                    <BarChart3 className="h-3.5 w-3.5" />
-                  </div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Avg Score</p>
-                  <p className="mt-0.5 text-lg font-semibold text-[#192242]">{formatAverageScore(quizStats.averageScore)}</p>
-                </div>
-                <div className="rounded-xl border border-[#e9edf7] bg-[#fcfdff] p-2.5">
-                  <div className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#fff4e7] text-[#be700f]">
-                    <Clock3 className="h-3.5 w-3.5" />
-                  </div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Avg Time</p>
-                  <p className="mt-0.5 text-lg font-semibold text-[#192242]">{formatDuration(quizStats.averageTime)}</p>
-                </div>
-                <div className="rounded-xl border border-[#e9edf7] bg-[#fcfdff] p-2.5">
-                  <div className="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#ffeceb] text-[#ca5544]">
-                    <BookOpenText className="h-3.5 w-3.5" />
-                  </div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Quiz Name</p>
-                  <p className="mt-0.5 truncate text-lg font-semibold text-[#192242]">{quizStats.quizName}</p>
-                </div>
-              </div>
-            </article>
-
-            <article className="min-h-0 flex flex-1 flex-col overflow-hidden rounded-[1.45rem] border border-[#e4e8f4] bg-white p-3 shadow-[0_12px_26px_rgba(20,35,90,0.06)]">
-              <h2 className="mb-2 shrink-0 text-base font-semibold text-[#192242]">Top Performing Subjects</h2>
-              <div className="scrollbar-hidden min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                {compactTopSubjects.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-[#d3dcf3] bg-[#f8faff] p-3 text-xs text-slate-500">
-                    Not enough data yet.
+                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Participants</p>
+                  <p className="text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                    {formatNumber(quizStats.participants)}
                   </p>
-                ) : (
-                  compactTopSubjects.map((subject) => (
-                    <div key={subject.name} className="rounded-xl border border-[#e6ebf7] bg-[#fcfdff] p-2.5">
-                      <div className="mb-1.5 flex items-center justify-between gap-2">
-                        <p className="truncate text-xs font-semibold text-[#192242]">{subject.name}</p>
-                        <p className="text-[11px] font-semibold text-slate-500">
-                          {formatAverageScore(subject.averageScore)}
-                        </p>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-[#edf1fb]">
-                        <div
-                          className="h-1.5 rounded-full bg-gradient-to-r from-[#ff6d61] to-[#ff8d75]"
-                          style={{ width: `${Math.max(6, Math.min(100, subject.averageScore))}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))
-                )}
+                </div>
+                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
+                  <div className="mb-2 inline-flex h-7 w-7 items-center justify-center" style={{ color: theme.badge.blue.color }}>
+                    <BarChart3 className="h-[28px] w-[28px]" />
+                  </div>
+                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Avg Score</p>
+                  <p className="text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                    {formatAverageScore(quizStats.averageScore)}
+                  </p>
+                </div>
+                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
+                  <div className="mb-2 inline-flex h-7 w-7 items-center justify-center" style={{ color: theme.text.orange }}>
+                    <Clock3 className="h-[28px] w-[28px]" />
+                  </div>
+                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Avg Time</p>
+                  <p className="text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                    {formatDuration(quizStats.averageTime)}
+                  </p>
+                </div>
+                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
+                  <div className="mb-2 inline-flex h-7 w-7 items-center justify-center" style={{ color: theme.text.accent }}>
+                    <BookOpenText className="h-[28px] w-[28px]" />
+                  </div>
+                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Quiz Name</p>
+                  <p className="truncate text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                    {quizStats.quizName}
+                  </p>
+                </div>
+                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
+                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Total Quizzes</p>
+                  <p className="text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                    {formatNumber(quizzes.length)}
+                  </p>
+                </div>
+                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
+                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Total Attempts</p>
+                  <p className="text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                    {formatNumber(sessions.length)}
+                  </p>
+                </div>
               </div>
             </article>
           </div>
         </section>
 
-        <section className="rounded-[1.45rem] border border-[#e4e8f4] bg-white p-3 shadow-[0_12px_26px_rgba(20,35,90,0.06)]">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-[#192242]">Recent Quiz Activity</h2>
-            <p className="text-[11px] text-slate-500">Last 4 quizzes</p>
+        <section
+          className="shrink-0 rounded-[14px] border p-5"
+          style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card, maxHeight: "332px" }}
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-[15px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>
+              Recent Quiz Activity
+            </h2>
+            <p className="text-[12px]" style={{ color: theme.text.subtle }}>
+              Last 4 quizzes
+            </p>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-[#e5ebf7]">
-            <table className="w-full border-collapse text-xs">
-              <thead className="bg-[#f8faff]">
-                <tr className="text-left font-semibold uppercase tracking-[0.1em] text-slate-500">
-                  <th className="px-3 py-2.5">Quiz</th>
-                  <th className="px-3 py-2.5">Subject</th>
-                  <th className="px-3 py-2.5">Date</th>
-                  <th className="px-3 py-2.5">Participants</th>
-                  <th className="px-3 py-2.5">Avg Score</th>
+          <div className="ds-dashboard-table-wrap overflow-hidden">
+            <table className="ds-dashboard-table w-full border-collapse">
+              <thead style={{ backgroundColor: theme.bg.content }}>
+                <tr className="h-10 border-b" style={{ borderBottomColor: theme.border.default }}>
+                  <th className="px-3 text-left text-[12px]" style={{ color: theme.text.muted, fontWeight: theme.font.weight.medium }}>Quiz</th>
+                  <th className="px-3 text-left text-[12px]" style={{ color: theme.text.muted, fontWeight: theme.font.weight.medium }}>Subject</th>
+                  <th className="px-3 text-left text-[12px]" style={{ color: theme.text.muted, fontWeight: theme.font.weight.medium }}>Date</th>
+                  <th className="px-3 text-left text-[12px]" style={{ color: theme.text.muted, fontWeight: theme.font.weight.medium }}>Participants</th>
+                  <th className="px-3 text-left text-[12px]" style={{ color: theme.text.muted, fontWeight: theme.font.weight.medium }}>Avg Score</th>
                 </tr>
               </thead>
               <tbody>
                 {compactRecentQuizActivity.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-slate-500">
+                  <tr className="h-[52px] border-b" style={{ borderBottomColor: theme.border.light }}>
+                    <td colSpan={5} className="px-3 text-center text-[13px]" style={{ color: theme.text.muted }}>
                       No quiz activity available yet.
                     </td>
                   </tr>
                 ) : (
                   compactRecentQuizActivity.map((item) => (
-                    <tr key={item.id} className="border-t border-[#e9edf7] text-slate-700">
-                      <td className="max-w-[220px] truncate px-3 py-2 font-medium text-[#192242]">{item.name}</td>
-                      <td className="px-3 py-2">{item.subject}</td>
-                      <td className="px-3 py-2">{formatDateLabel(item.date)}</td>
-                      <td className="px-3 py-2">{formatNumber(item.participantCount)}</td>
-                      <td className="px-3 py-2">{formatAverageScore(item.averageScore)}</td>
+                    <tr
+                      key={item.id}
+                      className="h-[52px] border-b transition-colors hover:bg-[var(--ds-bg-card-hover)]"
+                      style={{ borderBottomColor: theme.border.light, color: theme.text.secondary }}
+                    >
+                      <td className="max-w-[220px] truncate px-3 text-[14px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.medium }}>
+                        {item.name}
+                      </td>
+                      <td className="px-3 text-[13px]">{item.subject}</td>
+                      <td className="px-3 text-[13px]">{formatDateLabel(item.date)}</td>
+                      <td className="px-3 text-[13px]">{formatNumber(item.participantCount)}</td>
+                      <td className="px-3 text-[14px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>
+                        {formatAverageScore(item.averageScore)}
+                      </td>
                     </tr>
                   ))
                 )}

@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/authService";
+import { theme } from "@/theme";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -43,10 +44,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md">
+    <div className="ds-shell-page">
+      <Card
+        className="w-full max-w-md"
+        style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+      >
         <CardHeader>
-          <CardTitle>Teacher Login</CardTitle>
+          <CardTitle style={{ color: theme.text.primary }}>Teacher Login</CardTitle>
           <CardDescription>Sign in to access the teacher dashboard.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -83,7 +87,7 @@ export default function LoginPage() {
               {serverError ? <p className="text-sm font-medium text-destructive">{serverError}</p> : null}
 
               <Button
-                className="w-full bg-gradient-to-r from-[#2647d6] to-[#4562ea] text-white shadow-[0_12px_22px_rgba(52,87,230,0.32)] transition-colors hover:from-[#3050da] hover:to-[#4f6cf0] focus-visible:ring-2 focus-visible:ring-[#6f8eff] focus-visible:ring-offset-2"
+                className="w-full"
                 type="submit"
                 disabled={form.formState.isSubmitting}
               >
@@ -94,7 +98,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="justify-center text-sm text-muted-foreground">
           New teacher?&nbsp;
-          <Link className="font-medium text-primary underline-offset-4 hover:underline" to="/register">
+          <Link className="font-medium underline-offset-4 hover:underline" style={{ color: theme.text.accent }} to="/register">
             Create account
           </Link>
         </CardFooter>

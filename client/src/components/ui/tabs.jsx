@@ -13,7 +13,16 @@ export function Tabs({ value, onValueChange, className, children }) {
 }
 
 export function TabsList({ className, children }) {
-  return <div className={cn("inline-flex rounded-md border bg-muted/50 p-1", className)}>{children}</div>;
+  return (
+    <div
+      className={cn(
+        "inline-flex rounded-[var(--ds-radius-md)] border border-[var(--ds-border-default)] bg-[var(--ds-bg-muted)] p-1",
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function TabsTrigger({ value, className, children }) {
@@ -24,8 +33,10 @@ export function TabsTrigger({ value, className, children }) {
     <button
       type="button"
       className={cn(
-        "rounded-sm px-3 py-1.5 text-sm",
-        isActive ? "bg-background shadow-sm" : "text-muted-foreground",
+        "rounded-[var(--ds-radius-sm)] px-3 py-1.5 text-[13px] font-medium",
+        isActive
+          ? "bg-[var(--ds-bg-card)] text-[var(--ds-text-primary)]"
+          : "text-[var(--ds-text-muted)]",
         className
       )}
       onClick={() => context?.onValueChange?.(value)}

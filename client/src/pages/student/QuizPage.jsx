@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/useToast";
 import { sessionService } from "@/services/sessionService";
+import { theme } from "@/theme";
 import {
     QUIZ_SESSION_PAYLOAD_KEY,
     QUIZ_SESSION_TOKEN_KEY,
@@ -366,10 +367,10 @@ export default function QuizPage() {
 
     if (!payload || !quiz || !questions.length || !sessionToken) {
         return (
-            <div className="min-h-screen bg-muted/30 px-4 py-8 flex items-center justify-center">
-                <Card className="w-full max-w-md mx-auto">
+            <div className="ds-shell-page px-4 py-8">
+                <Card className="mx-auto w-full max-w-md">
                     <CardHeader>
-                        <CardTitle>Invalid quiz session</CardTitle>
+                        <CardTitle style={{ color: theme.text.primary }}>Invalid quiz session</CardTitle>
                         <CardDescription>
                             Start from your quiz entry link to begin the test.
                         </CardDescription>
@@ -381,9 +382,11 @@ export default function QuizPage() {
 
     if (hasSubmitted) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4">
-                <CheckCircle2 className="text-green-500" size={80} />
-                <h1 className="mt-6 text-2xl font-bold">Quiz Submitted!</h1>
+            <div className="ds-shell-page flex-col px-4">
+                <CheckCircle2 size={80} style={{ color: theme.text.green }} />
+                <h1 className="mt-6 text-2xl font-bold" style={{ color: theme.text.primary }}>
+                    Quiz Submitted!
+                </h1>
                 <p className="mt-2 text-muted-foreground text-center">
                     Your answers have been recorded successfully.
                 </p>
@@ -400,7 +403,7 @@ export default function QuizPage() {
     );
 
     return (
-        <div className="min-h-screen bg-muted/30 px-4 py-4 pb-24">
+        <div className="h-full overflow-y-auto px-4 py-4 pb-24" style={{ backgroundColor: theme.bg.page }}>
             <div className="w-full max-w-md mx-auto flex flex-col gap-4">
                 <Card>
                     <CardHeader className="space-y-3">
@@ -468,11 +471,14 @@ export default function QuizPage() {
                                           return (
                                               <div
                                                   key={optionKey}
-                                                  className={`flex items-center gap-3 w-full p-4 rounded-lg border cursor-pointer select-none transition-colors ${
+                                                  className={`flex w-full cursor-pointer select-none items-center gap-3 rounded-[var(--ds-radius-md)] border p-4 transition-colors ${
                                                       isSelected
-                                                          ? "border-gray-900 dark:border-gray-100 bg-muted/60"
-                                                          : "border-border hover:bg-muted/30"
+                                                          ? "bg-[var(--ds-bg-card-hover)]"
+                                                          : "hover:bg-[var(--ds-bg-content)]"
                                                   }`}
+                                                  style={{
+                                                      borderColor: isSelected ? theme.text.primary : theme.border.default,
+                                                  }}
                                                   onClick={() =>
                                                       handleSelectOption(
                                                           question.id,
