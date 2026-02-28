@@ -730,7 +730,7 @@ export default function DashboardPage() {
                 type="button"
                 className="h-8 shrink-0 whitespace-nowrap text-[13px]"
                 style={{
-                  background: "#E8442A",
+                  background: "#1C1C1E",
                   color: "#FFFFFF",
                   borderRadius: "8px",
                   padding: "7px 14px",

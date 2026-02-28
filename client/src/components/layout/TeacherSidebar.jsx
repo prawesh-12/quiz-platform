@@ -269,7 +269,7 @@ export default function TeacherSidebar({
           type="button"
           className={cn("h-[38px] w-full", effectiveCollapsed ? "px-0" : "")}
           style={{
-            backgroundColor: theme.bg.cta,
+            backgroundColor: theme.bg.activeNav,
             color: theme.text.white,
             borderRadius: theme.radius.md,
             fontSize: theme.font.size.base,

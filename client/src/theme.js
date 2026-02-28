@@ -10,7 +10,7 @@ export const theme = {
     input: '#F4F4F5',          // search bar, input fills
     muted: '#F7F7F7',          // subtle section backgrounds
     activeNav: '#1C1C1E',      // active sidebar item
-    cta: '#E8442A',            // primary action button (coral red)
+    cta: '#1C1C1E',            // primary action button (blackish)
   },
   text: {
     primary: '#1C1C1E',        // headings, bold values
@@ -18,7 +18,7 @@ export const theme = {
     muted: '#999999',          // labels, placeholders
     subtle: '#AAAAAA',         // axis labels, IDs
     white: '#FFFFFF',
-    accent: '#E8442A',         // coral red text
+    accent: '#1C1C1E',         // blackish accent text
     teal: '#1A9E9E',
     green: '#27A85A',
     orange: '#D4793A',
