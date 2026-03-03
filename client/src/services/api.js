@@ -1,13 +1,7 @@
 import axios from "axios";
 
 import { pushToast } from "@/hooks/useToast";
-
-const rawApiBaseUrl = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
-const API_BASE_URL = rawApiBaseUrl
-  ? /\/api$/i.test(rawApiBaseUrl)
-    ? rawApiBaseUrl
-    : `${rawApiBaseUrl}/api`
-  : "/api";
+import { API_BASE_URL } from "@/lib/apiBaseUrl";
 
 export const api = axios.create({
   baseURL: API_BASE_URL
