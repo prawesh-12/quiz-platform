@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { createHash } from "crypto";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 
@@ -44,6 +45,10 @@ function signTeacherToken(user) {
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
+}
+
+function hashToken(token) {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export async function register(req, res, next) {
@@ -110,6 +115,32 @@ export async function login(req, res, next) {
     const token = signTeacherToken(user);
 
     return res.status(200).json({ token, user });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function logout(req, res, next) {
+  try {
+    const token = req.token;
+    const exp = req.user?.exp;
+
+    if (!token || !exp) {
+      return res.status(400).json({ error: "Invalid token payload for logout" });
+    }
+
+    await query(
+      `
+      INSERT INTO revoked_tokens (token_hash, user_id, expires_at)
+      VALUES ($1, $2, to_timestamp($3))
+      ON CONFLICT (token_hash) DO NOTHING
+      `,
+      [hashToken(token), req.user.userId, Number(exp)]
+    );
+
+    await query(`DELETE FROM revoked_tokens WHERE expires_at <= NOW()`);
+
+    return res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     return next(error);
   }

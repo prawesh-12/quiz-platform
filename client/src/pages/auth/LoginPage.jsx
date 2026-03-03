@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -96,12 +96,6 @@ export default function LoginPage() {
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="justify-center text-sm text-muted-foreground">
-          New teacher?&nbsp;
-          <Link className="font-medium underline-offset-4 hover:underline" style={{ color: theme.text.accent }} to="/register">
-            Create account
-          </Link>
-        </CardFooter>
       </Card>
     </div>
   );

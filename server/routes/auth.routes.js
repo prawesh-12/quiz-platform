@@ -5,6 +5,7 @@ import {
   changePasswordSchema,
   login,
   loginSchema,
+  logout,
   me,
   register,
   registerSchema,
@@ -19,6 +20,7 @@ const authRouter = Router();
 
 authRouter.post("/register", validate(registerSchema), register);
 authRouter.post("/login", validate(loginSchema), login);
+authRouter.post("/logout", authenticate, authorize("teacher"), logout);
 authRouter.get("/me", authenticate, authorize("teacher"), me);
 authRouter.put("/profile", authenticate, authorize("teacher"), validate(updateProfileSchema), updateProfile);
 authRouter.put("/change-password", authenticate, authorize("teacher"), validate(changePasswordSchema), changePassword);

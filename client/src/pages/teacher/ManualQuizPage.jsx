@@ -247,6 +247,7 @@ export default function ManualQuizPage() {
 
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
+  const [shareNavigation, setShareNavigation] = useState(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
 
   const isExistingQuiz = Boolean(quizId);
@@ -523,15 +524,17 @@ export default function ManualQuizPage() {
 
       const activatedStatus = response?.quiz?.status || "active";
       const isScheduled = activatedStatus === "scheduled";
+      const nextShareUrl = buildShareUrlFromToken(response?.quiz?.access_token);
+      const nextNavigation = isScheduled
+        ? { path: "/teacher/quiz/scheduled", replace: !isExistingQuiz }
+        : { path: `/teacher/quiz/ongoing/${activeQuizId}`, replace: !isExistingQuiz };
 
-      if (isScheduled) {
-        navigate("/teacher/quiz/scheduled", { replace: !isExistingQuiz });
+      if (nextShareUrl) {
+        setShareUrl(nextShareUrl);
+        setShareNavigation(nextNavigation);
+        setShareDialogOpen(true);
       } else {
-        if (!isExistingQuiz) {
-          navigate(`/teacher/quiz/ongoing/${activeQuizId}`, { replace: true });
-        } else {
-          navigate(`/teacher/quiz/ongoing/${activeQuizId}`);
-        }
+        navigate(nextNavigation.path, { replace: nextNavigation.replace });
       }
 
       const scheduledStartValue = response?.quiz?.scheduled_start || activationPayload.scheduled_start;
@@ -543,6 +546,16 @@ export default function ManualQuizPage() {
       });
     } catch (error) {
       setPageError(extractApiError(error, "Failed to activate quiz"));
+    }
+  };
+
+  const handleShareDialogOpenChange = (open) => {
+    setShareDialogOpen(open);
+
+    if (!open && shareNavigation) {
+      navigate(shareNavigation.path, { replace: shareNavigation.replace });
+      setShareNavigation(null);
+      setShareUrl("");
     }
   };
 
@@ -821,7 +834,7 @@ export default function ManualQuizPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+      <Dialog open={shareDialogOpen} onOpenChange={handleShareDialogOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Quiz Activated</DialogTitle>
@@ -843,6 +856,11 @@ export default function ManualQuizPage() {
               Copy Link
             </Button>
           </div>
+          <DialogFooter>
+            <Button type="button" onClick={() => handleShareDialogOpenChange(false)}>
+              Continue
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

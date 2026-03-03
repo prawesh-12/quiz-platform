@@ -1,11 +1,21 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +25,7 @@ import { subjectService } from "@/services/subjectService";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, logout, setUser } = useAuth();
   const { toast } = useToast();
 
@@ -23,6 +34,7 @@ export default function ProfilePage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [subjectToDelete, setSubjectToDelete] = useState(null);
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects"],
@@ -44,6 +56,15 @@ export default function ProfilePage() {
       setNewPassword("");
       setConfirmPassword("");
       toast({ title: "Password changed", description: "Password updated successfully." });
+    }
+  });
+
+  const deleteSubjectMutation = useMutation({
+    mutationFn: (id) => subjectService.remove(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subjects"] });
+      setSubjectToDelete(null);
+      toast({ title: "Subject deleted", description: "Subject and related units were removed." });
     }
   });
 
@@ -138,7 +159,55 @@ export default function ProfilePage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Subject Management</CardTitle>
+            <CardDescription>Delete subjects you no longer need.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {(subjectsQuery.data?.subjects || []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No subjects available.</p>
+            ) : (
+              (subjectsQuery.data?.subjects || []).map((subject) => (
+                <div key={subject.id} className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <p className="text-sm font-medium">{subject.name}</p>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setSubjectToDelete(subject)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      <AlertDialog open={Boolean(subjectToDelete)} onOpenChange={(open) => !open && setSubjectToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this subject?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{subjectToDelete?.name}" will be deleted along with its units and subject-bank questions.
+              If quizzes still reference this subject, deletion will be blocked.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteSubjectMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteSubjectMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => subjectToDelete && deleteSubjectMutation.mutate(subjectToDelete.id)}
+            >
+              {deleteSubjectMutation.isPending ? "Deleting..." : "Delete subject"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TeacherShell>
   );
 }

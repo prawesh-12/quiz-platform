@@ -109,6 +109,8 @@ export default function QuestionBankPage() {
   const [activeTab, setActiveTab] = useState("units");
   const [createUnitOpen, setCreateUnitOpen] = useState(false);
   const [newUnitName, setNewUnitName] = useState("");
+  const [renameUnitItem, setRenameUnitItem] = useState(null);
+  const [renameUnitName, setRenameUnitName] = useState("");
   const [deleteUnitItem, setDeleteUnitItem] = useState(null);
 
   // Add Question state
@@ -157,6 +159,16 @@ export default function QuestionBankPage() {
       queryClient.invalidateQueries({ queryKey: ["questions", subjectNumericId] });
       setDeleteUnitItem(null);
       toast({ title: "Unit deleted", description: "Unit removed, questions are now uncategorized." });
+    }
+  });
+
+  const updateUnitMutation = useMutation({
+    mutationFn: ({ id, name }) => unitService.update(id, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["units", subjectNumericId] });
+      setRenameUnitItem(null);
+      setRenameUnitName("");
+      toast({ title: "Unit renamed", description: "Unit name updated successfully." });
     }
   });
 
@@ -347,17 +359,31 @@ export default function QuestionBankPage() {
                       <AccordionTrigger className="px-4">
                         <div className="flex flex-1 items-center justify-between pr-4">
                           <span>{unit.name} <span className="text-muted-foreground ml-2 text-xs">({unit.question_count} questions)</span></span>
-                           <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:bg-destructive/10 h-8"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteUnitItem(unit);
-                              }}
-                            >
-                              Delete Unit
-                            </Button>
+                           <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRenameUnitItem(unit);
+                                  setRenameUnitName(unit.name);
+                                }}
+                              >
+                                Rename
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:bg-destructive/10 h-8"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteUnitItem(unit);
+                                }}
+                              >
+                                Delete Unit
+                              </Button>
+                            </div>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent>
@@ -510,6 +536,35 @@ export default function QuestionBankPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={Boolean(renameUnitItem)} onOpenChange={(open) => !open && setRenameUnitItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Unit</DialogTitle>
+            <DialogDescription>Update unit name for this subject.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Unit Name</Label>
+              <Input value={renameUnitName} onChange={(event) => setRenameUnitName(event.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameUnitItem(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!renameUnitItem) return;
+                updateUnitMutation.mutate({ id: renameUnitItem.id, name: renameUnitName.trim() });
+              }}
+              disabled={!renameUnitName.trim() || updateUnitMutation.isPending}
+            >
+              {updateUnitMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TeacherShell>
   );
 }

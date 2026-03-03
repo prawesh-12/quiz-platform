@@ -381,8 +381,12 @@ export default function QuizPage() {
     }
 
     if (hasSubmitted) {
+        const breakdown = Array.isArray(result?.breakdown) ? result.breakdown : [];
+        const correctCount = breakdown.filter((item) => item.is_correct).length;
+        const attemptedCount = breakdown.filter((item) => item.selected_option).length;
+
         return (
-            <div className="ds-shell-page flex-col px-4">
+            <div className="ds-shell-page flex-col px-4 py-8">
                 <CheckCircle2 size={80} style={{ color: theme.text.green }} />
                 <h1 className="mt-6 text-2xl font-bold" style={{ color: theme.text.primary }}>
                     Quiz Submitted!
@@ -393,6 +397,34 @@ export default function QuizPage() {
                 <p className="mt-4 text-sm text-muted-foreground text-center">
                     {quiz.title}
                 </p>
+                {result ? (
+                    <Card className="mt-6 w-full max-w-md">
+                        <CardHeader>
+                            <CardTitle className="text-lg">Your Results</CardTitle>
+                            <CardDescription>Score summary and question breakdown.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="rounded-md border p-2 text-center">
+                                    <p className="text-muted-foreground">Score</p>
+                                    <p className="font-semibold">{Number(result.score ?? 0)} / {Number(result.total_points ?? 0)}</p>
+                                </div>
+                                <div className="rounded-md border p-2 text-center">
+                                    <p className="text-muted-foreground">Percentage</p>
+                                    <p className="font-semibold">{Number(result.percentage ?? 0)}%</p>
+                                </div>
+                                <div className="rounded-md border p-2 text-center">
+                                    <p className="text-muted-foreground">Correct</p>
+                                    <p className="font-semibold">{correctCount} / {breakdown.length || questions.length}</p>
+                                </div>
+                                <div className="rounded-md border p-2 text-center">
+                                    <p className="text-muted-foreground">Attempted</p>
+                                    <p className="font-semibold">{attemptedCount} / {breakdown.length || questions.length}</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : null}
             </div>
         );
     }

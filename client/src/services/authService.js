@@ -11,6 +11,13 @@ export const authService = {
     return response.data;
   },
 
+  async logout() {
+    const response = await api.post("/auth/logout", null, {
+      skipErrorToast: true
+    });
+    return response.data;
+  },
+
   async me() {
     const response = await api.get("/auth/me");
     return response.data;

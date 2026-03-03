@@ -99,9 +99,17 @@ export function AuthProvider({ children }) {
         localStorage.setItem("quiz_token", token);
         dispatch({ type: "LOGIN_SUCCESS", payload: { token, user } });
       },
-      logout: () => {
-        localStorage.removeItem("quiz_token");
-        dispatch({ type: "LOGOUT" });
+      logout: async () => {
+        try {
+          if (state.token) {
+            await authService.logout();
+          }
+        } catch {
+          // Best-effort server logout. Always clear local auth state.
+        } finally {
+          localStorage.removeItem("quiz_token");
+          dispatch({ type: "LOGOUT" });
+        }
       },
       setUser: (user) => {
         dispatch({ type: "UPDATE_USER", payload: user });

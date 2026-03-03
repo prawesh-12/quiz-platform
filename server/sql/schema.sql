@@ -104,6 +104,14 @@ CREATE TABLE IF NOT EXISTS violation_flags (
   occurred_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS revoked_tokens (
+  id SERIAL PRIMARY KEY,
+  token_hash VARCHAR(64) UNIQUE NOT NULL,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMP NOT NULL,
+  revoked_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_questions_subject_id ON questions(subject_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_questions_quiz_id ON quiz_questions(quiz_id);
 CREATE INDEX IF NOT EXISTS idx_student_sessions_quiz_id ON student_sessions(quiz_id);
@@ -114,3 +122,4 @@ CREATE INDEX IF NOT EXISTS idx_questions_unit_id ON questions(unit_id);
 CREATE INDEX IF NOT EXISTS idx_questions_in_subject_bank ON questions(in_subject_bank);
 CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_start ON quizzes(scheduled_start);
 CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_end ON quizzes(scheduled_end);
+CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at);

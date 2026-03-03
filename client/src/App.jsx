@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 
 // Auth — small, load eagerly
 import LoginPage from "@/pages/auth/LoginPage";
-import RegisterPage from "@/pages/auth/RegisterPage";
 
 // Student — lazy
 const EntryPage = lazy(() => import("@/pages/student/EntryPage"));
@@ -65,7 +64,6 @@ export default function App() {
         <Routes>
           {/* Auth — not lazy, fastest possible load */}
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
 
           {/* Student */}
           <Route path="/quiz/enter/:accessToken" element={<EntryPage />} />

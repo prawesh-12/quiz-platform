@@ -73,6 +73,9 @@ export async function deleteSubject(req, res, next) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Invalid subject id" });
     }
+    if (error?.code === "23503") {
+      return res.status(409).json({ error: "Cannot delete subject while quizzes still reference it" });
+    }
 
     return next(error);
   }
