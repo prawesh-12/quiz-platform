@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
@@ -12,15 +12,6 @@ import {
   Users,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 
 import TeacherShell from "@/components/layout/TeacherShell";
 import { Button } from "@/components/ui/button";
@@ -44,6 +35,7 @@ import { theme } from "@/theme";
 
 const QUIZ_FETCH_LIMIT = 100;
 const RESPONSE_FETCH_LIMIT = 100;
+const ParticipantsTrendChart = lazy(() => import("@/components/teacher/ParticipantsTrendChart"));
 
 function formatDateInput(date) {
   const year = date.getFullYear();
@@ -203,6 +195,18 @@ async function fetchAllQuizResponses(quizId) {
   return responses;
 }
 
+async function fetchLiveStatusCounts() {
+  const [scheduledResult, activeResult] = await Promise.all([
+    quizService.list({ status: "scheduled", page: 1, limit: 1 }),
+    quizService.list({ status: "active", page: 1, limit: 1 }),
+  ]);
+
+  return {
+    scheduled: scheduledResult?.total ?? 0,
+    active: activeResult?.total ?? 0,
+  };
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -230,7 +234,7 @@ export default function DashboardPage() {
 
   const liveQuizStatusQuery = useQuery({
     queryKey: ["dashboard", "quiz-statuses"],
-    queryFn: () => fetchAllQuizzes(),
+    queryFn: fetchLiveStatusCounts,
     refetchInterval: 5_000,
     refetchIntervalInBackground: true,
   });
@@ -278,7 +282,10 @@ export default function DashboardPage() {
   const subjects = subjectsQuery.data?.subjects ?? [];
   const quizzes = analyticsQuery.data?.quizzes ?? [];
   const sessions = analyticsQuery.data?.sessions ?? [];
-  const liveStatusQuizzes = liveQuizStatusQuery.data ?? quizzes;
+  const scheduledQuizCount =
+    liveQuizStatusQuery.data?.scheduled ?? quizzes.filter((quiz) => quiz.status === "scheduled").length;
+  const ongoingQuizCount =
+    liveQuizStatusQuery.data?.active ?? quizzes.filter((quiz) => quiz.status === "active").length;
 
   const kpiStats = useMemo(() => {
     const dayStart = startOfDay(new Date());
@@ -315,17 +322,14 @@ export default function DashboardPage() {
       }
     }
 
-    const scheduledQuizzes = liveStatusQuizzes.filter((quiz) => quiz.status === "scheduled").length;
-    const ongoingQuizzes = liveStatusQuizzes.filter((quiz) => quiz.status === "active").length;
-
     return {
       attemptsToday,
       newParticipantsToday,
       totalParticipants: participants.size,
-      scheduledQuizzes,
-      ongoingQuizzes,
+      scheduledQuizzes: scheduledQuizCount,
+      ongoingQuizzes: ongoingQuizCount,
     };
-  }, [liveStatusQuizzes, sessions]);
+  }, [ongoingQuizCount, scheduledQuizCount, sessions]);
 
   const quizStats = useMemo(() => {
     const statsByQuiz = new Map();
@@ -763,64 +767,15 @@ export default function DashboardPage() {
 
               {!analyticsQuery.isLoading && !analyticsQuery.isError ? (
                 <div className="h-full min-h-0 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="participantsAreaFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3B9EBF" stopOpacity={0.15} />
-                          <stop offset="95%" stopColor="#3B9EBF" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid stroke={theme.border.light} strokeDasharray="3 4" vertical={false} />
-                      <XAxis
-                        dataKey="label"
-                        tick={{ fill: theme.text.subtle, fontSize: 11 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        allowDecimals={false}
-                        tick={{ fill: theme.text.subtle, fontSize: 11 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <Tooltip
-                        cursor={{
-                          stroke: "#3B9EBF",
-                          strokeWidth: 1,
-                          strokeDasharray: "3 3",
-                        }}
-                        contentStyle={{
-                          borderRadius: theme.radius.md,
-                          border: `1px solid ${theme.border.default}`,
-                          boxShadow: theme.shadow.tooltip,
-                          padding: "10px 12px",
-                        }}
-                        formatter={(value) => [
-                          <span key="participants-value" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
-                            {value}
-                          </span>,
-                          "Participants",
-                        ]}
-                        labelFormatter={(label) => (
-                          <span style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>{`Date: ${label}`}</span>
-                        )}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="value"
-                        stroke="#3B9EBF"
-                        strokeWidth={2}
-                        fill="url(#participantsAreaFill)"
-                        activeDot={{
-                          r: 4,
-                          fill: "#3B9EBF",
-                          stroke: theme.text.white,
-                          strokeWidth: 2,
-                        }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <Suspense
+                    fallback={
+                      <div className="flex h-full items-center justify-center text-[12px]" style={{ color: theme.text.muted }}>
+                        Loading chart...
+                      </div>
+                    }
+                  >
+                    <ParticipantsTrendChart trendData={trendData} theme={theme} />
+                  </Suspense>
                 </div>
               ) : null}
             </div>

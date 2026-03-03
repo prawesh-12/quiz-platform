@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -30,10 +30,40 @@ export default function LoginPage() {
     }
   });
 
+  useEffect(() => {
+    const prefetchTeacherAssets = () => {
+      Promise.all([
+        import("@/pages/teacher/DashboardPage"),
+        import("@/components/teacher/ParticipantsTrendChart")
+      ]).catch(() => {
+        // Ignore prefetch failures; normal route loading still works.
+      });
+    };
+
+    let idleId = null;
+    let timeoutId = null;
+
+    if ("requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(prefetchTeacherAssets, { timeout: 1500 });
+    } else {
+      timeoutId = window.setTimeout(prefetchTeacherAssets, 600);
+    }
+
+    return () => {
+      if (idleId != null) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, []);
+
   const onSubmit = async (values) => {
     setServerError("");
 
     try {
+      import("@/pages/teacher/DashboardPage").catch(() => {});
       const data = await authService.login(values);
       login({ token: data.token, user: data.user });
       navigate("/teacher", { replace: true });
