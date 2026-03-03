@@ -1,6 +1,6 @@
 # QuizLoom
 
-A full-stack QuizLoom platform for teachers and students, with quiz authoring, scheduling, live monitoring, response analytics, proctoring flags, and Excel import/export workflows.
+A full-stack quiz platform for teachers and students, with quiz authoring, scheduling, live monitoring, response analytics, proctoring flags, and Excel import/export workflows.
 
 ---
 
