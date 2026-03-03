@@ -56,7 +56,7 @@ app.use("/api/sessions", sessionsRouter);
 app.use("/api/violations", violationsRouter);
 
 app.get("/", (req, res) => {
-  res.status(200).json({ message: "Quiz Platform API is running" });
+  res.status(200).json({ message: "QuizLoom API is running" });
 });
 
 // app.use((req, res) => {
