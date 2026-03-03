@@ -184,7 +184,7 @@ quizloom/
 ### 1. Clone and install dependencies
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/prawesh-12/quiz-platform.git
 cd quizloom
 npm run install:all
 ```
