@@ -166,28 +166,6 @@ function buildShareUrlFromToken(accessToken) {
   return origin ? `${origin}/quiz/enter/${accessToken}` : "";
 }
 
-function normalizeDateOnlyInput(value) {
-  if (!value) {
-    return "";
-  }
-
-  const raw = String(value).trim();
-  const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (match) {
-    return match[1];
-  }
-
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) {
-    return "";
-  }
-
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 function extractApiError(error, fallbackMessage) {
   const apiData = error?.response?.data;
   if (apiData?.error !== "Validation failed") {
@@ -232,7 +210,6 @@ export default function ManualQuizPage() {
   const [batch, setBatch] = useState("");
   const [division, setDivision] = useState("");
   const [groupNos, setGroupNos] = useState("");
-  const [quizDate, setQuizDate] = useState("");
   const [scheduledStart, setScheduledStart] = useState("");
   const [scheduledEnd, setScheduledEnd] = useState("");
   const [accessCode, setAccessCode] = useState("");
@@ -301,7 +278,6 @@ export default function ManualQuizPage() {
     setBatch(quiz.batch || "");
     setDivision(quiz.division || "");
     setGroupNos(quiz.group_nos || "");
-    setQuizDate(normalizeDateOnlyInput(quiz.quiz_date));
     setScheduledStart(quiz.scheduled_start ? String(quiz.scheduled_start).slice(0, 16) : "");
     setScheduledEnd(quiz.scheduled_end ? String(quiz.scheduled_end).slice(0, 16) : "");
     setAccessCode(quiz.access_code || "");
@@ -398,7 +374,6 @@ export default function ManualQuizPage() {
     batch: batch || null,
     division: division || null,
     group_nos: groupNos || null,
-    quiz_date: normalizeDateOnlyInput(quizDate) || null,
     scheduled_start: scheduledStart || null,
     scheduled_end: scheduledEnd || null,
     access_code: accessCode || null,
@@ -674,11 +649,6 @@ export default function ManualQuizPage() {
                 <Label>Group</Label>
                 <Input value={groupNos} onChange={(event) => setGroupNos(event.target.value)} placeholder="G13/G14" />
               </div>
-            </div>
-
-            <div className="w-full max-w-xs space-y-2 md:max-w-[200px]">
-              <Label>Quiz Date</Label>
-              <Input type="date" value={quizDate} onChange={(event) => setQuizDate(event.target.value)} />
             </div>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">

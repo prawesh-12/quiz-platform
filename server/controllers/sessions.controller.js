@@ -114,6 +114,83 @@ function timingPayload(window) {
     };
 }
 
+async function fetchSessionContext(dbClient, sessionToken) {
+    const sessionResult = await dbClient.query(
+        `
+      SELECT
+        ss.id,
+        ss.quiz_id,
+        ss.status,
+        ss.score,
+        ss.total_points,
+        q.status AS quiz_status,
+        q.scheduled_start,
+        q.scheduled_end,
+        q.duration_mins,
+        q.created_at,
+        (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp AS server_now
+      FROM student_sessions ss
+      INNER JOIN quizzes q ON q.id = ss.quiz_id
+      WHERE ss.session_token = $1
+      `,
+        [sessionToken],
+    );
+
+    if (sessionResult.rowCount === 0) {
+        return null;
+    }
+
+    const session = sessionResult.rows[0];
+    const quizWindow = resolveQuizWindow(
+        {
+            status: session.quiz_status,
+            scheduled_start: session.scheduled_start,
+            scheduled_end: session.scheduled_end,
+            duration_mins: session.duration_mins,
+            created_at: session.created_at,
+        },
+        session.server_now,
+    );
+
+    return {
+        session,
+        quizWindow,
+    };
+}
+
+function buildSessionClosedPayload(session, quizWindow) {
+    return {
+        session_closed:
+            session.status !== "pending" || quizWindow.phase === "ended",
+        already_submitted: session.status === "submitted",
+        ...timingPayload(quizWindow),
+    };
+}
+
+export async function getSessionTiming(req, res, next) {
+    try {
+        const headerPayload = sessionHeadersSchema.parse(req.headers);
+        const sessionToken = headerPayload["x-session-token"];
+
+        const context = await fetchSessionContext(pool, sessionToken);
+        if (!context) {
+            return res.status(404).json({ error: "Session not found" });
+        }
+
+        return res.status(200).json(
+            buildSessionClosedPayload(context.session, context.quizWindow),
+        );
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res
+                .status(400)
+                .json({ error: "Missing or invalid session token header" });
+        }
+
+        return next(error);
+    }
+}
+
 export async function enterSession(req, res, next) {
     try {
         const payload = req.validatedBody;
@@ -223,42 +300,12 @@ export async function saveSessionProgress(req, res, next) {
         const sessionToken = headerPayload["x-session-token"];
         const { answers } = req.validatedBody;
 
-        const sessionResult = await client.query(
-            `
-      SELECT
-        ss.id,
-        ss.quiz_id,
-        ss.status,
-        ss.score,
-        ss.total_points,
-        q.status AS quiz_status,
-        q.scheduled_start,
-        q.scheduled_end,
-        q.duration_mins,
-        q.created_at,
-        (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp AS server_now
-      FROM student_sessions ss
-      INNER JOIN quizzes q ON q.id = ss.quiz_id
-      WHERE ss.session_token = $1
-      `,
-            [sessionToken],
-        );
-
-        if (sessionResult.rowCount === 0) {
+        const context = await fetchSessionContext(client, sessionToken);
+        if (!context) {
             return res.status(404).json({ error: "Session not found" });
         }
 
-        const session = sessionResult.rows[0];
-        const quizWindow = resolveQuizWindow(
-            {
-                status: session.quiz_status,
-                scheduled_start: session.scheduled_start,
-                scheduled_end: session.scheduled_end,
-                duration_mins: session.duration_mins,
-                created_at: session.created_at,
-            },
-            session.server_now,
-        );
+        const { session, quizWindow } = context;
 
         if (session.status !== "pending") {
             const breakdown = await fetchBreakdown(
@@ -285,37 +332,11 @@ export async function saveSessionProgress(req, res, next) {
         }
 
         if (quizWindow.phase !== "active") {
-            try {
-                await client.query("BEGIN");
-
-                const submittedAnswers = answers.length
-                    ? answers
-                    : await fetchStoredAnswers(client, session.id);
-                const result = await finalizeSessionSubmission(client, {
-                    sessionId: session.id,
-                    quizId: session.quiz_id,
-                    submittedAnswers,
-                });
-
-                await client.query("COMMIT");
-
-                return res.status(200).json({
-                    session_closed: true,
-                    score: result.score,
-                    total_points: result.total_points,
-                    percentage: withPercent(result.score, result.total_points),
-                    breakdown: result.breakdown,
-                    ...timingPayload(quizWindow),
-                });
-            } catch (error) {
-                try {
-                    await client.query("ROLLBACK");
-                } catch {
-                    // ignore rollback failures
-                }
-
-                throw error;
-            }
+            return res.status(409).json({
+                error: "Quiz has ended. Responses are no longer accepted.",
+                session_closed: true,
+                ...timingPayload(quizWindow),
+            });
         }
 
         await client.query("BEGIN");
@@ -355,42 +376,12 @@ export async function submitSession(req, res, next) {
         const sessionToken = headerPayload["x-session-token"];
         const { answers } = req.validatedBody;
 
-        const sessionResult = await client.query(
-            `
-      SELECT
-        ss.id,
-        ss.quiz_id,
-        ss.status,
-        ss.score,
-        ss.total_points,
-        q.status AS quiz_status,
-        q.scheduled_start,
-        q.scheduled_end,
-        q.duration_mins,
-        q.created_at,
-        (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp AS server_now
-      FROM student_sessions ss
-      INNER JOIN quizzes q ON q.id = ss.quiz_id
-      WHERE ss.session_token = $1
-      `,
-            [sessionToken],
-        );
-
-        if (sessionResult.rowCount === 0) {
+        const context = await fetchSessionContext(client, sessionToken);
+        if (!context) {
             return res.status(404).json({ error: "Session not found" });
         }
 
-        const session = sessionResult.rows[0];
-        const quizWindow = resolveQuizWindow(
-            {
-                status: session.quiz_status,
-                scheduled_start: session.scheduled_start,
-                scheduled_end: session.scheduled_end,
-                duration_mins: session.duration_mins,
-                created_at: session.created_at,
-            },
-            session.server_now,
-        );
+        const { session, quizWindow } = context;
 
         if (session.status === "submitted") {
             const breakdown = await fetchBreakdown(
@@ -416,25 +407,9 @@ export async function submitSession(req, res, next) {
         }
 
         if (quizWindow.phase !== "active") {
-            await client.query("BEGIN");
-
-            const submittedAnswers = answers.length
-                ? answers
-                : await fetchStoredAnswers(client, session.id);
-            const result = await finalizeSessionSubmission(client, {
-                sessionId: session.id,
-                quizId: session.quiz_id,
-                submittedAnswers,
-            });
-
-            await client.query("COMMIT");
-
-            return res.status(200).json({
-                already_submitted: true,
-                score: result.score,
-                total_points: result.total_points,
-                percentage: withPercent(result.score, result.total_points),
-                breakdown: result.breakdown,
+            return res.status(409).json({
+                error: "Quiz has ended. Responses are no longer accepted.",
+                session_closed: true,
                 ...timingPayload(quizWindow),
             });
         }

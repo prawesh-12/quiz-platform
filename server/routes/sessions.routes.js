@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   enterSession,
   enterSessionSchema,
+  getSessionTiming,
   progressSessionSchema,
   saveSessionProgress,
   submitSession,
@@ -13,6 +14,7 @@ import validate from "../middleware/validate.js";
 const sessionsRouter = Router();
 
 sessionsRouter.post("/enter", validate(enterSessionSchema), enterSession);
+sessionsRouter.get("/timing", getSessionTiming);
 sessionsRouter.post("/progress", validate(progressSessionSchema), saveSessionProgress);
 sessionsRouter.post("/submit", validate(submitSessionSchema), submitSession);
 

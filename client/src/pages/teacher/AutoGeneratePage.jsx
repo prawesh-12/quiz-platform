@@ -6,7 +6,6 @@ import TeacherShell from "@/components/layout/TeacherShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import DateTimePicker from "@/components/ui/date-time-picker";
 import {
   Dialog,
   DialogContent,
@@ -25,44 +24,6 @@ import { quizService } from "@/services/quizService";
 import { subjectService } from "@/services/subjectService";
 import { unitService } from "@/services/unitService";
 
-function hasInvalidScheduleRange(start, end) {
-  if (!start || !end) {
-    return false;
-  }
-
-  const startValue = new Date(start).getTime();
-  const endValue = new Date(end).getTime();
-  if (Number.isNaN(startValue) || Number.isNaN(endValue)) {
-    return false;
-  }
-
-  return endValue < startValue;
-}
-
-function formatForDateTimeLocal(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-function calculateScheduledEnd(start, durationMins) {
-  if (!start) {
-    return "";
-  }
-
-  const startDate = new Date(start);
-  if (Number.isNaN(startDate.getTime())) {
-    return "";
-  }
-
-  const minutes = Math.max(0, Number(durationMins || 0));
-  startDate.setMinutes(startDate.getMinutes() + minutes);
-  return formatForDateTimeLocal(startDate);
-}
-
 export default function AutoGeneratePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -72,13 +33,6 @@ export default function AutoGeneratePage() {
   const [subjectId, setSubjectId] = useState("");
   const [title, setTitle] = useState("Untitled quiz");
   const [durationMins, setDurationMins] = useState(15);
-  const [batch, setBatch] = useState("");
-  const [division, setDivision] = useState("");
-  const [groupNos, setGroupNos] = useState("");
-  const [quizDate, setQuizDate] = useState("");
-  const [scheduledStart, setScheduledStart] = useState("");
-  const [scheduledEnd, setScheduledEnd] = useState("");
-  const [accessCode, setAccessCode] = useState("");
 
   const [unitCounts, setUnitCounts] = useState({});
   const [subjectDialogOpen, setSubjectDialogOpen] = useState(false);
@@ -107,10 +61,6 @@ export default function AutoGeneratePage() {
     setSubjectId(String(subjects[0].id));
   }, [subjectId, subjects]);
 
-  useEffect(() => {
-    setScheduledEnd(calculateScheduledEnd(scheduledStart, durationMins));
-  }, [scheduledStart, durationMins]);
-
   // Reset unit counts when subject changes
   useEffect(() => {
     setUnitCounts({});
@@ -130,14 +80,11 @@ export default function AutoGeneratePage() {
 
   const autoGenerateMutation = useMutation({
     mutationFn: (payload) => quizService.autoGenerate(payload),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["quizzes"] });
-      const isScheduled = data.quiz.status === "scheduled";
       toast({
-        title: isScheduled ? "Quiz Scheduled" : "Quiz Generated",
-        description: isScheduled
-            ? `Quiz scheduled for ${new Date(data.quiz.scheduled_start).toLocaleString()}`
-            : "Auto-generated quiz is ready for review."
+        title: "Quiz Generated",
+        description: "Auto-generated quiz is ready for review."
       });
       navigate(`/teacher/quiz/manual/${data.quiz.id}`);
     }
@@ -178,11 +125,6 @@ export default function AutoGeneratePage() {
       return;
     }
 
-    if (hasInvalidScheduleRange(scheduledStart, scheduledEnd)) {
-      setPageError("Scheduled end must be later than scheduled start");
-      return;
-    }
-
     const unitSelections = Object.entries(unitCounts)
       .filter(([, count]) => count > 0)
       .map(([unitId, count]) => ({ unit_id: Number(unitId), count }));
@@ -193,13 +135,6 @@ export default function AutoGeneratePage() {
         subject_id: Number(subjectId),
         unit_selections: unitSelections,
         duration_mins: Number(durationMins || 15),
-        batch: batch || null,
-        division: division || null,
-        group_nos: groupNos || null,
-        quiz_date: quizDate || null,
-        scheduled_start: scheduledStart || null,
-        scheduled_end: scheduledEnd || null,
-        access_code: accessCode || null,
         status: "draft"
       });
     } catch (error) {
@@ -303,34 +238,6 @@ export default function AutoGeneratePage() {
                 <Label>Duration (mins)</Label>
                 <Input type="number" min={1} value={durationMins} onChange={(event) => setDurationMins(Number(event.target.value || 15))} />
               </div>
-              <div className="space-y-2">
-                <Label>Batch</Label>
-                <Input value={batch} onChange={(event) => setBatch(event.target.value)} placeholder="2023-2027" />
-              </div>
-              <div className="space-y-2">
-                <Label>Division</Label>
-                <Input value={division} onChange={(event) => setDivision(event.target.value)} placeholder="7" />
-              </div>
-              <div className="space-y-2">
-                <Label>Group</Label>
-                <Input value={groupNos} onChange={(event) => setGroupNos(event.target.value)} placeholder="G13/G14" />
-              </div>
-              <div className="space-y-2">
-                <Label>Quiz Date</Label>
-                <Input type="date" value={quizDate} onChange={(event) => setQuizDate(event.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Scheduled Start</Label>
-                <DateTimePicker value={scheduledStart} onChange={setScheduledStart} placeholder="Select start" />
-              </div>
-              <div className="space-y-2">
-                <Label>Scheduled End (Auto)</Label>
-                <Input type="datetime-local" value={scheduledEnd} readOnly disabled />
-              </div>
-              <div className="space-y-2">
-                <Label>Access Code</Label>
-                <Input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} placeholder="e.g. 2026CN" />
-              </div>
             </div>
 
             {pageError ? <p className="text-sm text-destructive">{pageError}</p> : null}
@@ -341,7 +248,7 @@ export default function AutoGeneratePage() {
               onClick={generateQuiz}
               disabled={autoGenerateMutation.isPending || totalSelected === 0 || hasUnitErrors}
             >
-              {scheduledStart && new Date(scheduledStart) > new Date() ? "Schedule Quiz" : "Generate Quiz"}
+              Generate Quiz
             </Button>
           </CardContent>
         </Card>

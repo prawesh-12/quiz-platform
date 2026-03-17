@@ -4,7 +4,10 @@ import { z } from "zod";
 
 import pool, { query } from "../config/db.js";
 import { transitionQuizStatus } from "../services/quizLifecycle.service.js";
-import { planActivationWindow } from "../services/quizTiming.service.js";
+import {
+  planActivationWindow,
+  resolveQuizWindow,
+} from "../services/quizTiming.service.js";
 
 const quizStatusSchema = z.enum(["draft", "active", "ended", "scheduled"]);
 
@@ -19,7 +22,7 @@ const quizMetaSchema = z.object({
   scheduled_start: z.string().trim().optional().nullable(),
   scheduled_end: z.string().trim().optional().nullable(),
   access_code: z.string().trim().max(20).optional().nullable(),
-  status: quizStatusSchema.optional().default("draft")
+  status: quizStatusSchema.optional().default("draft"),
 });
 
 const questionPayloadSchema = z.object({
@@ -35,20 +38,22 @@ const questionPayloadSchema = z.object({
   is_required: z.boolean().optional().default(true),
   unit_id: z.coerce.number().int().positive().optional().nullable(),
   new_unit_name: z.string().trim().min(1).max(100).optional().nullable(),
-  in_subject_bank: z.boolean().optional().default(false)
+  in_subject_bank: z.boolean().optional().default(false),
 });
 
 export const createManualQuizSchema = quizMetaSchema.extend({
-  questions: z.array(questionPayloadSchema).min(1)
+  questions: z.array(questionPayloadSchema).min(1),
 });
 
 export const autoGenerateQuizSchema = quizMetaSchema.extend({
-  unit_selections: z.array(
-    z.object({
-      unit_id: z.coerce.number().int().positive(),
-      count: z.coerce.number().int().positive()
-    })
-  ).min(1, "Select at least 1 question")
+  unit_selections: z
+    .array(
+      z.object({
+        unit_id: z.coerce.number().int().positive(),
+        count: z.coerce.number().int().positive(),
+      }),
+    )
+    .min(1, "Select at least 1 question"),
 });
 
 export const updateQuizSchema = z
@@ -63,25 +68,25 @@ export const updateQuizSchema = z
     scheduled_end: z.string().trim().optional().nullable(),
     access_code: z.string().trim().max(20).optional().nullable(),
     status: quizStatusSchema.optional(),
-    question_ids: z.array(z.coerce.number().int().positive()).min(1).optional()
+    question_ids: z.array(z.coerce.number().int().positive()).min(1).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
-    message: "At least one field is required"
+    message: "At least one field is required",
   });
 
 export const updateQuizStatusSchema = z.object({
-  status: z.enum(["active", "ended"])
+  status: z.enum(["active", "ended"]),
 });
 
 const listQuizzesQuerySchema = z.object({
   search: z.string().trim().max(255).optional(),
   status: quizStatusSchema.optional(),
   page: z.coerce.number().int().positive().optional().default(1),
-  limit: z.coerce.number().int().positive().max(100).optional().default(10)
+  limit: z.coerce.number().int().positive().max(100).optional().default(10),
 });
 
 const quizIdParamSchema = z.object({
-  id: z.coerce.number().int().positive()
+  id: z.coerce.number().int().positive(),
 });
 
 function normalizeNullableText(value) {
@@ -106,7 +111,7 @@ function normalizeQuizMeta(payload, userId) {
     scheduled_start: normalizeNullableText(payload.scheduled_start),
     scheduled_end: normalizeNullableText(payload.scheduled_end),
     access_code: normalizeNullableText(payload.access_code),
-    status: payload.status ?? "draft"
+    status: payload.status ?? "draft",
   };
 }
 
@@ -129,7 +134,9 @@ function escapeCsvValue(value) {
 
 function toCsv(rows, headers) {
   const headerLine = headers.join(",");
-  const lines = rows.map((row) => headers.map((header) => escapeCsvValue(row[header])).join(","));
+  const lines = rows.map((row) =>
+    headers.map((header) => escapeCsvValue(row[header])).join(","),
+  );
   return [headerLine, ...lines].join("\n");
 }
 
@@ -141,7 +148,7 @@ async function assertSubjectOwnership(subjectId, userId) {
     LEFT JOIN teacher_subjects ts ON ts.subject_id = s.id AND ts.teacher_id = $2
     WHERE s.id = $1 AND (s.created_by = $2 OR ts.teacher_id = $2)
     `,
-    [subjectId, userId]
+    [subjectId, userId],
   );
 
   return subject.rowCount > 0;
@@ -154,7 +161,7 @@ async function assertQuizOwnership(quizId, userId, dbClient = query) {
     FROM quizzes
     WHERE id = $1 AND created_by = $2
     `,
-    [quizId, userId]
+    [quizId, userId],
   );
 
   if (result.rowCount === 0) {
@@ -166,7 +173,9 @@ async function assertQuizOwnership(quizId, userId, dbClient = query) {
 
 export async function listQuizzes(req, res, next) {
   try {
-    const { search, status, page, limit } = listQuizzesQuerySchema.parse(req.query);
+    const { search, status, page, limit } = listQuizzesQuerySchema.parse(
+      req.query,
+    );
     const offset = (page - 1) * limit;
 
     const result = await query(
@@ -200,7 +209,7 @@ export async function listQuizzes(req, res, next) {
       ORDER BY q.created_at DESC, q.id DESC
       LIMIT $4 OFFSET $5
       `,
-      [req.user.userId, status ?? null, search || null, limit, offset]
+      [req.user.userId, status ?? null, search || null, limit, offset],
     );
 
     const total = result.rows[0]?.total_count ?? 0;
@@ -212,11 +221,13 @@ export async function listQuizzes(req, res, next) {
       total,
       count: total,
       page,
-      totalPages
+      totalPages,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: "Invalid query params for quizzes list" });
+      return res
+        .status(400)
+        .json({ error: "Invalid query params for quizzes list" });
     }
 
     return next(error);
@@ -235,7 +246,7 @@ export async function createManualQuiz(req, res, next) {
       activationPlan = planActivationWindow({
         requestedStart: metadata.scheduled_start,
         requestedEnd: metadata.scheduled_end,
-        durationMins: metadata.duration_mins
+        durationMins: metadata.duration_mins,
       });
 
       if (activationPlan.error) {
@@ -247,7 +258,10 @@ export async function createManualQuiz(req, res, next) {
       metadata.scheduled_end = activationPlan.scheduledEnd;
     }
 
-    const isOwned = await assertSubjectOwnership(metadata.subject_id, req.user.userId);
+    const isOwned = await assertSubjectOwnership(
+      metadata.subject_id,
+      req.user.userId,
+    );
     if (!isOwned) {
       return res.status(404).json({ error: "Subject not found" });
     }
@@ -276,8 +290,8 @@ export async function createManualQuiz(req, res, next) {
         metadata.quiz_date,
         metadata.scheduled_start,
         metadata.scheduled_end,
-        metadata.access_code
-      ]
+        metadata.access_code,
+      ],
     );
 
     const quiz = quizResult.rows[0];
@@ -290,27 +304,27 @@ export async function createManualQuiz(req, res, next) {
 
       if (item.new_unit_name) {
         if (newUnitsMap.has(item.new_unit_name)) {
-            unitId = newUnitsMap.get(item.new_unit_name);
+          unitId = newUnitsMap.get(item.new_unit_name);
         } else {
-            // Check if exists first to avoid duplicate error if unique constraint exists (assuming standard names)
-            // or just insert. Let's try insert returning id. 
-            // If we want to prevent duplicate names per subject, we should check.
-            // Simplified: check if exists, if not insert.
-            const existingUnit = await client.query(
-                `SELECT id FROM units WHERE subject_id = $1 AND name = $2 AND created_by = $3`,
-                [metadata.subject_id, item.new_unit_name, req.user.userId]
+          // Check if exists first to avoid duplicate error if unique constraint exists (assuming standard names)
+          // or just insert. Let's try insert returning id.
+          // If we want to prevent duplicate names per subject, we should check.
+          // Simplified: check if exists, if not insert.
+          const existingUnit = await client.query(
+            `SELECT id FROM units WHERE subject_id = $1 AND name = $2 AND created_by = $3`,
+            [metadata.subject_id, item.new_unit_name, req.user.userId],
+          );
+
+          if (existingUnit.rowCount > 0) {
+            unitId = existingUnit.rows[0].id;
+          } else {
+            const newUnit = await client.query(
+              `INSERT INTO units (name, subject_id, created_by) VALUES ($1, $2, $3) RETURNING id`,
+              [item.new_unit_name, metadata.subject_id, req.user.userId],
             );
-            
-            if (existingUnit.rowCount > 0) {
-                unitId = existingUnit.rows[0].id;
-            } else {
-                const newUnit = await client.query(
-                    `INSERT INTO units (name, subject_id, created_by) VALUES ($1, $2, $3) RETURNING id`,
-                    [item.new_unit_name, metadata.subject_id, req.user.userId]
-                );
-                unitId = newUnit.rows[0].id;
-            }
-            newUnitsMap.set(item.new_unit_name, unitId);
+            unitId = newUnit.rows[0].id;
+          }
+          newUnitsMap.set(item.new_unit_name, unitId);
         }
       }
 
@@ -340,8 +354,8 @@ export async function createManualQuiz(req, res, next) {
           item.is_required,
           req.user.userId,
           unitId ?? null,
-          item.in_subject_bank ?? false
-        ]
+          item.in_subject_bank ?? false,
+        ],
       );
 
       const question = questionResult.rows[0];
@@ -352,7 +366,7 @@ export async function createManualQuiz(req, res, next) {
         INSERT INTO quiz_questions (quiz_id, question_id, order_no)
         VALUES ($1, $2, $3)
         `,
-        [quiz.id, question.id, index + 1]
+        [quiz.id, question.id, index + 1],
       );
     }
 
@@ -360,7 +374,7 @@ export async function createManualQuiz(req, res, next) {
 
     return res.status(201).json({
       quiz,
-      questions: insertedQuestions
+      questions: insertedQuestions,
     });
   } catch (error) {
     try {
@@ -386,7 +400,7 @@ export async function autoGenerateQuiz(req, res, next) {
       activationPlan = planActivationWindow({
         requestedStart: metadata.scheduled_start,
         requestedEnd: metadata.scheduled_end,
-        durationMins: metadata.duration_mins
+        durationMins: metadata.duration_mins,
       });
 
       if (activationPlan.error) {
@@ -398,7 +412,10 @@ export async function autoGenerateQuiz(req, res, next) {
       metadata.scheduled_end = activationPlan.scheduledEnd;
     }
 
-    const isOwned = await assertSubjectOwnership(metadata.subject_id, req.user.userId);
+    const isOwned = await assertSubjectOwnership(
+      metadata.subject_id,
+      req.user.userId,
+    );
     if (!isOwned) {
       return res.status(404).json({ error: "Subject not found" });
     }
@@ -407,25 +424,58 @@ export async function autoGenerateQuiz(req, res, next) {
     const allQuestionIds = [];
 
     for (const selection of payload.unit_selections) {
+      const unitMeta = await client.query(
+        `
+        SELECT id, name
+        FROM units
+        WHERE id = $1 AND subject_id = $2
+        `,
+        [selection.unit_id, metadata.subject_id],
+      );
+
+      if (unitMeta.rowCount === 0) {
+        return res.status(400).json({
+          error: `Invalid unit selection. unit_id ${selection.unit_id} does not belong to this subject.`,
+        });
+      }
+
+      const unitName = unitMeta.rows[0].name;
+
+      const availableCountResult = await client.query(
+        `
+        SELECT COUNT(*)::int AS available_count
+        FROM questions
+        WHERE unit_id = $1
+          AND in_subject_bank = TRUE
+          AND subject_id = $2
+        `,
+        [selection.unit_id, metadata.subject_id],
+      );
+
+      const availableCount = availableCountResult.rows[0]?.available_count ?? 0;
+
+      if (availableCount < selection.count) {
+        return res.status(400).json({
+          error: `Not enough questions in "${unitName}" (unit_id: ${selection.unit_id}). Requested ${selection.count}, available ${availableCount}.`,
+        });
+      }
+
       const result = await client.query(
         `
         SELECT id
         FROM questions
         WHERE unit_id = $1
           AND in_subject_bank = TRUE
-          AND created_by = $2
-          AND subject_id = $3
+          AND subject_id = $2
         ORDER BY RANDOM()
-        LIMIT $4
+        LIMIT $3
         `,
-        [selection.unit_id, req.user.userId, metadata.subject_id, selection.count]
+        [
+          selection.unit_id,
+          metadata.subject_id,
+          selection.count,
+        ],
       );
-
-      if (result.rowCount < selection.count) {
-        return res.status(400).json({
-          error: `Not enough questions in unit. Requested ${selection.count}, found ${result.rowCount} for unit_id ${selection.unit_id}`
-        });
-      }
 
       for (const row of result.rows) {
         allQuestionIds.push(row.id);
@@ -460,8 +510,8 @@ export async function autoGenerateQuiz(req, res, next) {
         metadata.quiz_date,
         metadata.scheduled_start,
         metadata.scheduled_end,
-        metadata.access_code
-      ]
+        metadata.access_code,
+      ],
     );
 
     const quiz = quizResult.rows[0];
@@ -472,7 +522,7 @@ export async function autoGenerateQuiz(req, res, next) {
         INSERT INTO quiz_questions (quiz_id, question_id, order_no)
         VALUES ($1, $2, $3)
         `,
-        [quiz.id, allQuestionIds[index], index + 1]
+        [quiz.id, allQuestionIds[index], index + 1],
       );
     }
 
@@ -480,7 +530,7 @@ export async function autoGenerateQuiz(req, res, next) {
 
     return res.status(201).json({
       quiz,
-      question_count: allQuestionIds.length
+      question_count: allQuestionIds.length,
     });
   } catch (error) {
     try {
@@ -505,7 +555,7 @@ export async function getQuizById(req, res, next) {
       FROM quizzes
       WHERE id = $1 AND created_by = $2
       `,
-      [id, req.user.userId]
+      [id, req.user.userId],
     );
 
     if (quizResult.rowCount === 0) {
@@ -522,12 +572,12 @@ export async function getQuizById(req, res, next) {
       WHERE qq.quiz_id = $1
       ORDER BY qq.order_no ASC, qq.id ASC
       `,
-      [id]
+      [id],
     );
 
     return res.status(200).json({
       quiz: quizResult.rows[0],
-      questions: questionResult.rows
+      questions: questionResult.rows,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -545,7 +595,11 @@ export async function updateQuiz(req, res, next) {
     const { id } = quizIdParamSchema.parse(req.params);
     const payload = req.validatedBody;
 
-    const existing = await assertQuizOwnership(id, req.user.userId, client.query.bind(client));
+    const existing = await assertQuizOwnership(
+      id,
+      req.user.userId,
+      client.query.bind(client),
+    );
     if (!existing) {
       return res.status(404).json({ error: "Quiz not found" });
     }
@@ -554,15 +608,24 @@ export async function updateQuiz(req, res, next) {
 
     if (normalizedPayload.status === "active") {
       const activationPlan = planActivationWindow({
-        requestedStart: Object.prototype.hasOwnProperty.call(normalizedPayload, "scheduled_start")
+        requestedStart: Object.prototype.hasOwnProperty.call(
+          normalizedPayload,
+          "scheduled_start",
+        )
           ? normalizedPayload.scheduled_start
           : existing.scheduled_start,
-        requestedEnd: Object.prototype.hasOwnProperty.call(normalizedPayload, "scheduled_end")
+        requestedEnd: Object.prototype.hasOwnProperty.call(
+          normalizedPayload,
+          "scheduled_end",
+        )
           ? normalizedPayload.scheduled_end
           : existing.scheduled_end,
-        durationMins: Object.prototype.hasOwnProperty.call(normalizedPayload, "duration_mins")
+        durationMins: Object.prototype.hasOwnProperty.call(
+          normalizedPayload,
+          "duration_mins",
+        )
           ? normalizedPayload.duration_mins
-          : existing.duration_mins
+          : existing.duration_mins,
       });
 
       if (activationPlan.error) {
@@ -575,7 +638,11 @@ export async function updateQuiz(req, res, next) {
     }
 
     let nextAccessToken = existing.access_token;
-    if ((normalizedPayload.status === "active" || normalizedPayload.status === "scheduled") && !nextAccessToken) {
+    if (
+      (normalizedPayload.status === "active" ||
+        normalizedPayload.status === "scheduled") &&
+      !nextAccessToken
+    ) {
       nextAccessToken = generateAccessToken();
     }
 
@@ -593,7 +660,7 @@ export async function updateQuiz(req, res, next) {
       "quiz_date",
       "scheduled_start",
       "scheduled_end",
-      "access_code"
+      "access_code",
     ];
 
     for (const field of fields) {
@@ -602,14 +669,21 @@ export async function updateQuiz(req, res, next) {
 
         updates.push(`${field} = $${position}`);
         values.push(
-          ["batch", "division", "group_nos", "scheduled_start", "scheduled_end", "access_code"].includes(field)
+          [
+            "batch",
+            "division",
+            "group_nos",
+            "scheduled_start",
+            "scheduled_end",
+            "access_code",
+          ].includes(field)
             ? normalizeNullableText(value)
-            : value
+            : value,
         );
         position += 1;
       }
     }
-     if (nextAccessToken !== existing.access_token) {
+    if (nextAccessToken !== existing.access_token) {
       updates.push(`access_token = $${position}`);
       values.push(nextAccessToken);
       position += 1;
@@ -626,10 +700,12 @@ export async function updateQuiz(req, res, next) {
         WHERE quiz_id = $1
         ORDER BY order_no ASC, id ASC
         `,
-        [id]
+        [id],
       );
 
-      const existingIds = existingQuestionRows.rows.map((row) => Number(row.question_id));
+      const existingIds = existingQuestionRows.rows.map((row) =>
+        Number(row.question_id),
+      );
       const requestedIds = payload.question_ids.map((item) => Number(item));
       const existingSorted = [...existingIds].sort((a, b) => a - b);
       const requestedSorted = [...requestedIds].sort((a, b) => a - b);
@@ -638,7 +714,11 @@ export async function updateQuiz(req, res, next) {
         existingSorted.every((item, index) => item === requestedSorted[index]);
 
       if (!valid) {
-        return res.status(400).json({ error: "question_ids must match current quiz question ids exactly" });
+        return res
+          .status(400)
+          .json({
+            error: "question_ids must match current quiz question ids exactly",
+          });
       }
 
       reorderedQuestionIds = requestedIds;
@@ -658,7 +738,7 @@ export async function updateQuiz(req, res, next) {
           SET order_no = $1
           WHERE quiz_id = $2 AND question_id = $3
           `,
-          [index + 1, id, reorderedQuestionIds[index]]
+          [index + 1, id, reorderedQuestionIds[index]],
         );
       }
     }
@@ -671,7 +751,7 @@ export async function updateQuiz(req, res, next) {
         SET ${updates.join(", ")}
         WHERE id = $${position} AND created_by = $${position + 1}
         `,
-        values
+        values,
       );
     }
 
@@ -682,7 +762,7 @@ export async function updateQuiz(req, res, next) {
       FROM quizzes
       WHERE id = $1 AND created_by = $2
       `,
-      [id, req.user.userId]
+      [id, req.user.userId],
     );
 
     await client.query("COMMIT");
@@ -690,7 +770,9 @@ export async function updateQuiz(req, res, next) {
     const updatedQuiz = result.rows[0];
     return res.status(200).json({
       quiz: updatedQuiz,
-      share_url: updatedQuiz.access_token ? `${process.env.CLIENT_URL}/quiz/enter/${updatedQuiz.access_token}` : null
+      share_url: updatedQuiz.access_token
+        ? `${process.env.CLIENT_URL}/quiz/enter/${updatedQuiz.access_token}`
+        : null,
     });
   } catch (error) {
     try {
@@ -716,7 +798,11 @@ export async function updateQuizStatus(req, res, next) {
     const { id } = quizIdParamSchema.parse(req.params);
     const { status } = req.validatedBody;
 
-    const ownedQuiz = await assertQuizOwnership(id, req.user.userId, client.query.bind(client));
+    const ownedQuiz = await assertQuizOwnership(
+      id,
+      req.user.userId,
+      client.query.bind(client),
+    );
     if (!ownedQuiz) {
       return res.status(404).json({ error: "Quiz not found" });
     }
@@ -725,7 +811,7 @@ export async function updateQuizStatus(req, res, next) {
     const transitionResult = await transitionQuizStatus(client, {
       quizId: id,
       nextStatus: status,
-      enforceTransition: true
+      enforceTransition: true,
     });
 
     if (transitionResult?.error) {
@@ -740,7 +826,7 @@ export async function updateQuizStatus(req, res, next) {
       auto_submitted_count: transitionResult.auto_submitted_count,
       share_url: transitionResult.quiz?.access_token
         ? `${process.env.CLIENT_URL}/quiz/enter/${transitionResult.quiz.access_token}`
-        : null
+        : null,
     });
   } catch (error) {
     try {
@@ -765,7 +851,11 @@ export async function deleteQuiz(req, res, next) {
   try {
     const { id } = quizIdParamSchema.parse(req.params);
 
-    const owned = await assertQuizOwnership(id, req.user.userId, client.query.bind(client));
+    const owned = await assertQuizOwnership(
+      id,
+      req.user.userId,
+      client.query.bind(client),
+    );
     if (!owned) {
       return res.status(404).json({ error: "Quiz not found" });
     }
@@ -774,14 +864,17 @@ export async function deleteQuiz(req, res, next) {
 
     await client.query(
       `DELETE FROM violation_flags WHERE session_id IN (SELECT id FROM student_sessions WHERE quiz_id = $1)`,
-      [id]
+      [id],
     );
     await client.query(
       `DELETE FROM student_answers WHERE session_id IN (SELECT id FROM student_sessions WHERE quiz_id = $1)`,
-      [id]
+      [id],
     );
     await client.query("DELETE FROM student_sessions WHERE quiz_id = $1", [id]);
-    await client.query("DELETE FROM quizzes WHERE id = $1 AND created_by = $2", [id, req.user.userId]);
+    await client.query(
+      "DELETE FROM quizzes WHERE id = $1 AND created_by = $2",
+      [id, req.user.userId],
+    );
 
     await client.query("COMMIT");
 
@@ -822,12 +915,13 @@ export async function getQuizLiveStats(req, res, next) {
         q.scheduled_end,
         q.access_code,
         q.access_token,
-        q.created_at
+        q.created_at,
+        (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp AS server_now
       FROM quizzes q
       LEFT JOIN subjects s ON s.id = q.subject_id
       WHERE q.id = $1 AND q.created_by = $2
       `,
-      [id, req.user.userId]
+      [id, req.user.userId],
     );
 
     if (quizResult.rowCount === 0) {
@@ -843,7 +937,7 @@ export async function getQuizLiveStats(req, res, next) {
       FROM student_sessions
       WHERE quiz_id = $1
       `,
-      [id]
+      [id],
     );
 
     const flaggedResult = await query(
@@ -853,27 +947,31 @@ export async function getQuizLiveStats(req, res, next) {
       INNER JOIN violation_flags vf ON vf.session_id = ss.id
       WHERE ss.quiz_id = $1
       `,
-      [id]
+      [id],
     );
 
-    const elapsedResult = await query(
-      `
-      SELECT EXTRACT(EPOCH FROM ((NOW() AT TIME ZONE 'Asia/Kolkata') - COALESCE(MIN(started_at), $2::timestamp)))::int AS elapsed_seconds
-      FROM student_sessions
-      WHERE quiz_id = $1
-      `,
-      [id, quizResult.rows[0].scheduled_start || quizResult.rows[0].created_at]
-    );
+    const { server_now: serverNow, ...quiz } = quizResult.rows[0];
+    const quizWindow = resolveQuizWindow(quiz, serverNow);
+    const elapsedSeconds =
+      quizWindow.phase === "scheduled"
+        ? 0
+        : Math.max(
+            0,
+            quizWindow.totalDurationSeconds - quizWindow.secondsUntilEnd,
+          );
 
     return res.status(200).json({
-      quiz: quizResult.rows[0],
+      quiz,
       stats: {
         total_entered: Number(statsResult.rows[0]?.total_entered || 0),
         submitted: Number(statsResult.rows[0]?.submitted || 0),
         pending: Number(statsResult.rows[0]?.pending || 0),
         flagged: Number(flaggedResult.rows[0]?.flagged || 0),
-        elapsed_seconds: Math.max(0, Number(elapsedResult.rows[0]?.elapsed_seconds || 0))
-      }
+        elapsed_seconds: elapsedSeconds,
+        quiz_start_time: quizWindow.startAt.toISOString(),
+        server_now: quizWindow.now.toISOString(),
+        total_duration_seconds: quizWindow.totalDurationSeconds,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -894,7 +992,7 @@ export async function getQuizPreview(req, res, next) {
       FROM quizzes
       WHERE id = $1 AND created_by = $2
       `,
-      [id, req.user.userId]
+      [id, req.user.userId],
     );
 
     if (quizResult.rowCount === 0) {
@@ -919,12 +1017,12 @@ export async function getQuizPreview(req, res, next) {
       WHERE qq.quiz_id = $1
       ORDER BY qq.order_no ASC, qq.id ASC
       `,
-      [id]
+      [id],
     );
 
     return res.status(200).json({
       quiz: quizResult.rows[0],
-      questions: questionResult.rows
+      questions: questionResult.rows,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -945,7 +1043,7 @@ export async function exportQuizResponses(req, res, next) {
       FROM quizzes
       WHERE id = $1 AND created_by = $2
       `,
-      [id, req.user.userId]
+      [id, req.user.userId],
     );
 
     if (quizResult.rowCount === 0) {
@@ -969,7 +1067,7 @@ export async function exportQuizResponses(req, res, next) {
       GROUP BY ss.id
       ORDER BY ss.started_at DESC, ss.id DESC
       `,
-      [id]
+      [id],
     );
 
     const students = summaryRowsResult.rows.map((row) => ({
@@ -980,12 +1078,15 @@ export async function exportQuizResponses(req, res, next) {
       group_no: row.group_no,
       score: row.score,
       total_points: row.total_points,
-      violation_count: Number(row.violation_count || 0)
+      violation_count: Number(row.violation_count || 0),
     }));
 
     // Sort by roll number using natural alphanumeric order
     students.sort((a, b) =>
-      a.roll_no.localeCompare(b.roll_no, undefined, { numeric: true, sensitivity: "base" })
+      a.roll_no.localeCompare(b.roll_no, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      }),
     );
 
     const ExcelJS = await import("exceljs");
@@ -1001,7 +1102,7 @@ export async function exportQuizResponses(req, res, next) {
       { header: "Division", key: "division", width: 12 },
       { header: "Group", key: "group_no", width: 12 },
       { header: "Score", key: "score", width: 12 },
-      { header: "Violation Count", key: "violation_count", width: 18 }
+      { header: "Violation Count", key: "violation_count", width: 18 },
     ];
 
     // Header row styling
@@ -1011,7 +1112,7 @@ export async function exportQuizResponses(req, res, next) {
       cell.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: "FF1E3A5F" }
+        fgColor: { argb: "FF1E3A5F" },
       };
       cell.font = { color: { argb: "FFFFFFFF" }, bold: true, size: 12 };
       cell.alignment = { horizontal: "center", vertical: "middle" };
@@ -1019,7 +1120,7 @@ export async function exportQuizResponses(req, res, next) {
         top: { style: "thin" },
         left: { style: "thin" },
         bottom: { style: "thin" },
-        right: { style: "thin" }
+        right: { style: "thin" },
       };
     });
 
@@ -1037,7 +1138,8 @@ export async function exportQuizResponses(req, res, next) {
         division: student.division,
         group_no: student.group_no,
         score: `${student.score ?? 0} / ${student.total_points ?? 0}`,
-        violation_count: student.violation_count > 0 ? student.violation_count : "None"
+        violation_count:
+          student.violation_count > 0 ? student.violation_count : "None",
       });
 
       row.height = 25;
@@ -1049,13 +1151,13 @@ export async function exportQuizResponses(req, res, next) {
         cell.fill = {
           type: "pattern",
           pattern: "solid",
-          fgColor: { argb: bgColor }
+          fgColor: { argb: bgColor },
         };
         cell.border = {
           top: { style: "thin" },
           left: { style: "thin" },
           bottom: { style: "thin" },
-          right: { style: "thin" }
+          right: { style: "thin" },
         };
 
         // Violation Count column special styling
@@ -1063,15 +1165,21 @@ export async function exportQuizResponses(req, res, next) {
           cell.fill = {
             type: "pattern",
             pattern: "solid",
-            fgColor: { argb: "FFFF4444" }
+            fgColor: { argb: "FFFF4444" },
           };
           cell.font = { color: { argb: "FFFFFFFF" }, bold: true, size: 11 };
         }
       });
     }
 
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="quiz_${id}_results.xlsx"`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="quiz_${id}_results.xlsx"`,
+    );
 
     const buffer = await workbook.xlsx.writeBuffer();
     return res.status(200).send(Buffer.from(buffer));
@@ -1108,7 +1216,7 @@ export async function duplicateQuiz(req, res, next) {
       FROM quizzes
       WHERE id = $1 AND created_by = $2
       `,
-      [id, req.user.userId]
+      [id, req.user.userId],
     );
 
     if (sourceQuizResult.rowCount === 0) {
@@ -1140,8 +1248,8 @@ export async function duplicateQuiz(req, res, next) {
         sourceQuiz.quiz_date,
         sourceQuiz.scheduled_start,
         sourceQuiz.scheduled_end,
-        sourceQuiz.access_code
-      ]
+        sourceQuiz.access_code,
+      ],
     );
 
     const newQuizId = insertQuizResult.rows[0].id;
@@ -1154,13 +1262,13 @@ export async function duplicateQuiz(req, res, next) {
       WHERE quiz_id = $2
       ORDER BY order_no ASC, id ASC
       `,
-      [newQuizId, id]
+      [newQuizId, id],
     );
 
     await client.query("COMMIT");
 
     return res.status(201).json({
-      quiz_id: newQuizId
+      quiz_id: newQuizId,
     });
   } catch (error) {
     try {
@@ -1202,7 +1310,7 @@ export async function getQuizLeaderboard(req, res, next) {
       ORDER BY score DESC NULLS LAST, time_taken_secs ASC NULLS LAST, submitted_at ASC NULLS LAST
       LIMIT 10
       `,
-      [id]
+      [id],
     );
 
     const leaderboard = result.rows.map((row, index) => ({
@@ -1212,7 +1320,7 @@ export async function getQuizLeaderboard(req, res, next) {
       roll_no: row.roll_no,
       score: row.score,
       total_points: row.total_points,
-      time_taken_secs: row.time_taken_secs
+      time_taken_secs: row.time_taken_secs,
     }));
 
     return res.status(200).json({ leaderboard });

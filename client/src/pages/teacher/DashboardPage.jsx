@@ -35,7 +35,9 @@ import { theme } from "@/theme";
 
 const QUIZ_FETCH_LIMIT = 100;
 const RESPONSE_FETCH_LIMIT = 100;
-const ParticipantsTrendChart = lazy(() => import("@/components/teacher/ParticipantsTrendChart"));
+const ParticipantsTrendChart = lazy(
+  () => import("@/components/teacher/ParticipantsTrendChart"),
+);
 
 function formatDateInput(date) {
   const year = date.getFullYear();
@@ -62,12 +64,16 @@ function startOfDay(date) {
 }
 
 function getParticipantKey(session) {
-  const email = session?.email ? String(session.email).trim().toLowerCase() : "";
+  const email = session?.email
+    ? String(session.email).trim().toLowerCase()
+    : "";
   if (email) {
     return `email:${email}`;
   }
 
-  const rollNo = session?.roll_no ? String(session.roll_no).trim().toLowerCase() : "";
+  const rollNo = session?.roll_no
+    ? String(session.roll_no).trim().toLowerCase()
+    : "";
   if (rollNo) {
     return `roll:${rollNo}`;
   }
@@ -106,7 +112,11 @@ function getSessionDurationSeconds(session) {
 function getScorePercent(session) {
   const score = Number(session?.score);
   const totalPoints = Number(session?.total_points);
-  if (!Number.isFinite(score) || !Number.isFinite(totalPoints) || totalPoints <= 0) {
+  if (
+    !Number.isFinite(score) ||
+    !Number.isFinite(totalPoints) ||
+    totalPoints <= 0
+  ) {
     return null;
   }
 
@@ -220,7 +230,9 @@ export default function DashboardPage() {
   const defaultStart = new Date(today);
   defaultStart.setDate(defaultStart.getDate() - 6);
 
-  const [startDateInput, setStartDateInput] = useState(formatDateInput(defaultStart));
+  const [startDateInput, setStartDateInput] = useState(
+    formatDateInput(defaultStart),
+  );
   const [endDateInput, setEndDateInput] = useState(formatDateInput(today));
   const [chartRange, setChartRange] = useState({
     start: defaultStart,
@@ -244,7 +256,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const quizzes = await fetchAllQuizzes();
       const responseEligibleQuizzes = quizzes.filter((quiz) =>
-        ["active", "ended"].includes(quiz.status)
+        ["active", "ended"].includes(quiz.status),
       );
 
       const responsePages = await Promise.all(
@@ -255,7 +267,7 @@ export default function DashboardPage() {
             quiz_id: quiz.id,
             quiz_title: quiz.title,
           }));
-        })
+        }),
       );
 
       return {
@@ -283,9 +295,11 @@ export default function DashboardPage() {
   const quizzes = analyticsQuery.data?.quizzes ?? [];
   const sessions = analyticsQuery.data?.sessions ?? [];
   const scheduledQuizCount =
-    liveQuizStatusQuery.data?.scheduled ?? quizzes.filter((quiz) => quiz.status === "scheduled").length;
+    liveQuizStatusQuery.data?.scheduled ??
+    quizzes.filter((quiz) => quiz.status === "scheduled").length;
   const ongoingQuizCount =
-    liveQuizStatusQuery.data?.active ?? quizzes.filter((quiz) => quiz.status === "active").length;
+    liveQuizStatusQuery.data?.active ??
+    quizzes.filter((quiz) => quiz.status === "active").length;
 
   const kpiStats = useMemo(() => {
     const dayStart = startOfDay(new Date());
@@ -365,28 +379,30 @@ export default function DashboardPage() {
 
     let selectedStats = null;
     for (const value of statsByQuiz.values()) {
-      if (!selectedStats || value.participants.size > selectedStats.participants.size) {
+      if (
+        !selectedStats ||
+        value.participants.size > selectedStats.participants.size
+      ) {
         selectedStats = value;
       }
     }
 
-    const averageScore =
-      selectedStats?.scorePercents?.length
-        ? selectedStats.scorePercents.reduce((sum, value) => sum + value, 0) /
-          selectedStats.scorePercents.length
-        : 0;
+    const averageScore = selectedStats?.scorePercents?.length
+      ? selectedStats.scorePercents.reduce((sum, value) => sum + value, 0) /
+        selectedStats.scorePercents.length
+      : 0;
 
-    const averageTime =
-      selectedStats?.timeSeconds?.length
-        ? selectedStats.timeSeconds.reduce((sum, value) => sum + value, 0) /
-          selectedStats.timeSeconds.length
-        : 0;
+    const averageTime = selectedStats?.timeSeconds?.length
+      ? selectedStats.timeSeconds.reduce((sum, value) => sum + value, 0) /
+        selectedStats.timeSeconds.length
+      : 0;
 
     return {
       participants: selectedStats?.participants.size ?? 0,
       averageScore,
       averageTime,
-      quizName: selectedStats?.quizName || quizzes[0]?.title || "No quiz data yet",
+      quizName:
+        selectedStats?.quizName || quizzes[0]?.title || "No quiz data yet",
     };
   }, [quizzes, sessions]);
 
@@ -424,7 +440,10 @@ export default function DashboardPage() {
 
     return dayEntries.map((entry) => ({
       date: entry.key,
-      label: entry.date.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+      label: entry.date.toLocaleDateString("en-IN", {
+        month: "short",
+        day: "numeric",
+      }),
       value: participantMap.get(entry.key)?.size ?? 0,
     }));
   }, [chartRange.end, chartRange.start, sessions]);
@@ -467,7 +486,8 @@ export default function DashboardPage() {
         ...item,
         participantCount: item.participants.size,
         averageScore: item.scorePercents.length
-          ? item.scorePercents.reduce((sum, value) => sum + value, 0) / item.scorePercents.length
+          ? item.scorePercents.reduce((sum, value) => sum + value, 0) /
+            item.scorePercents.length
           : 0,
       }));
   }, [quizzes, sessions]);
@@ -518,7 +538,8 @@ export default function DashboardPage() {
         ...subject,
         participantCount: subject.participants.size,
         averageScore: subject.scorePercents.length
-          ? subject.scorePercents.reduce((sum, value) => sum + value, 0) / subject.scorePercents.length
+          ? subject.scorePercents.reduce((sum, value) => sum + value, 0) /
+            subject.scorePercents.length
           : 0,
       }))
       .sort((left, right) => right.averageScore - left.averageScore)
@@ -596,7 +617,9 @@ export default function DashboardPage() {
     <TeacherShell
       subjects={subjects}
       selectedSubjectId={null}
-      onSelectSubject={(subjectId) => navigate(`/teacher/questions/${subjectId}`)}
+      onSelectSubject={(subjectId) =>
+        navigate(`/teacher/questions/${subjectId}`)
+      }
       onOpenCreateSubject={() => setCreateSubjectOpen(true)}
       onOpenProfile={() => navigate("/teacher/profile")}
       user={user}
@@ -615,8 +638,10 @@ export default function DashboardPage() {
         boxSizing: "border-box",
       }}
     >
-      <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ color: theme.text.secondary }}>
-
+      <div
+        className="flex h-full min-h-0 flex-col overflow-hidden"
+        style={{ color: theme.text.secondary }}
+      >
         <section className="ds-dashboard-stats-row mb-4 shrink-0 flex gap-3">
           {kpiCards.map((card) => {
             const Icon = card.icon;
@@ -638,21 +663,29 @@ export default function DashboardPage() {
                   </p>
                   <p
                     className="mt-2 text-[28px] leading-none"
-                    style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}
+                    style={{
+                      color: theme.text.primary,
+                      fontWeight: theme.font.weight.bold,
+                    }}
                   >
                     {card.value}
                   </p>
                 </div>
                 <span
                   className="inline-flex h-8 w-8 shrink-0 items-center justify-center"
-                  style={{ borderRadius: theme.radius.md, backgroundColor: card.tone.bg, color: card.tone.color }}
+                  style={{
+                    borderRadius: theme.radius.md,
+                    backgroundColor: card.tone.bg,
+                    color: card.tone.color,
+                  }}
                 >
                   <Icon className="h-[18px] w-[18px]" />
                 </span>
               </div>
             );
 
-            const baseClassName = "h-[102px] min-w-0 flex-1 rounded-[12px] border p-[16px] px-5";
+            const baseClassName =
+              "h-[102px] min-w-0 flex-1 rounded-[12px] border p-[16px] px-5";
             const baseStyle = {
               borderColor: theme.border.default,
               backgroundColor: theme.bg.card,
@@ -666,7 +699,7 @@ export default function DashboardPage() {
                   onClick={card.onClick}
                   className={cn(
                     baseClassName,
-                    "cursor-pointer text-left transition-all duration-150 ease-in-out hover:-translate-y-[2px] hover:border-[#1C1C1E] hover:shadow-[0_6px_20px_rgba(0,0,0,0.10)]"
+                    "cursor-pointer text-left transition-all duration-150 ease-in-out hover:-translate-y-[2px] hover:border-[#1C1C1E] hover:shadow-[0_6px_20px_rgba(0,0,0,0.10)]",
                   )}
                   style={baseStyle}
                 >
@@ -676,7 +709,11 @@ export default function DashboardPage() {
             }
 
             return (
-              <article key={card.label} className={cn(baseClassName, "cursor-default")} style={baseStyle}>
+              <article
+                key={card.label}
+                className={cn(baseClassName, "cursor-default")}
+                style={baseStyle}
+              >
                 {cardContent}
               </article>
             );
@@ -686,12 +723,20 @@ export default function DashboardPage() {
         <section className="ds-dashboard-middle-row mb-4 flex min-h-0 flex-1 gap-4">
           <article
             className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-5 px-6"
-            style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+            style={{
+              borderColor: theme.border.default,
+              backgroundColor: theme.bg.card,
+            }}
           >
             <div className="mb-3 flex flex-nowrap items-center gap-3">
               <h2
                 className="shrink-0"
-                style={{ color: "#1C1C1E", fontSize: "15px", fontWeight: 600, whiteSpace: "nowrap" }}
+                style={{
+                  color: "#1C1C1E",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                }}
               >
                 Unique Participants
               </h2>
@@ -701,7 +746,13 @@ export default function DashboardPage() {
               <div className="shrink-0 flex items-center gap-2">
                 <Label
                   htmlFor="trend-start-date"
-                  style={{ color: "#999", fontSize: "12px", fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0 }}
+                  style={{
+                    color: "#999",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
                 >
                   Start Date
                 </Label>
@@ -711,13 +762,26 @@ export default function DashboardPage() {
                   value={startDateInput}
                   onChange={(event) => setStartDateInput(event.target.value)}
                   className="h-8 w-[120px] px-2 text-[12px]"
-                  style={{ border: "1px solid #E4E4E4", borderRadius: "8px", height: "32px", padding: "0 8px", fontSize: "12px", width: "120px" }}
+                  style={{
+                    border: "1px solid #E4E4E4",
+                    borderRadius: "8px",
+                    height: "32px",
+                    padding: "0 8px",
+                    fontSize: "12px",
+                    width: "120px",
+                  }}
                 />
               </div>
               <div className="shrink-0 flex items-center gap-2">
                 <Label
                   htmlFor="trend-end-date"
-                  style={{ color: "#999", fontSize: "12px", fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0 }}
+                  style={{
+                    color: "#999",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
                 >
                   End Date
                 </Label>
@@ -727,7 +791,14 @@ export default function DashboardPage() {
                   value={endDateInput}
                   onChange={(event) => setEndDateInput(event.target.value)}
                   className="h-8 w-[120px] px-2 text-[12px]"
-                  style={{ border: "1px solid #E4E4E4", borderRadius: "8px", height: "32px", padding: "0 8px", fontSize: "12px", width: "120px" }}
+                  style={{
+                    border: "1px solid #E4E4E4",
+                    borderRadius: "8px",
+                    height: "32px",
+                    padding: "0 8px",
+                    fontSize: "12px",
+                    width: "120px",
+                  }}
                 />
               </div>
               <Button
@@ -751,7 +822,10 @@ export default function DashboardPage() {
 
             <div
               className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-4"
-              style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+              style={{
+                borderColor: theme.border.default,
+                backgroundColor: theme.bg.card,
+              }}
             >
               {analyticsQuery.isLoading ? (
                 <p className="text-[12px]" style={{ color: theme.text.muted }}>
@@ -761,20 +835,27 @@ export default function DashboardPage() {
 
               {analyticsQuery.isError ? (
                 <p className="text-[12px]" style={{ color: theme.text.accent }}>
-                  {analyticsQuery.error?.response?.data?.error || "Failed to load dashboard analytics."}
+                  {analyticsQuery.error?.response?.data?.error ||
+                    "Failed to load dashboard analytics."}
                 </p>
               ) : null}
 
               {!analyticsQuery.isLoading && !analyticsQuery.isError ? (
-                <div className="h-full min-h-[120px] w-full">
+                <div className="h-[260px] min-h-[260px] w-full">
                   <Suspense
                     fallback={
-                      <div className="flex h-full items-center justify-center text-[12px]" style={{ color: theme.text.muted }}>
+                      <div
+                        className="flex h-full items-center justify-center text-[12px]"
+                        style={{ color: theme.text.muted }}
+                      >
                         Loading chart...
                       </div>
                     }
                   >
-                    <ParticipantsTrendChart trendData={trendData} theme={theme} />
+                    <ParticipantsTrendChart
+                      trendData={trendData}
+                      theme={theme}
+                    />
                   </Suspense>
                 </div>
               ) : null}
@@ -784,57 +865,186 @@ export default function DashboardPage() {
           <div className="ds-dashboard-right-col flex w-[320px] shrink-0 min-h-0 flex-col gap-3 overflow-hidden">
             <article
               className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-5"
-              style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+              style={{
+                borderColor: theme.border.default,
+                backgroundColor: theme.bg.card,
+              }}
             >
-              <h2 className="mb-4 text-[15px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>
+              <h2
+                className="mb-4 text-[15px]"
+                style={{
+                  color: theme.text.primary,
+                  fontWeight: theme.font.weight.semibold,
+                }}
+              >
                 Quiz Stats
               </h2>
               <div className="grid w-full grid-cols-2 gap-[10px]">
-                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
-                  <div className="mb-2 inline-flex h-7 w-7 items-center justify-center" style={{ color: theme.text.teal }}>
+                <div
+                  className="w-full rounded-[10px] border p-3"
+                  style={{
+                    borderColor: "#EBEBEB",
+                    backgroundColor: "#FFFFFF",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div
+                    className="mb-2 inline-flex h-7 w-7 items-center justify-center"
+                    style={{ color: theme.text.teal }}
+                  >
                     <Users className="h-[28px] w-[28px]" />
                   </div>
-                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Participants</p>
-                  <p className="text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                  <p
+                    className="mt-2 text-[12px]"
+                    style={{ color: theme.text.muted }}
+                  >
+                    Participants
+                  </p>
+                  <p
+                    className="text-[22px]"
+                    style={{
+                      color: theme.text.primary,
+                      fontWeight: theme.font.weight.bold,
+                    }}
+                  >
                     {formatNumber(quizStats.participants)}
                   </p>
                 </div>
-                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
-                  <div className="mb-2 inline-flex h-7 w-7 items-center justify-center" style={{ color: theme.badge.blue.color }}>
+                <div
+                  className="w-full rounded-[10px] border p-3"
+                  style={{
+                    borderColor: "#EBEBEB",
+                    backgroundColor: "#FFFFFF",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div
+                    className="mb-2 inline-flex h-7 w-7 items-center justify-center"
+                    style={{ color: theme.badge.blue.color }}
+                  >
                     <BarChart3 className="h-[28px] w-[28px]" />
                   </div>
-                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Avg Score</p>
-                  <p className="text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                  <p
+                    className="mt-2 text-[12px]"
+                    style={{ color: theme.text.muted }}
+                  >
+                    Avg Score
+                  </p>
+                  <p
+                    className="text-[22px]"
+                    style={{
+                      color: theme.text.primary,
+                      fontWeight: theme.font.weight.bold,
+                    }}
+                  >
                     {formatAverageScore(quizStats.averageScore)}
                   </p>
                 </div>
-                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
-                  <div className="mb-2 inline-flex h-7 w-7 items-center justify-center" style={{ color: theme.text.orange }}>
+                <div
+                  className="w-full rounded-[10px] border p-3"
+                  style={{
+                    borderColor: "#EBEBEB",
+                    backgroundColor: "#FFFFFF",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div
+                    className="mb-2 inline-flex h-7 w-7 items-center justify-center"
+                    style={{ color: theme.text.orange }}
+                  >
                     <Clock3 className="h-[28px] w-[28px]" />
                   </div>
-                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Avg Time</p>
-                  <p className="text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                  <p
+                    className="mt-2 text-[12px]"
+                    style={{ color: theme.text.muted }}
+                  >
+                    Avg Time
+                  </p>
+                  <p
+                    className="text-[22px]"
+                    style={{
+                      color: theme.text.primary,
+                      fontWeight: theme.font.weight.bold,
+                    }}
+                  >
                     {formatDuration(quizStats.averageTime)}
                   </p>
                 </div>
-                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
-                  <div className="mb-2 inline-flex h-7 w-7 items-center justify-center" style={{ color: theme.text.accent }}>
+                <div
+                  className="w-full rounded-[10px] border p-3"
+                  style={{
+                    borderColor: "#EBEBEB",
+                    backgroundColor: "#FFFFFF",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div
+                    className="mb-2 inline-flex h-7 w-7 items-center justify-center"
+                    style={{ color: theme.text.accent }}
+                  >
                     <BookOpenText className="h-[28px] w-[28px]" />
                   </div>
-                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Quiz Name</p>
-                  <p className="truncate text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                  <p
+                    className="mt-2 text-[12px]"
+                    style={{ color: theme.text.muted }}
+                  >
+                    Quiz Name
+                  </p>
+                  <p
+                    className="truncate text-[22px]"
+                    style={{
+                      color: theme.text.primary,
+                      fontWeight: theme.font.weight.bold,
+                    }}
+                  >
                     {quizStats.quizName}
                   </p>
                 </div>
-                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
-                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Total Quizzes</p>
-                  <p className="text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                <div
+                  className="w-full rounded-[10px] border p-3"
+                  style={{
+                    borderColor: "#EBEBEB",
+                    backgroundColor: "#FFFFFF",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <p
+                    className="mt-2 text-[12px]"
+                    style={{ color: theme.text.muted }}
+                  >
+                    Total Quizzes
+                  </p>
+                  <p
+                    className="text-[22px]"
+                    style={{
+                      color: theme.text.primary,
+                      fontWeight: theme.font.weight.bold,
+                    }}
+                  >
                     {formatNumber(quizzes.length)}
                   </p>
                 </div>
-                <div className="w-full rounded-[10px] border p-3" style={{ borderColor: "#EBEBEB", backgroundColor: "#FFFFFF", boxSizing: "border-box" }}>
-                  <p className="mt-2 text-[12px]" style={{ color: theme.text.muted }}>Total Attempts</p>
-                  <p className="text-[22px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
+                <div
+                  className="w-full rounded-[10px] border p-3"
+                  style={{
+                    borderColor: "#EBEBEB",
+                    backgroundColor: "#FFFFFF",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <p
+                    className="mt-2 text-[12px]"
+                    style={{ color: theme.text.muted }}
+                  >
+                    Total Attempts
+                  </p>
+                  <p
+                    className="text-[22px]"
+                    style={{
+                      color: theme.text.primary,
+                      fontWeight: theme.font.weight.bold,
+                    }}
+                  >
                     {formatNumber(sessions.length)}
                   </p>
                 </div>
@@ -845,10 +1055,20 @@ export default function DashboardPage() {
 
         <section
           className="shrink-0 rounded-[14px] border p-5"
-          style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card, maxHeight: "332px" }}
+          style={{
+            borderColor: theme.border.default,
+            backgroundColor: theme.bg.card,
+            maxHeight: "332px",
+          }}
         >
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-[15px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>
+            <h2
+              className="text-[15px]"
+              style={{
+                color: theme.text.primary,
+                fontWeight: theme.font.weight.semibold,
+              }}
+            >
               Recent Quiz Activity
             </h2>
             <p className="text-[12px]" style={{ color: theme.text.subtle }}>
@@ -858,18 +1078,68 @@ export default function DashboardPage() {
           <div className="ds-dashboard-table-wrap overflow-hidden">
             <table className="ds-dashboard-table w-full border-collapse">
               <thead style={{ backgroundColor: theme.bg.content }}>
-                <tr className="h-10 border-b" style={{ borderBottomColor: theme.border.default }}>
-                  <th className="px-3 text-left text-[12px]" style={{ color: theme.text.muted, fontWeight: theme.font.weight.medium }}>Quiz</th>
-                  <th className="px-3 text-left text-[12px]" style={{ color: theme.text.muted, fontWeight: theme.font.weight.medium }}>Subject</th>
-                  <th className="px-3 text-left text-[12px]" style={{ color: theme.text.muted, fontWeight: theme.font.weight.medium }}>Date</th>
-                  <th className="px-3 text-left text-[12px]" style={{ color: theme.text.muted, fontWeight: theme.font.weight.medium }}>Participants</th>
-                  <th className="px-3 text-left text-[12px]" style={{ color: theme.text.muted, fontWeight: theme.font.weight.medium }}>Avg Score</th>
+                <tr
+                  className="h-10 border-b"
+                  style={{ borderBottomColor: theme.border.default }}
+                >
+                  <th
+                    className="px-3 text-left text-[12px]"
+                    style={{
+                      color: theme.text.muted,
+                      fontWeight: theme.font.weight.medium,
+                    }}
+                  >
+                    Quiz
+                  </th>
+                  <th
+                    className="px-3 text-left text-[12px]"
+                    style={{
+                      color: theme.text.muted,
+                      fontWeight: theme.font.weight.medium,
+                    }}
+                  >
+                    Subject
+                  </th>
+                  <th
+                    className="px-3 text-left text-[12px]"
+                    style={{
+                      color: theme.text.muted,
+                      fontWeight: theme.font.weight.medium,
+                    }}
+                  >
+                    Date
+                  </th>
+                  <th
+                    className="px-3 text-left text-[12px]"
+                    style={{
+                      color: theme.text.muted,
+                      fontWeight: theme.font.weight.medium,
+                    }}
+                  >
+                    Participants
+                  </th>
+                  <th
+                    className="px-3 text-left text-[12px]"
+                    style={{
+                      color: theme.text.muted,
+                      fontWeight: theme.font.weight.medium,
+                    }}
+                  >
+                    Avg Score
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {compactRecentQuizActivity.length === 0 ? (
-                  <tr className="h-[52px] border-b" style={{ borderBottomColor: theme.border.light }}>
-                    <td colSpan={5} className="px-3 text-center text-[13px]" style={{ color: theme.text.muted }}>
+                  <tr
+                    className="h-[52px] border-b"
+                    style={{ borderBottomColor: theme.border.light }}
+                  >
+                    <td
+                      colSpan={5}
+                      className="px-3 text-center text-[13px]"
+                      style={{ color: theme.text.muted }}
+                    >
                       No quiz activity available yet.
                     </td>
                   </tr>
@@ -878,15 +1148,34 @@ export default function DashboardPage() {
                     <tr
                       key={item.id}
                       className="h-[52px] border-b transition-colors hover:bg-[var(--ds-bg-card-hover)]"
-                      style={{ borderBottomColor: theme.border.light, color: theme.text.secondary }}
+                      style={{
+                        borderBottomColor: theme.border.light,
+                        color: theme.text.secondary,
+                      }}
                     >
-                      <td className="max-w-[220px] truncate px-3 text-[14px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.medium }}>
+                      <td
+                        className="max-w-[220px] truncate px-3 text-[14px]"
+                        style={{
+                          color: theme.text.primary,
+                          fontWeight: theme.font.weight.medium,
+                        }}
+                      >
                         {item.name}
                       </td>
                       <td className="px-3 text-[13px]">{item.subject}</td>
-                      <td className="px-3 text-[13px]">{formatDateLabel(item.date)}</td>
-                      <td className="px-3 text-[13px]">{formatNumber(item.participantCount)}</td>
-                      <td className="px-3 text-[14px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>
+                      <td className="px-3 text-[13px]">
+                        {formatDateLabel(item.date)}
+                      </td>
+                      <td className="px-3 text-[13px]">
+                        {formatNumber(item.participantCount)}
+                      </td>
+                      <td
+                        className="px-3 text-[14px]"
+                        style={{
+                          color: theme.text.primary,
+                          fontWeight: theme.font.weight.semibold,
+                        }}
+                      >
                         {formatAverageScore(item.averageScore)}
                       </td>
                     </tr>
@@ -902,7 +1191,9 @@ export default function DashboardPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Subject</DialogTitle>
-            <DialogDescription>Create a new subject for the question bank.</DialogDescription>
+            <DialogDescription>
+              Create a new subject for the question bank.
+            </DialogDescription>
           </DialogHeader>
 
           <form className="space-y-4" onSubmit={onCreateSubject}>
@@ -919,13 +1210,16 @@ export default function DashboardPage() {
 
             {createSubjectMutation.isError ? (
               <p className="text-sm text-destructive">
-                {createSubjectMutation.error?.response?.data?.error || "Failed to create subject"}
+                {createSubjectMutation.error?.response?.data?.error ||
+                  "Failed to create subject"}
               </p>
             ) : null}
 
             <DialogFooter>
               <Button type="submit" disabled={createSubjectMutation.isPending}>
-                {createSubjectMutation.isPending ? "Creating..." : "Create Subject"}
+                {createSubjectMutation.isPending
+                  ? "Creating..."
+                  : "Create Subject"}
               </Button>
             </DialogFooter>
           </form>

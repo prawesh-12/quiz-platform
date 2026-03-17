@@ -14,6 +14,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { useProctoring } from "@/hooks/useProctoring";
+import { useTimer } from "@/hooks/useTimer";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/useToast";
@@ -97,7 +98,7 @@ export default function QuizPage() {
     const quiz = payload?.quiz || null;
     const questions = payload?.questions || [];
 
-    const totalDurationSeconds = Math.max(
+    const initialTotalDurationSeconds = Math.max(
         0,
         Number(
             payload?.totalDurationSeconds ||
@@ -110,7 +111,7 @@ export default function QuizPage() {
     const initialServerNowMs = toMillis(payload?.serverNow);
     const initialStartAtMs = toMillis(payload?.startTime || quiz?.scheduled_start);
     const fallbackEndMs = initialServerNowMs
-        ? initialServerNowMs + totalDurationSeconds * 1000
+        ? initialServerNowMs + initialTotalDurationSeconds * 1000
         : null;
     const initialEndAtMs =
         toMillis(payload?.endTime || quiz?.scheduled_end) || fallbackEndMs;
@@ -120,24 +121,26 @@ export default function QuizPage() {
         : 0;
 
     const [serverOffsetMs, setServerOffsetMs] = useState(initialOffsetMs);
+    const [totalDurationSeconds, setTotalDurationSeconds] = useState(
+        initialTotalDurationSeconds,
+    );
+    const [countdownTotalSeconds, setCountdownTotalSeconds] = useState(() =>
+        Math.max(1, Number(payload?.countdownToStartSeconds || 1)),
+    );
     const [startAtMs, setStartAtMs] = useState(initialStartAtMs);
     const [endAtMs, setEndAtMs] = useState(initialEndAtMs);
-    const [secondsUntilStart, setSecondsUntilStart] = useState(() => {
-        if (!initialStartAtMs) {
-            return 0;
-        }
-
-        return secondsUntil(initialStartAtMs, Date.now() + initialOffsetMs);
-    });
-    const [secondsLeft, setSecondsLeft] = useState(() => {
-        if (!initialEndAtMs) {
-            return totalDurationSeconds;
-        }
-
-        return secondsUntil(initialEndAtMs, Date.now() + initialOffsetMs);
-    });
+    const initialDisplaySeconds =
+        payload?.quizState === "scheduled"
+            ? Math.max(0, Number(payload?.countdownToStartSeconds || 0))
+            : initialEndAtMs
+              ? secondsUntil(initialEndAtMs, Date.now() + initialOffsetMs)
+              : initialTotalDurationSeconds;
     const [quizState, setQuizState] = useState(
-        payload?.quizState || (secondsUntilStart > 0 ? "scheduled" : "active"),
+        payload?.quizState ||
+            (initialStartAtMs &&
+            secondsUntil(initialStartAtMs, Date.now() + initialOffsetMs) > 0
+                ? "scheduled"
+                : "active"),
     );
     const autoSubmitTriggeredRef = useRef(false);
 
@@ -161,6 +164,18 @@ export default function QuizPage() {
             if (nextEndMs) {
                 setEndAtMs(nextEndMs);
             }
+        }
+
+        if (response?.countdown_to_start_secs != null) {
+            setCountdownTotalSeconds(
+                Math.max(1, Number(response.countdown_to_start_secs || 1)),
+            );
+        }
+
+        if (response?.total_duration_secs != null) {
+            setTotalDurationSeconds(
+                Math.max(0, Number(response.total_duration_secs || 0)),
+            );
         }
 
         if (response?.quiz_state) {
@@ -208,7 +223,63 @@ export default function QuizPage() {
                 });
             }
         },
+        onError: (error) => {
+            const apiData = error?.response?.data;
+            if (apiData) {
+                syncServerTiming(apiData);
+            }
+
+            if (apiData?.quiz_state === "ended") {
+                setSubmitError(
+                    apiData.error ||
+                        "Quiz has ended. Responses are no longer accepted.",
+                );
+            }
+        },
     });
+
+    useEffect(() => {
+        if (!sessionToken || hasSubmitted) {
+            return undefined;
+        }
+
+        let isCurrent = true;
+
+        const refreshTiming = async () => {
+            try {
+                const data = await sessionService.getTiming(sessionToken);
+                if (!isCurrent) {
+                    return;
+                }
+
+                syncServerTiming(data);
+                if (data?.session_closed && data?.quiz_state === "ended") {
+                    setSubmitError(
+                        "Quiz has ended. Responses are no longer accepted.",
+                    );
+                }
+            } catch (error) {
+                if (!isCurrent) {
+                    return;
+                }
+
+                const apiData = error?.response?.data;
+                if (apiData) {
+                    syncServerTiming(apiData);
+                    setSubmitError(
+                        apiData.error ||
+                            "Unable to refresh quiz timing right now.",
+                    );
+                }
+            }
+        };
+
+        refreshTiming();
+
+        return () => {
+            isCurrent = false;
+        };
+    }, [hasSubmitted, sessionToken, syncServerTiming]);
 
     const submitQuiz = useCallback(async () => {
         if (!sessionToken || hasSubmitted || submitMutation.isPending) {
@@ -249,6 +320,14 @@ export default function QuizPage() {
                 return;
             }
 
+            if (apiData?.quiz_state === "ended") {
+                setSubmitError(
+                    apiData.error ||
+                        "Quiz has ended. Responses are no longer accepted.",
+                );
+                return;
+            }
+
             setSubmitError(
                 apiData?.error || "Failed to submit quiz. Please retry.",
             );
@@ -257,58 +336,53 @@ export default function QuizPage() {
 
     const answeredCount = Object.values(answers).filter(Boolean).length;
 
-    useEffect(() => {
-        if (!payload || hasSubmitted) {
-            return undefined;
+    const getDisplaySeconds = useCallback(() => {
+        const serverNowMs = Date.now() + serverOffsetMs;
+        const untilStart = secondsUntil(startAtMs, serverNowMs);
+        const untilEnd = endAtMs
+            ? secondsUntil(endAtMs, serverNowMs)
+            : totalDurationSeconds;
+
+        if (untilStart > 0) {
+            setQuizState((prev) => (prev === "scheduled" ? prev : "scheduled"));
+            return untilStart;
         }
 
-        const updateFromServerClock = () => {
-            const serverNowMs = Date.now() + serverOffsetMs;
-            const untilStart = secondsUntil(startAtMs, serverNowMs);
-            const untilEnd = endAtMs
-                ? secondsUntil(endAtMs, serverNowMs)
-                : totalDurationSeconds;
+        if (untilEnd > 0) {
+            setQuizState((prev) => (prev === "active" ? prev : "active"));
+            return untilEnd;
+        }
 
-            setSecondsUntilStart(untilStart);
-            setSecondsLeft(untilEnd);
+        setQuizState((prev) => (prev === "ended" ? prev : "ended"));
+        return 0;
+    }, [endAtMs, serverOffsetMs, startAtMs, totalDurationSeconds]);
 
-            if (untilStart > 0) {
-                setQuizState("scheduled");
-                return;
-            }
+    const { seconds: timerSeconds } = useTimer({
+        initialSeconds: initialDisplaySeconds,
+        enabled: Boolean(payload) && !hasSubmitted,
+        getSeconds: getDisplaySeconds,
+    });
 
-            if (untilEnd > 0) {
-                setQuizState("active");
-                return;
-            }
-
-            setQuizState("ended");
-
-            if (!autoSubmitTriggeredRef.current) {
-                autoSubmitTriggeredRef.current = true;
-                submitQuiz();
-            }
-        };
-
-        updateFromServerClock();
-        const timer = window.setInterval(updateFromServerClock, 1000);
-
-        return () => window.clearInterval(timer);
-    }, [
-        payload,
-        hasSubmitted,
-        serverOffsetMs,
-        startAtMs,
-        endAtMs,
-        totalDurationSeconds,
-        submitQuiz,
-    ]);
+    const secondsUntilStart = quizState === "scheduled" ? timerSeconds : 0;
+    const secondsLeft =
+        quizState === "scheduled" ? 0 : timerSeconds;
 
     useEffect(() => {
-        if (secondsLeft > 0) {
+        if (timerSeconds > 0) {
             autoSubmitTriggeredRef.current = false;
         }
-    }, [secondsLeft]);
+    }, [timerSeconds]);
+
+    useEffect(() => {
+        if (!payload || hasSubmitted || quizState !== "ended") {
+            return;
+        }
+
+        if (!autoSubmitTriggeredRef.current) {
+            autoSubmitTriggeredRef.current = true;
+            submitQuiz();
+        }
+    }, [hasSubmitted, payload, quizState, submitQuiz]);
 
     // Block browser back button after submission
     useEffect(() => {
@@ -431,7 +505,7 @@ export default function QuizPage() {
 
     const waitingTotalSeconds = Math.max(
         1,
-        Number(payload?.countdownToStartSeconds || secondsUntilStart || 1),
+        Number(countdownTotalSeconds || secondsUntilStart || 1),
     );
 
     return (

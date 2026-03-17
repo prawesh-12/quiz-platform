@@ -6,6 +6,16 @@ export const sessionService = {
     return response.data;
   },
 
+  async getTiming(sessionToken) {
+    const response = await api.get("/sessions/timing", {
+      headers: {
+        "X-Session-Token": sessionToken
+      }
+    });
+
+    return response.data;
+  },
+
   async submit(payload, sessionToken) {
     const response = await api.post("/sessions/submit", payload, {
       headers: {

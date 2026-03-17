@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { Copy, Trash2 } from "lucide-react";
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
+import { useTimer } from "@/hooks/useTimer";
 import { quizService } from "@/services/quizService";
 import { responseService } from "@/services/responseService";
 import { subjectService } from "@/services/subjectService";
@@ -75,6 +76,15 @@ function formatOption(value) {
   }
 
   return String(value).toUpperCase();
+}
+
+function toMillis(value) {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? null : timestamp;
 }
 
 export default function OngoingQuizPage() {
@@ -152,6 +162,12 @@ export default function OngoingQuizPage() {
 
   const isEnded = quiz?.status === "ended";
   const isScheduled = quiz?.status === "scheduled";
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
+  const [quizStartTimeMs, setQuizStartTimeMs] = useState(null);
+  const durationSeconds = Math.max(
+    0,
+    Number(stats?.total_duration_seconds || quiz?.duration_mins * 60 || 0),
+  );
 
   useEffect(() => {
     if (!quiz || !isScheduled) {
@@ -165,35 +181,52 @@ export default function OngoingQuizPage() {
     navigate("/teacher/quiz/scheduled", { replace: true });
   }, [isScheduled, navigate, quiz, toast]);
 
-  // Keep a smooth local timer, but anchor it to server-computed elapsed seconds.
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-
   useEffect(() => {
-    if (!quiz) {
+    if (!stats) {
       return undefined;
     }
 
+    const nextServerNowMs = toMillis(stats.server_now);
+    const nextQuizStartTimeMs = toMillis(stats.quiz_start_time);
+
+    if (nextServerNowMs != null) {
+      setServerOffsetMs(nextServerNowMs - Date.now());
+    }
+
+    if (nextQuizStartTimeMs != null) {
+      setQuizStartTimeMs(nextQuizStartTimeMs);
+    }
+  }, [stats?.quiz_start_time, stats?.server_now, stats]);
+
+  const getElapsedSeconds = useCallback(() => {
     if (isScheduled) {
-      setElapsedSeconds(0);
-      return undefined;
+      return 0;
     }
 
-    const baseElapsed = Number(stats?.elapsed_seconds);
-    const safeBaseElapsed = Number.isFinite(baseElapsed) ? Math.max(0, Math.floor(baseElapsed)) : 0;
-    setElapsedSeconds(safeBaseElapsed);
-
-    if (isEnded) {
-      return undefined;
+    if (quizStartTimeMs == null) {
+      return Math.max(0, Number(stats?.elapsed_seconds || 0));
     }
 
-    const startedAt = Date.now();
-    const intervalId = setInterval(() => {
-      const localDelta = Math.floor((Date.now() - startedAt) / 1000);
-      setElapsedSeconds(safeBaseElapsed + localDelta);
-    }, 1000);
+    const serverNowMs = Date.now() + serverOffsetMs;
+    const elapsed = Math.floor((serverNowMs - quizStartTimeMs) / 1000);
+    if (durationSeconds > 0) {
+      return Math.min(durationSeconds, Math.max(0, elapsed));
+    }
 
-    return () => clearInterval(intervalId);
-  }, [isEnded, isScheduled, quiz, stats?.elapsed_seconds]);
+    return Math.max(0, elapsed);
+  }, [
+    durationSeconds,
+    isScheduled,
+    quizStartTimeMs,
+    serverOffsetMs,
+    stats?.elapsed_seconds,
+  ]);
+
+  const { seconds: elapsedSeconds } = useTimer({
+    initialSeconds: Math.max(0, Number(stats?.elapsed_seconds || 0)),
+    enabled: Boolean(quiz) && !isScheduled,
+    getSeconds: getElapsedSeconds,
+  });
 
   // Auto-stop quiz when duration is reached
   const stopTriggeredRef = useRef(false);
@@ -201,9 +234,7 @@ export default function OngoingQuizPage() {
   useEffect(() => {
     if (!quiz || isEnded || isScheduled || stopTriggeredRef.current) return;
 
-    const durationSeconds = (quiz.duration_mins || 0) * 60;
-    // Buffer of 2 seconds to avoid premature stop due to clock skew
-    if (durationSeconds > 0 && elapsedSeconds >= durationSeconds + 2) {
+    if (durationSeconds > 0 && elapsedSeconds >= durationSeconds) {
       stopTriggeredRef.current = true;
       stopMutation.mutate();
       toast({
@@ -212,7 +243,7 @@ export default function OngoingQuizPage() {
         variant: "default"
       });
     }
-  }, [elapsedSeconds, isEnded, isScheduled, quiz, stopMutation, toast]);
+  }, [durationSeconds, elapsedSeconds, isEnded, isScheduled, quiz, stopMutation, toast]);
 
   const shareUrl = quiz?.access_token ? `${window.location.origin}/quiz/enter/${quiz.access_token}` : null;
 
@@ -267,77 +298,93 @@ export default function OngoingQuizPage() {
     >
       <div className="space-y-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <div>
-              <CardTitle>{quiz?.title || "Live Quiz View"}</CardTitle>
-              <div className="mt-1 space-y-0.5">
-                <p className="text-sm text-muted-foreground">Subject: {quiz?.subject_name || "-"}</p>
-                <p className="text-sm text-muted-foreground">
-                  Batch: {quiz?.batch || "-"} • Division: {quiz?.division || "-"} • Group: {quiz?.group_nos || "-"}
-                </p>
-                <p className="text-sm text-muted-foreground">Date: {formatDateOnly(quiz?.quiz_date)}</p>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                {quiz?.access_code != null && quiz.access_code !== "" ? (
-                  <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-1.5">
-                    <span className="text-sm text-muted-foreground">Access code:</span>
-                    <span className="font-mono font-medium">{quiz.access_code}</span>
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={copyAccessCode} title="Copy access code">
-                      <Copy className="h-3.5 w-3.5" />
-                    </Button>
+          <CardHeader className="gap-5">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <CardTitle className="text-2xl">{quiz?.title || "Live Quiz View"}</CardTitle>
+                  <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
+                    <p>Subject: {quiz?.subject_name || "-"}</p>
+                    <p>Batch: {quiz?.batch || "-"}</p>
+                    <p>Division: {quiz?.division || "-"}</p>
+                    <p>Group: {quiz?.group_nos || "-"}</p>
+                    <p>Date: {formatDateOnly(quiz?.quiz_date)}</p>
+                    <p>Duration: {quiz?.duration_mins || 0} mins</p>
                   </div>
-                ) : null}
-                {shareUrl ? (
-                  <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={copyLink}>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {quiz?.access_code != null && quiz.access_code !== "" ? (
+                    <div className="flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1.5">
+                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Access Code
+                      </span>
+                      <span className="font-mono text-sm font-semibold">{quiz.access_code}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 rounded-full"
+                        onClick={copyAccessCode}
+                        title="Copy access code"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : null}
+                  {shareUrl ? (
+                    <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={copyLink}>
                       <Copy className="mr-1.5 h-4 w-4" />
                       Copy quiz link
                     </Button>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col items-end gap-2 text-right">
-              <p className="text-xs text-muted-foreground">Running Time</p>
-              <p className="text-3xl font-bold">{formatTime(elapsedSeconds)}</p>
-              <div className="mt-1 flex flex-col gap-2">
-                {!isEnded ? (
-                  <Button type="button" variant="destructive" onClick={() => setStopDialogOpen(true)}>
-                    Stop Responses
-                  </Button>
-                ) : (
-                  <Button type="button" onClick={downloadExport}>
-                    Export Results
-                  </Button>
-                )}
+              <div className="flex flex-col gap-3 rounded-xl border bg-muted/20 p-4">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                    Running Time
+                  </p>
+                  <p className="text-3xl font-semibold tabular-nums">{formatTime(elapsedSeconds)}</p>
+                </div>
+                <div className="pt-1">
+                  {!isEnded ? (
+                    <Button type="button" variant="destructive" className="w-full" onClick={() => setStopDialogOpen(true)}>
+                      Stop Responses
+                    </Button>
+                  ) : (
+                    <Button type="button" className="w-full" onClick={downloadExport}>
+                      Export Results
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </CardHeader>
         </Card>
 
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <Card>
-            <CardContent className="pt-5">
-              <p className="text-xs text-muted-foreground">Total Students Entered</p>
-              <p className="text-2xl font-semibold">{stats?.total_entered ?? 0}</p>
+            <CardContent className="px-4 py-3">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total Students Entered</p>
+              <p className="mt-1 text-2xl font-semibold leading-none">{stats?.total_entered ?? 0}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-5">
-              <p className="text-xs text-muted-foreground">Submitted</p>
-              <p className="text-2xl font-semibold">{stats?.submitted ?? 0}</p>
+            <CardContent className="px-4 py-3">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Submitted</p>
+              <p className="mt-1 text-2xl font-semibold leading-none">{stats?.submitted ?? 0}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-5">
-              <p className="text-xs text-muted-foreground">Pending</p>
-              <p className="text-2xl font-semibold">{stats?.pending ?? 0}</p>
+            <CardContent className="px-4 py-3">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Pending</p>
+              <p className="mt-1 text-2xl font-semibold leading-none">{stats?.pending ?? 0}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-5">
-              <p className="text-xs text-muted-foreground">Flagged</p>
-              <p className="text-2xl font-semibold">{stats?.flagged ?? 0}</p>
+            <CardContent className="px-4 py-3">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Flagged</p>
+              <p className="mt-1 text-2xl font-semibold leading-none">{stats?.flagged ?? 0}</p>
             </CardContent>
           </Card>
         </div>
