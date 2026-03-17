@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Home, LibraryBig, PanelLeftClose, PanelRightOpen, Plus, Sparkles } from "lucide-react";
+import { BookOpen, Home, LibraryBig, PanelLeftClose, PanelRightOpen, Sparkles } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import ProfileFooter from "@/components/layout/ProfileFooter";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { theme } from "@/theme";
 
@@ -45,7 +44,6 @@ export default function TeacherSidebar({
   subjects,
   selectedSubjectId,
   onSelectSubject,
-  onOpenCreateSubject,
   onOpenGenerateQuiz,
   onOpenProfile,
   user,
@@ -265,22 +263,6 @@ export default function TeacherSidebar({
         className="mt-3 space-y-2 pt-3"
         style={{ borderTop: `1px solid ${theme.border.default}` }}
       >
-        <Button
-          type="button"
-          className={cn("h-[38px] w-full", effectiveCollapsed ? "px-0" : "")}
-          style={{
-            backgroundColor: theme.bg.activeNav,
-            color: theme.text.white,
-            borderRadius: theme.radius.md,
-            fontSize: theme.font.size.base,
-            fontWeight: theme.font.weight.semibold,
-          }}
-          onClick={onOpenCreateSubject}
-        >
-          <Plus className="h-4 w-4" />
-          {!effectiveCollapsed ? "Add Subject" : null}
-        </Button>
-
         <ProfileFooter user={user} onLogout={onLogout} onOpenProfile={onOpenProfile} compact={effectiveCollapsed} />
       </div>
     </aside>

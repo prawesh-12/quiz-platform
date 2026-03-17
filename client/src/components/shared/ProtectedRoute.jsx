@@ -3,8 +3,9 @@ import { Navigate, Outlet } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function ProtectedRoute({ requiredRole = "teacher" }) {
+export default function ProtectedRoute({ children, role, requiredRole }) {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const expectedRole = role ?? requiredRole;
 
   if (isLoading) {
     return (
@@ -16,9 +17,13 @@ export default function ProtectedRoute({ requiredRole = "teacher" }) {
     );
   }
 
-  if (!isAuthenticated || user?.role !== requiredRole) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  return <Outlet />;
+  if (expectedRole && user?.role !== expectedRole) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children ?? <Outlet />;
 }

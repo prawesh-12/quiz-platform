@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { cn } from "@/lib/utils";
+
 
 export function Select({ value, onValueChange, children }) {
   const [currentValue, setCurrentValue] = React.useState(value ?? "");
@@ -23,8 +23,8 @@ export function Select({ value, onValueChange, children }) {
   );
 }
 
-export function SelectTrigger({ className, children }) {
-  return <div className={cn(className)}>{children}</div>;
+export function SelectTrigger({ children }) {
+  return <>{children}</>;
 }
 
 export function SelectValue({ placeholder }) {

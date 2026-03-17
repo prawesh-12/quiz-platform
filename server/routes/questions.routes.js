@@ -16,7 +16,7 @@ import validate from "../middleware/validate.js";
 
 const questionsRouter = Router();
 
-questionsRouter.use(authenticate, authorize("teacher"));
+questionsRouter.use(authenticate, authorize("teacher", "admin"));
 questionsRouter.get("/", listQuestions);
 questionsRouter.post("/", validate(createQuestionSchema), createQuestion);
 questionsRouter.post("/bulk-import", validate(bulkImportQuestionsSchema), bulkImportQuestions);

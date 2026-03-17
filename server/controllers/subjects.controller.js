@@ -12,17 +12,30 @@ const subjectIdParamSchema = z.object({
 
 export async function listSubjects(req, res, next) {
   try {
-    const result = await query(
-      `
-      SELECT id, name, created_by, created_at
-      FROM subjects
-      WHERE created_by = $1
-      ORDER BY name ASC
-      `,
-      [req.user.userId]
-    );
+    const requesterId = req.user.userId ?? req.user.id;
+    const requesterRole = req.user.role;
+
+    const result =
+      requesterRole === "admin"
+        ? await query(
+            `
+            SELECT id, name, created_by, created_at
+            FROM subjects
+            ORDER BY name ASC
+            `
+          )
+        : await query(
+            `
+            SELECT DISTINCT s.id, s.name, s.created_by, s.created_at
+            FROM subjects s
+            JOIN teacher_subjects ts ON ts.subject_id = s.id AND ts.teacher_id = $1
+            ORDER BY s.name ASC
+            `,
+            [requesterId]
+          );
 
     return res.status(200).json({ subjects: result.rows });
+
   } catch (error) {
     return next(error);
   }
@@ -31,6 +44,8 @@ export async function listSubjects(req, res, next) {
 export async function createSubject(req, res, next) {
   try {
     const { name } = req.validatedBody;
+    const requesterId = req.user.userId ?? req.user.id;
+    const createdBy = req.user.role === "admin" ? null : requesterId;
 
     const result = await query(
       `
@@ -38,7 +53,7 @@ export async function createSubject(req, res, next) {
       VALUES ($1, $2)
       RETURNING id, name, created_by, created_at
       `,
-      [name, req.user.userId]
+      [name, createdBy]
     );
 
     return res.status(201).json({ subject: result.rows[0] });
@@ -54,15 +69,26 @@ export async function createSubject(req, res, next) {
 export async function deleteSubject(req, res, next) {
   try {
     const { id } = subjectIdParamSchema.parse(req.params);
+    const requesterId = req.user.userId ?? req.user.id;
 
-    const result = await query(
-      `
-      DELETE FROM subjects
-      WHERE id = $1 AND created_by = $2
-      RETURNING id
-      `,
-      [id, req.user.userId]
-    );
+    const result =
+      req.user.role === "admin"
+        ? await query(
+            `
+            DELETE FROM subjects
+            WHERE id = $1
+            RETURNING id
+            `,
+            [id]
+          )
+        : await query(
+            `
+            DELETE FROM subjects
+            WHERE id = $1 AND created_by = $2
+            RETURNING id
+            `,
+            [id, requesterId]
+          );
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: "Subject not found" });
@@ -81,19 +107,21 @@ export async function deleteSubject(req, res, next) {
   }
 }
 
-async function assertSubjectOwnership(subjectId, userId) {
-  const result = await query(
-    `SELECT id FROM subjects WHERE id = $1 AND created_by = $2`,
-    [subjectId, userId]
-  );
+async function assertSubjectOwnership(subjectId, userId, role) {
+  const result =
+    role === "admin"
+      ? await query(`SELECT id FROM subjects WHERE id = $1`, [subjectId])
+      : await query(`SELECT id FROM subjects WHERE id = $1 AND created_by = $2`, [subjectId, userId]);
   return result.rowCount > 0;
 }
 
 export async function getQuizHistoryBySubject(req, res, next) {
     try {
         const { id } = subjectIdParamSchema.parse(req.params);
+        const requesterId = req.user.userId ?? req.user.id;
+        const requesterRole = req.user.role;
 
-        const isOwned = await assertSubjectOwnership(id, req.user.userId);
+        const isOwned = await assertSubjectOwnership(id, requesterId, requesterRole);
         if (!isOwned) {
             return res.status(404).json({ error: "Subject not found" });
         }
@@ -114,9 +142,10 @@ export async function getQuizHistoryBySubject(req, res, next) {
             FROM quizzes qz
             JOIN quiz_questions qq ON qq.quiz_id = qz.id
             JOIN questions q ON q.id = qq.question_id
-            WHERE qz.subject_id = $1 AND qz.created_by = $2
+            WHERE qz.subject_id = $1
+              AND ($2::text = 'admin' OR qz.created_by = $3)
             ORDER BY qz.quiz_date DESC NULLS LAST, qz.created_at DESC, qq.order_no ASC
-        `, [id, req.user.userId]);
+        `, [id, requesterRole, requesterId]);
 
         const quizzesMap = new Map();
 

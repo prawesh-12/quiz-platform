@@ -136,9 +136,10 @@ function toCsv(rows, headers) {
 async function assertSubjectOwnership(subjectId, userId) {
   const subject = await query(
     `
-    SELECT id
-    FROM subjects
-    WHERE id = $1 AND created_by = $2
+    SELECT s.id
+    FROM subjects s
+    LEFT JOIN teacher_subjects ts ON ts.subject_id = s.id AND ts.teacher_id = $2
+    WHERE s.id = $1 AND (s.created_by = $2 OR ts.teacher_id = $2)
     `,
     [subjectId, userId]
   );

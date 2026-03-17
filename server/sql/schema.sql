@@ -1,17 +1,20 @@
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS teachers (
   id SERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(150) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
-  role VARCHAR(20) NOT NULL DEFAULT 'teacher',
-  avatar_url TEXT,
+  school VARCHAR(10) CHECK (school IN ('SOT', 'SLS', 'SOET')),
+  contact_no VARCHAR(20),
+  avatar_data BYTEA,
+  avatar_mime VARCHAR(20),
+  has_avatar BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS subjects (
   id SERIAL PRIMARY KEY,
   name VARCHAR(100) UNIQUE NOT NULL,
-  created_by INT REFERENCES users(id),
+  created_by INT REFERENCES teachers(id),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -20,7 +23,7 @@ CREATE TABLE IF NOT EXISTS units (
   name VARCHAR(150) NOT NULL,
   subject_id INT REFERENCES subjects(id) ON DELETE CASCADE,
   order_no INT DEFAULT 1,
-  created_by INT REFERENCES users(id),
+  created_by INT REFERENCES teachers(id),
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE (subject_id, name)
 );
@@ -40,7 +43,7 @@ CREATE TABLE IF NOT EXISTS questions (
   points INT DEFAULT 1,
   is_required BOOLEAN DEFAULT TRUE,
   in_subject_bank BOOLEAN DEFAULT FALSE,
-  created_by INT REFERENCES users(id),
+  created_by INT REFERENCES teachers(id),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -48,7 +51,7 @@ CREATE TABLE IF NOT EXISTS quizzes (
   id SERIAL PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   subject_id INT REFERENCES subjects(id),
-  created_by INT REFERENCES users(id),
+  created_by INT REFERENCES teachers(id),
   duration_mins INT NOT NULL DEFAULT 15,
   batch VARCHAR(50),
   division VARCHAR(10),
@@ -107,9 +110,17 @@ CREATE TABLE IF NOT EXISTS violation_flags (
 CREATE TABLE IF NOT EXISTS revoked_tokens (
   id SERIAL PRIMARY KEY,
   token_hash VARCHAR(64) UNIQUE NOT NULL,
-  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  user_id INT REFERENCES teachers(id) ON DELETE CASCADE,
   expires_at TIMESTAMP NOT NULL,
   revoked_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS teacher_subjects (
+  id SERIAL PRIMARY KEY,
+  teacher_id INT REFERENCES teachers(id) ON DELETE CASCADE,
+  subject_id INT REFERENCES subjects(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE (teacher_id, subject_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_questions_subject_id ON questions(subject_id);
@@ -123,3 +134,5 @@ CREATE INDEX IF NOT EXISTS idx_questions_in_subject_bank ON questions(in_subject
 CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_start ON quizzes(scheduled_start);
 CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_end ON quizzes(scheduled_end);
 CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_teacher_subjects_teacher_id ON teacher_subjects(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_teacher_subjects_subject_id ON teacher_subjects(subject_id);

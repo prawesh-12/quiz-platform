@@ -20,8 +20,8 @@ const authRouter = Router();
 
 authRouter.post("/register", validate(registerSchema), register);
 authRouter.post("/login", validate(loginSchema), login);
-authRouter.post("/logout", authenticate, authorize("teacher"), logout);
-authRouter.get("/me", authenticate, authorize("teacher"), me);
+authRouter.post("/logout", authenticate, authorize("teacher", "admin"), logout);
+authRouter.get("/me", authenticate, authorize("teacher", "admin"), me);
 authRouter.put("/profile", authenticate, authorize("teacher"), validate(updateProfileSchema), updateProfile);
 authRouter.put("/change-password", authenticate, authorize("teacher"), validate(changePasswordSchema), changePassword);
 

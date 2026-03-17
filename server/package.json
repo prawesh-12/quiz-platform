@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "create-admin": "node scripts/create_admin.js",
+    "migrate-plan1": "node scripts/migrate_plan1_teacher_schema.js",
+    "migrate-plan14-avatar": "node scripts/migrate_plan14_avatar_schema.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -15,6 +18,7 @@
     "exceljs": "^4.4.0",
     "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.0",
     "pg": "^8.13.1",
     "uuid": "^11.0.3",
     "xlsx": "^0.18.5",

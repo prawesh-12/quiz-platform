@@ -1,6 +1,7 @@
 import { createContext, useEffect, useMemo, useReducer } from "react";
 
 import { authService } from "@/services/authService";
+import { getTokenKey, getUserKey } from "@/services/api";
 
 const initialState = {
   user: null,
@@ -54,6 +55,49 @@ function authReducer(state, action) {
 
 export const AuthContext = createContext(null);
 
+function normalizeUser(user) {
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+
+  return {
+    ...user,
+    role: user.role || null,
+    has_avatar: Boolean(user.has_avatar)
+  };
+}
+
+function loadStoredUser() {
+  const rawUser = localStorage.getItem(getUserKey());
+  if (!rawUser) {
+    return null;
+  }
+
+  try {
+    return normalizeUser(JSON.parse(rawUser));
+  } catch {
+    localStorage.removeItem(getUserKey());
+    return null;
+  }
+}
+
+function persistAuth(token, user, role) {
+  const tokenKey = getTokenKey(role);
+  const userKey = getUserKey(role);
+
+  if (token) {
+    localStorage.setItem(tokenKey, token);
+  } else {
+    localStorage.removeItem(tokenKey);
+  }
+
+  if (user) {
+    localStorage.setItem(userKey, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(userKey);
+  }
+}
+
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
@@ -63,7 +107,8 @@ export function AuthProvider({ children }) {
     async function hydrateAuth() {
       dispatch({ type: "HYDRATE_START" });
 
-      const token = localStorage.getItem("quiz_token");
+      const token = localStorage.getItem(getTokenKey());
+      const storedUser = loadStoredUser();
       if (!token) {
         if (!ignore) {
           dispatch({ type: "HYDRATE_FAIL" });
@@ -73,12 +118,19 @@ export function AuthProvider({ children }) {
 
       try {
         const data = await authService.me();
+        const normalizedUser = normalizeUser(data?.user) || storedUser;
+
+        if (!normalizedUser) {
+          throw new Error("User payload missing");
+        }
+
+        persistAuth(token, normalizedUser, normalizedUser.role);
 
         if (!ignore) {
-          dispatch({ type: "HYDRATE_SUCCESS", payload: { token, user: data.user } });
+          dispatch({ type: "HYDRATE_SUCCESS", payload: { token, user: normalizedUser } });
         }
       } catch {
-        localStorage.removeItem("quiz_token");
+        persistAuth(null, null);
         if (!ignore) {
           dispatch({ type: "HYDRATE_FAIL" });
         }
@@ -96,10 +148,12 @@ export function AuthProvider({ children }) {
     () => ({
       ...state,
       login: ({ token, user }) => {
-        localStorage.setItem("quiz_token", token);
-        dispatch({ type: "LOGIN_SUCCESS", payload: { token, user } });
+        const normalizedUser = normalizeUser(user);
+        persistAuth(token, normalizedUser, normalizedUser?.role);
+        dispatch({ type: "LOGIN_SUCCESS", payload: { token, user: normalizedUser } });
       },
       logout: async () => {
+        const role = state.user?.role;
         try {
           if (state.token) {
             await authService.logout();
@@ -107,12 +161,17 @@ export function AuthProvider({ children }) {
         } catch {
           // Best-effort server logout. Always clear local auth state.
         } finally {
-          localStorage.removeItem("quiz_token");
+          persistAuth(null, null, role);
           dispatch({ type: "LOGOUT" });
         }
       },
       setUser: (user) => {
-        dispatch({ type: "UPDATE_USER", payload: user });
+        const normalizedUser = normalizeUser({
+          ...(state.user || {}),
+          ...(user || {})
+        });
+        persistAuth(state.token, normalizedUser, normalizedUser?.role);
+        dispatch({ type: "UPDATE_USER", payload: normalizedUser });
       }
     }),
     [state]

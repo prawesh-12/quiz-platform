@@ -7,11 +7,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import errorHandler from "./middleware/errorHandler.js";
+import adminRouter from "./routes/admin.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import questionsRouter from "./routes/questions.routes.js";
 import quizzesRouter from "./routes/quizzes.routes.js";
 import sessionsRouter from "./routes/sessions.routes.js";
 import subjectsRouter from "./routes/subjects.routes.js";
+import teachersRouter from "./routes/teachers.routes.js";
 import unitsRouter from "./routes/units.routes.js";
 import violationsRouter from "./routes/violations.routes.js";
 
@@ -48,7 +50,9 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/admin", adminRouter);
 app.use("/api/subjects", subjectsRouter);
+app.use("/api/teachers", teachersRouter);
 app.use("/api/units", unitsRouter);
 app.use("/api/questions", questionsRouter);
 app.use("/api/quizzes", quizzesRouter);

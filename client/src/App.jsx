@@ -22,6 +22,9 @@ const ScheduledQuizListPage = lazy(() => import("@/pages/teacher/ScheduledQuizLi
 const OngoingQuizListPage = lazy(() => import("@/pages/teacher/OngoingQuizListPage"));
 const OngoingQuizPage = lazy(() => import("@/pages/teacher/OngoingQuizPage"));
 const QuizResponsePage = lazy(() => import("@/pages/teacher/QuizResponsePage"));
+const AdminDashboardPage = lazy(() => import("@/pages/admin/AdminDashboardPage"));
+const SchoolTeachersPage = lazy(() => import("@/pages/admin/SchoolTeachersPage"));
+const AllTeachersPage = lazy(() => import("@/pages/admin/AllTeachersPage"));
 
 // Catches any render/lazy-load errors so a blank screen doesn't hide the real problem
 class ErrorBoundary extends Component {
@@ -70,7 +73,7 @@ export default function App() {
           <Route path="/quiz/take" element={<QuizPage />} />
 
           {/* Teacher — protected */}
-          <Route element={<ProtectedRoute requiredRole="teacher" />}>
+          <Route element={<ProtectedRoute role="teacher" />}>
             <Route path="/teacher" element={<DashboardPage />} />
             <Route path="/teacher/profile" element={<ProfilePage />} />
             <Route path="/teacher/questions/:subjectId" element={<QuestionBankPage />} />
@@ -82,6 +85,13 @@ export default function App() {
             <Route path="/teacher/quiz/ongoing" element={<OngoingQuizListPage />} />
             <Route path="/teacher/quiz/ongoing/:quizId" element={<OngoingQuizPage />} />
             <Route path="/teacher/quiz/:quizId/responses" element={<QuizResponsePage />} />
+          </Route>
+
+          {/* Admin — protected */}
+          <Route path="/admin" element={<ProtectedRoute role="admin" />}>
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="teachers" element={<AllTeachersPage />} />
+            <Route path="schools/:school" element={<SchoolTeachersPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/login" replace />} />

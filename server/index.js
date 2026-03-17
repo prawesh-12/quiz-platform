@@ -22,68 +22,117 @@ if (!JWT_SECRET) {
 try {
   await query("SELECT 1");
 
+  // One-way compatibility: rename legacy users table if needed.
+  await query(`
+    DO $$
+    BEGIN
+      IF to_regclass('public.users') IS NOT NULL
+         AND to_regclass('public.teachers') IS NULL THEN
+        ALTER TABLE users RENAME TO teachers;
+      END IF;
+    END $$;
+  `);
+
+  await query(`
+    ALTER TABLE teachers
+    ADD COLUMN IF NOT EXISTS school VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS contact_no VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS avatar_data BYTEA,
+    ADD COLUMN IF NOT EXISTS avatar_mime VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS has_avatar BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS plain_password VARCHAR(255);
+  `);
+
+  await query(`
+    ALTER TABLE teachers
+    DROP COLUMN IF EXISTS role,
+    DROP COLUMN IF EXISTS avatar_url;
+  `);
+
   await query(`
     ALTER TABLE quizzes
     ADD COLUMN IF NOT EXISTS scheduled_start TIMESTAMP,
     ADD COLUMN IF NOT EXISTS scheduled_end TIMESTAMP,
-    ADD COLUMN IF NOT EXISTS access_code VARCHAR(20)
+    ADD COLUMN IF NOT EXISTS access_code VARCHAR(20);
+  `);
+
+  await query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'users_role_check'
+          AND conrelid = 'teachers'::regclass
+      ) THEN
+        ALTER TABLE teachers DROP CONSTRAINT users_role_check;
+      END IF;
+
+      IF EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'users_school_check'
+          AND conrelid = 'teachers'::regclass
+      ) THEN
+        ALTER TABLE teachers DROP CONSTRAINT users_school_check;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'teachers_school_check'
+          AND conrelid = 'teachers'::regclass
+      ) THEN
+        ALTER TABLE teachers
+        ADD CONSTRAINT teachers_school_check CHECK (school IN ('SOT', 'SLS', 'SOET'));
+      END IF;
+    END $$;
   `);
 
   await query(`
     CREATE TABLE IF NOT EXISTS revoked_tokens (
       id SERIAL PRIMARY KEY,
       token_hash VARCHAR(64) UNIQUE NOT NULL,
-      user_id INT REFERENCES users(id) ON DELETE CASCADE,
+      user_id INT REFERENCES teachers(id) ON DELETE CASCADE,
       expires_at TIMESTAMP NOT NULL,
       revoked_at TIMESTAMP DEFAULT NOW()
-    )
+    );
   `);
 
   await query(`
-    DO $$
-    DECLARE
-      per_owner_constraint TEXT;
-    BEGIN
-      SELECT con.conname
-      INTO per_owner_constraint
-      FROM pg_constraint con
-      JOIN pg_class rel ON rel.oid = con.conrelid
-      WHERE rel.relname = 'subjects'
-        AND con.contype = 'u'
-        AND pg_get_constraintdef(con.oid) = 'UNIQUE (created_by, name)'
-      LIMIT 1;
-
-      IF per_owner_constraint IS NOT NULL THEN
-        EXECUTE format('ALTER TABLE subjects DROP CONSTRAINT %I', per_owner_constraint);
-      END IF;
-    END $$;
+    CREATE TABLE IF NOT EXISTS teacher_subjects (
+      id SERIAL PRIMARY KEY,
+      teacher_id INT REFERENCES teachers(id) ON DELETE CASCADE,
+      subject_id INT REFERENCES subjects(id) ON DELETE CASCADE,
+      assigned_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE (teacher_id, subject_id)
+    );
   `);
-
-  await query(`DROP INDEX IF EXISTS idx_subjects_created_by_name_unique`);
 
   await query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_student_answers_session_question_unique
-    ON student_answers(session_id, question_id)
+    ON student_answers(session_id, question_id);
   `);
 
   await query(`
-    DO $$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint con
-        JOIN pg_class rel ON rel.oid = con.conrelid
-        WHERE rel.relname = 'subjects'
-          AND con.contype = 'u'
-          AND pg_get_constraintdef(con.oid) = 'UNIQUE (name)'
-      ) THEN
-        ALTER TABLE subjects ADD CONSTRAINT subjects_name_key UNIQUE (name);
-      END IF;
-    END $$;
+    CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_start ON quizzes(scheduled_start);
   `);
-  await query("CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_start ON quizzes(scheduled_start)");
-  await query("CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_end ON quizzes(scheduled_end)");
-  await query("CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at)");
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_end ON quizzes(scheduled_end);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_teacher_subjects_teacher_id ON teacher_subjects(teacher_id);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_teacher_subjects_subject_id ON teacher_subjects(subject_id);
+  `);
 } catch (error) {
   console.error("Failed to connect to PostgreSQL. Check DATABASE_URL and PostgreSQL service.");
   console.error(error);

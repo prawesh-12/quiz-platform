@@ -14,31 +14,57 @@ const subjectIdParamSchema = z.object({
 });
 
 async function assertSubjectOwnership(subjectId, userId) {
-  const result = await query(
-    `SELECT id FROM subjects WHERE id = $1 AND created_by = $2`,
-    [subjectId, userId]
-  );
+  const result =
+    userId?.role === "admin"
+      ? await query(`SELECT id FROM subjects WHERE id = $1`, [subjectId])
+      : await query(
+          `
+          SELECT s.id FROM subjects s
+          LEFT JOIN teacher_subjects ts ON ts.subject_id = s.id AND ts.teacher_id = $2
+          WHERE s.id = $1 AND (s.created_by = $2 OR ts.teacher_id = $2)
+          `,
+          [subjectId, userId?.id]
+        );
   return result.rowCount > 0;
 }
 
 async function assertUnitOwnership(unitId, userId) {
-  const result = await query(
-    `
-    SELECT u.id 
-    FROM units u
-    JOIN subjects s ON s.id = u.subject_id
-    WHERE u.id = $1 AND s.created_by = $2
-    `,
-    [unitId, userId]
-  );
+  const result =
+    userId?.role === "admin"
+      ? await query(
+          `
+          SELECT u.id 
+          FROM units u
+          WHERE u.id = $1
+          `,
+          [unitId]
+        )
+      : await query(
+          `
+          SELECT u.id 
+          FROM units u
+          JOIN subjects s ON s.id = u.subject_id
+          LEFT JOIN teacher_subjects ts ON ts.subject_id = s.id AND ts.teacher_id = $2
+          WHERE u.id = $1 AND (s.created_by = $2 OR ts.teacher_id = $2)
+          `,
+          [unitId, userId?.id]
+        );
   return result.rowCount > 0;
+}
+
+function getRequester(req) {
+  return {
+    id: req.user.userId ?? req.user.id,
+    role: req.user.role
+  };
 }
 
 export async function listUnitsBySubject(req, res, next) {
   try {
     const { id: subjectId } = subjectIdParamSchema.parse(req.params);
+    const requester = getRequester(req);
 
-    const isOwned = await assertSubjectOwnership(subjectId, req.user.userId);
+    const isOwned = await assertSubjectOwnership(subjectId, requester);
     if (!isOwned) {
       return res.status(404).json({ error: "Subject not found" });
     }
@@ -69,8 +95,9 @@ export async function createUnit(req, res, next) {
   try {
     const { id: subjectId } = subjectIdParamSchema.parse(req.params);
     const { name } = unitInputSchema.parse(req.body);
+    const requester = getRequester(req);
 
-    const isOwned = await assertSubjectOwnership(subjectId, req.user.userId);
+    const isOwned = await assertSubjectOwnership(subjectId, requester);
     if (!isOwned) {
       return res.status(404).json({ error: "Subject not found" });
     }
@@ -97,7 +124,7 @@ export async function createUnit(req, res, next) {
       VALUES ($1, $2, $3, $4)
       RETURNING id, name, order_no, created_at
       `,
-      [subjectId, name, nextOrder, req.user.userId]
+      [subjectId, name, nextOrder, requester.role === "admin" ? null : requester.id]
     );
 
     return res.status(201).json({ unit: result.rows[0] });
@@ -113,8 +140,9 @@ export async function updateUnit(req, res, next) {
   try {
     const { id } = unitIdParamSchema.parse(req.params);
     const { name } = unitInputSchema.parse(req.body);
+    const requester = getRequester(req);
 
-    const isOwned = await assertUnitOwnership(id, req.user.userId);
+    const isOwned = await assertUnitOwnership(id, requester);
     if (!isOwned) {
       return res.status(404).json({ error: "Unit not found" });
     }
@@ -155,8 +183,9 @@ export async function updateUnit(req, res, next) {
 export async function deleteUnit(req, res, next) {
   try {
     const { id } = unitIdParamSchema.parse(req.params);
+    const requester = getRequester(req);
 
-    const isOwned = await assertUnitOwnership(id, req.user.userId);
+    const isOwned = await assertUnitOwnership(id, requester);
     if (!isOwned) {
       return res.status(404).json({ error: "Unit not found" });
     }
@@ -197,8 +226,9 @@ export async function getUnitQuestions(req, res, next) {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const offset = (page - 1) * limit;
+    const requester = getRequester(req);
 
-    const isOwned = await assertUnitOwnership(id, req.user.userId);
+    const isOwned = await assertUnitOwnership(id, requester);
     if (!isOwned) {
       return res.status(404).json({ error: "Unit not found" });
     }

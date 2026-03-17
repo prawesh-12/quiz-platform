@@ -5,10 +5,12 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/useToast";
 import { authService } from "@/services/authService";
 import { theme } from "@/theme";
 
@@ -19,8 +21,10 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
   const [serverError, setServerError] = useState("");
+  const [mode, setMode] = useState("teacher");
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { toast } = useToast();
 
   const form = useForm({
     resolver: zodResolver(loginSchema),
@@ -64,9 +68,27 @@ export default function LoginPage() {
 
     try {
       import("@/pages/teacher/DashboardPage").catch(() => {});
-      const data = await authService.login(values);
+      const data = await authService.login({
+        ...values,
+        role: mode
+      });
+      const userRole = data?.user?.role;
+
+      if (userRole !== mode) {
+        toast({
+          title: "Access denied",
+          description: `This account does not have ${mode} access.`,
+          variant: "destructive"
+        });
+        return;
+      }
+
       login({ token: data.token, user: data.user });
-      navigate("/teacher", { replace: true });
+      if (mode === "admin") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/teacher", { replace: true });
+      }
     } catch (error) {
       const message = error?.response?.data?.error || "Login failed. Please try again.";
       setServerError(message);
@@ -80,8 +102,38 @@ export default function LoginPage() {
         style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
       >
         <CardHeader>
-          <CardTitle style={{ color: theme.text.primary }}>Teacher Login</CardTitle>
-          <CardDescription>Sign in to access the teacher dashboard.</CardDescription>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setMode("teacher")}
+              className={`rounded-lg px-4 py-2 text-sm transition-colors ${
+                mode === "teacher"
+                  ? "border-2 border-black font-bold text-black"
+                  : "border border-gray-300 text-gray-500"
+              }`}
+            >
+              Teacher Login
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("admin")}
+              className={`rounded-lg px-4 py-2 text-sm transition-colors ${
+                mode === "admin"
+                  ? "border-2 border-black font-bold text-black"
+                  : "border border-gray-300 text-gray-500"
+              }`}
+            >
+              Admin Login
+            </button>
+          </div>
+          <CardTitle style={{ color: theme.text.primary }}>
+            {mode === "admin" ? "Admin Login" : "Teacher Login"}
+          </CardTitle>
+          <CardDescription>
+            {mode === "admin"
+              ? "Sign in to access the admin dashboard."
+              : "Sign in to access the teacher dashboard."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -107,7 +159,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="password" autoComplete="current-password" {...field} />
+                      <PasswordInput placeholder="password" autoComplete="current-password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

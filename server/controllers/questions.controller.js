@@ -63,9 +63,9 @@ const listQuestionsQuerySchema = z.object({
 async function assertSubjectOwnership(subjectId, userId) {
   const subject = await query(
     `
-    SELECT id
-    FROM subjects
-    WHERE id = $1 AND created_by = $2
+    SELECT s.id FROM subjects s
+    LEFT JOIN teacher_subjects ts ON ts.subject_id = s.id AND ts.teacher_id = $2
+    WHERE s.id = $1 AND (s.created_by = $2 OR ts.teacher_id = $2)
     `,
     [subjectId, userId]
   );
@@ -104,7 +104,7 @@ export async function listQuestions(req, res, next) {
 
     const inSubjectBankFilter = in_subject_bank === "false" ? false : true; 
 
-    const params = [subjectId, req.user.userId, search || null, limit, offset, inSubjectBankFilter];
+    const params = [subjectId, search || null, limit, offset, inSubjectBankFilter];
     let unitFilter = "";
 
     if (unitId !== undefined) {
@@ -123,12 +123,12 @@ export async function listQuestions(req, res, next) {
              created_by, created_at, unit_id, in_subject_bank,
              COUNT(*) OVER()::int AS total_count
       FROM questions
-      WHERE subject_id = $1 AND created_by = $2
-        AND ($3::text IS NULL OR question_text ILIKE '%' || $3 || '%')
-        AND ($6::boolean IS NULL OR in_subject_bank = $6)
+      WHERE subject_id = $1
+        AND ($2::text IS NULL OR question_text ILIKE '%' || $2 || '%')
+        AND ($5::boolean IS NULL OR in_subject_bank = $5)
         ${unitFilter}
       ORDER BY created_at DESC, id DESC
-      LIMIT $4 OFFSET $5
+      LIMIT $3 OFFSET $4
       `,
       params
     );

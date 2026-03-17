@@ -7,6 +7,9 @@ import { JWT_EXPIRES_IN, JWT_SECRET } from "../config/jwt.js";
 import { query } from "../config/db.js";
 
 const SALT_ROUNDS = 12;
+const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+const ADMIN_PASSWORD_HASH = String(process.env.ADMIN_PASSWORD_HASH || "");
+const ADMIN_NAME = String(process.env.ADMIN_NAME || "Admin").trim();
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -16,12 +19,12 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   email: z.string().trim().email().max(150),
-  password: z.string().min(1)
+  password: z.string().min(1),
+  role: z.enum(["teacher", "admin"]).optional().default("teacher")
 });
 
 export const updateProfileSchema = z.object({
-  name: z.string().trim().min(2).max(100),
-  avatar_url: z.string().trim().url().max(500).optional().nullable()
+  name: z.string().trim().min(2).max(100)
 });
 
 export const changePasswordSchema = z
@@ -37,6 +40,7 @@ export const changePasswordSchema = z
 function signTeacherToken(user) {
   return jwt.sign(
     {
+      id: user.id,
       userId: user.id,
       name: user.name,
       email: user.email,
@@ -51,12 +55,25 @@ function hashToken(token) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+function mapTeacherUser(record) {
+  return {
+    id: record.id,
+    name: record.name,
+    email: record.email,
+    school: record.school ?? null,
+    contact_no: record.contact_no ?? null,
+    has_avatar: Boolean(record.has_avatar),
+    created_at: record.created_at,
+    role: "teacher"
+  };
+}
+
 export async function register(req, res, next) {
   try {
     const { name, email, password } = req.validatedBody;
     const normalizedEmail = email.toLowerCase();
 
-    const existing = await query("SELECT id FROM users WHERE email = $1", [normalizedEmail]);
+    const existing = await query("SELECT id FROM teachers WHERE email = $1", [normalizedEmail]);
     if (existing.rowCount > 0) {
       return res.status(409).json({ error: "Email is already registered" });
     }
@@ -65,14 +82,14 @@ export async function register(req, res, next) {
 
     const result = await query(
       `
-      INSERT INTO users (name, email, password, role)
-      VALUES ($1, $2, $3, 'teacher')
-      RETURNING id, name, email, role, avatar_url, created_at
+      INSERT INTO teachers (name, email, password)
+      VALUES ($1, $2, $3)
+      RETURNING id, name, email, school, contact_no, has_avatar, created_at
       `,
       [name, normalizedEmail, hashedPassword]
     );
 
-    return res.status(201).json({ user: result.rows[0] });
+    return res.status(201).json({ user: mapTeacherUser(result.rows[0]) });
   } catch (error) {
     return next(error);
   }
@@ -80,37 +97,56 @@ export async function register(req, res, next) {
 
 export async function login(req, res, next) {
   try {
-    const { email, password } = req.validatedBody;
+    const { email, password, role } = req.validatedBody;
     const normalizedEmail = email.toLowerCase();
+
+    if (role === "admin") {
+      if (!ADMIN_EMAIL || !ADMIN_PASSWORD_HASH) {
+        return res.status(500).json({ error: "Admin authentication is not configured" });
+      }
+
+      if (normalizedEmail !== ADMIN_EMAIL) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const passwordMatches = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+      if (!passwordMatches) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const user = {
+        id: 0,
+        name: ADMIN_NAME,
+        email: ADMIN_EMAIL,
+        has_avatar: false,
+        role: "admin"
+      };
+
+      const token = signTeacherToken(user);
+      return res.status(200).json({ token, user });
+    }
 
     const result = await query(
       `
-      SELECT id, name, email, password, role, avatar_url, created_at
-      FROM users
+      SELECT id, name, email, password, school, contact_no, has_avatar, created_at
+      FROM teachers
       WHERE email = $1
       `,
       [normalizedEmail]
     );
 
     if (result.rowCount === 0) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
     const userRecord = result.rows[0];
     const passwordMatches = await bcrypt.compare(password, userRecord.password);
 
     if (!passwordMatches) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const user = {
-      id: userRecord.id,
-      name: userRecord.name,
-      email: userRecord.email,
-      role: userRecord.role,
-      avatar_url: userRecord.avatar_url,
-      created_at: userRecord.created_at
-    };
+    const user = mapTeacherUser(userRecord);
 
     const token = signTeacherToken(user);
 
@@ -135,7 +171,11 @@ export async function logout(req, res, next) {
       VALUES ($1, $2, to_timestamp($3))
       ON CONFLICT (token_hash) DO NOTHING
       `,
-      [hashToken(token), req.user.userId, Number(exp)]
+      [
+        hashToken(token),
+        req.user?.role === "teacher" ? Number(req.user.userId ?? req.user.id) : null,
+        Number(exp)
+      ]
     );
 
     await query(`DELETE FROM revoked_tokens WHERE expires_at <= NOW()`);
@@ -148,20 +188,32 @@ export async function logout(req, res, next) {
 
 export async function me(req, res, next) {
   try {
+    if (req.user?.role === "admin") {
+      return res.status(200).json({
+        user: {
+          id: 0,
+          name: ADMIN_NAME || req.user?.name || "Admin",
+          email: ADMIN_EMAIL || req.user?.email || "",
+          has_avatar: false,
+          role: "admin"
+        }
+      });
+    }
+
     const result = await query(
       `
-      SELECT id, name, email, role, avatar_url, created_at
-      FROM users
+      SELECT id, name, email, school, contact_no, has_avatar, created_at
+      FROM teachers
       WHERE id = $1
       `,
-      [req.user.userId]
+      [req.user.userId ?? req.user.id]
     );
 
     if (result.rowCount === 0) {
-      return res.status(401).json({ error: "User not found for token" });
+      return res.status(401).json({ error: "Teacher not found for token" });
     }
 
-    return res.status(200).json({ user: result.rows[0] });
+    return res.status(200).json({ user: mapTeacherUser(result.rows[0]) });
   } catch (error) {
     return next(error);
   }
@@ -169,23 +221,23 @@ export async function me(req, res, next) {
 
 export async function updateProfile(req, res, next) {
   try {
-    const { name, avatar_url } = req.validatedBody;
+    const { name } = req.validatedBody;
 
     const result = await query(
       `
-      UPDATE users
-      SET name = $1, avatar_url = $2
-      WHERE id = $3
-      RETURNING id, name, email, role, avatar_url, created_at
+      UPDATE teachers
+      SET name = $1
+      WHERE id = $2
+      RETURNING id, name, email, school, contact_no, has_avatar, created_at
       `,
-      [name, avatar_url || null, req.user.userId]
+      [name, req.user.userId ?? req.user.id]
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ error: "Teacher not found" });
     }
 
-    return res.status(200).json({ user: result.rows[0] });
+    return res.status(200).json({ user: mapTeacherUser(result.rows[0]) });
   } catch (error) {
     return next(error);
   }
@@ -198,14 +250,14 @@ export async function changePassword(req, res, next) {
     const result = await query(
       `
       SELECT id, password
-      FROM users
+      FROM teachers
       WHERE id = $1
       `,
-      [req.user.userId]
+      [req.user.userId ?? req.user.id]
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ error: "Teacher not found" });
     }
 
     const userRecord = result.rows[0];
@@ -219,11 +271,11 @@ export async function changePassword(req, res, next) {
 
     await query(
       `
-      UPDATE users
+      UPDATE teachers
       SET password = $1
       WHERE id = $2
       `,
-      [nextPasswordHash, req.user.userId]
+      [nextPasswordHash, req.user.userId ?? req.user.id]
     );
 
     return res.status(200).json({ message: "Password updated successfully" });

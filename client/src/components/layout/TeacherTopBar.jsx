@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarClock, ChevronRight, Gauge, GraduationCap, LibraryBig, Menu, Sparkles, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarClock, ChevronRight, Gauge, GraduationCap, LibraryBig, Menu, ShieldCheck, Sparkles, UserRound, Users } from "lucide-react";
 import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -66,6 +66,26 @@ function buildBreadcrumbs(pathname) {
     ];
   }
 
+  // Admin paths
+  if (pathname === "/admin") {
+    return [{ icon: ShieldCheck, label: "Admin Dashboard" }];
+  }
+
+  if (pathname === "/admin/teachers") {
+    return [
+      { icon: ShieldCheck, label: "Admin Dashboard" },
+      { icon: Users, label: "All Teachers" },
+    ];
+  }
+
+  if (pathname.startsWith("/admin/schools/")) {
+    const school = pathname.split("/")[3] || "";
+    return [
+      { icon: ShieldCheck, label: "Admin Dashboard" },
+      { icon: Users, label: `${school} Teachers` },
+    ];
+  }
+
   return [{ icon: Gauge, label: "Quiz Dashboard" }];
 }
 
@@ -73,7 +93,7 @@ export default function TeacherTopBar({ onMobileMenuToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
   const breadcrumbs = useMemo(() => buildBreadcrumbs(location.pathname), [location.pathname]);
-  const showBackButton = location.pathname !== "/teacher";
+  const showBackButton = location.pathname !== "/teacher" && location.pathname !== "/admin";
 
   return (
     <header

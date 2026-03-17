@@ -6,10 +6,10 @@ import authorize from "../middleware/authorize.js";
 
 const unitsRouter = Router();
 
-unitsRouter.use(authenticate, authorize("teacher"));
+unitsRouter.use(authenticate);
 
-unitsRouter.put("/:id", updateUnit);
-unitsRouter.delete("/:id", deleteUnit);
-unitsRouter.get("/:id/questions", getUnitQuestions);
+unitsRouter.put("/:id", authorize("admin"), updateUnit);
+unitsRouter.delete("/:id", authorize("admin"), deleteUnit);
+unitsRouter.get("/:id/questions", authorize("teacher", "admin"), getUnitQuestions);
 
 export default unitsRouter;

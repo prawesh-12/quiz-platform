@@ -1,14 +1,14 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Avatar from "@/components/shared/Avatar";
 import { Button } from "@/components/ui/button";
 import { theme } from "@/theme";
 
 export default function ProfileFooter({ user, onLogout, onOpenProfile, compact = false }) {
-  const initials = (user?.name || "T")
-    .split(" ")
-    .slice(0, 2)
-    .map((token) => token.charAt(0).toUpperCase())
-    .join("");
-  const username = user?.email ? `@${user.email.split("@")[0]}` : "@teacher";
+  const username =
+    user?.role === "admin"
+      ? "@admin"
+      : user?.email
+        ? `@${user.email.split("@")[0]}`
+        : "@teacher";
 
   if (compact) {
     return (
@@ -19,22 +19,7 @@ export default function ProfileFooter({ user, onLogout, onOpenProfile, compact =
           onClick={() => onOpenProfile?.()}
           aria-label="Open profile"
         >
-          <Avatar
-            className="h-7 w-7"
-            style={{ border: `1px solid ${theme.border.input}`, borderRadius: theme.radius.full }}
-          >
-            <AvatarImage src={user?.avatar_url || undefined} alt={user?.name || "Teacher"} />
-            <AvatarFallback
-              className="text-[10px]"
-              style={{
-                backgroundColor: theme.bg.muted,
-                color: theme.text.secondary,
-                fontWeight: theme.font.weight.semibold,
-              }}
-            >
-              {initials || "T"}
-            </AvatarFallback>
-          </Avatar>
+          <Avatar teacherId={user?.id} name={user?.name} size="sm" hasAvatar={Boolean(user?.has_avatar)} />
         </button>
       </div>
     );
@@ -47,22 +32,7 @@ export default function ProfileFooter({ user, onLogout, onOpenProfile, compact =
         className="flex min-w-0 items-center gap-2 text-left"
         onClick={() => onOpenProfile?.()}
       >
-        <Avatar
-          className="h-7 w-7"
-          style={{ border: `1px solid ${theme.border.input}`, borderRadius: theme.radius.full }}
-        >
-          <AvatarImage src={user?.avatar_url || undefined} alt={user?.name || "Teacher"} />
-          <AvatarFallback
-            className="text-[10px]"
-            style={{
-              backgroundColor: theme.bg.muted,
-              color: theme.text.secondary,
-              fontWeight: theme.font.weight.semibold,
-            }}
-          >
-            {initials || "T"}
-          </AvatarFallback>
-        </Avatar>
+        <Avatar teacherId={user?.id} name={user?.name} size="sm" hasAvatar={Boolean(user?.has_avatar)} />
         <div className="min-w-0">
           <p
             className="truncate text-[13px]"

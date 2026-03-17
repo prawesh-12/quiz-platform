@@ -25,7 +25,7 @@ import validate from "../middleware/validate.js";
 
 const quizzesRouter = Router();
 
-quizzesRouter.use(authenticate, authorize("teacher"));
+quizzesRouter.use(authenticate, authorize("teacher", "admin"));
 quizzesRouter.get("/", listQuizzes);
 quizzesRouter.get("/:id/live-stats", getQuizLiveStats);
 quizzesRouter.get("/:id/preview", getQuizPreview);
