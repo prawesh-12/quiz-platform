@@ -1,6 +1,6 @@
 # QuizLoom
 
-A full-stack quiz platform for teachers and students, with quiz authoring, scheduling, live monitoring, response analytics, proctoring flags, and Excel import/export workflows.
+QuizLoom is a full-stack quiz platform for teachers, students, and administrators. It supports quiz authoring, scheduled activation, live monitoring, response analytics, proctoring flags, and Excel import/export workflows.
 
 ---
 
@@ -8,11 +8,11 @@ A full-stack quiz platform for teachers and students, with quiz authoring, sched
 
 <table>
   <tr>
-    <td><img src="public/loading-screen.png" alt="loading screen page" width="100%"/></td>
-    <td><img src="public/teacher-login-page.png" alt="Teacher login page" width="100%"/></td>
+    <td><img src="public/role_based_acess_login_page.png" alt="Loading screen" width="100%"/></td>
+    <td><img src="public/admin_dashboard_page.png" alt="Teacher login page" width="100%"/></td>
   </tr>
   <tr>
-    <td><img src="public/dashboard-page.png" alt="Teacher dashboard page" width="100%"/></td>
+    <td><img src="public/teacher_dashboard_page.png" alt="Teacher dashboard page" width="100%"/></td>
     <td><img src="public/manual-quiz-page.png" alt="Manual quiz page" width="100%"/></td>
   </tr>
 </table>
@@ -21,36 +21,42 @@ A full-stack quiz platform for teachers and students, with quiz authoring, sched
 
 ## Features
 
-### Teacher Features
-- Secure teacher authentication (login/profile/password update/logout).
-- Create and manage subjects and units.
-- Build quizzes manually or auto-generate from unit question pools.
-- Import questions from Excel and manage question bank entries.
-- Save quizzes as draft, schedule activation windows, and share quiz links/access codes.
-- Track scheduled and ongoing quizzes from dedicated list views.
-- Monitor live quiz stats and participant responses in real time.
-- View response details, violation timelines, and leaderboard rankings.
-- Export quiz results as `.xlsx`.
+### Teacher
 
-### Student Features
-- Join quizzes using access token + access code flow.
-- Attempt timed quizzes with autosave progress.
-- Submit manually or auto-submit on timer/session end.
-- Get score summary with percentage and breakdown after submission.
-- Proctoring-aware attempt flow (tab switch/copy/context events reported as violations).
+- Secure auth, profile updates, password changes, and avatar upload/removal.
+- Subject/unit/question bank management (including Excel bulk import).
+- Manual and auto-generated quiz creation.
+- Draft, scheduled, active, and ended quiz lifecycle management.
+- Live quiz insights, response review, violations timeline, leaderboard, and XLSX exports.
+
+### Student
+
+- Enter quiz via access token + access code.
+- Timed attempt with autosave progress.
+- Manual submit or automatic submit when session/quiz ends.
+- Score summary with percentage and scored points.
+- Proctoring-aware flow (tab switch, copy/paste, context menu events).
+
+### Admin
+
+- Environment-backed admin authentication.
+- Dashboard access and teacher management views.
+- School-wise teacher listing and subject assignment workflows.
+- Global teacher operations: list all teachers, remove school assignment, and delete teacher.
 
 ---
 
 ## Project Structure
 
 ```text
-quizloom/
-|-- client/        # React + Vite frontend (teacher and student UI)
-|-- server/        # Express API + business logic + PostgreSQL integration
-|-- public/        # README preview screenshots/assets
-|-- structure.md   # Complete architecture and endpoint documentation
-|-- README.md
-`-- LICENSE
+quiz-platform/
+- client/          # React + Vite frontend
+- server/          # Express API + PostgreSQL backend
+- public/          
+- package.json     
+- package-lock.json
+- structure.md     # full architecture and endpoint reference
+- README.md
 ```
 
 ---
@@ -62,130 +68,73 @@ quizloom/
     <tr>
       <th>Layer</th>
       <th>Technology</th>
-      <th>Used In</th>
       <th>Purpose</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td>Frontend</td>
-      <td>React 18</td>
-      <td><code>client/src</code></td>
-      <td>Component-based UI for teacher and student experiences.</td>
+      <td>React 18, Vite, React Router DOM</td>
+      <td>SPA routing and page rendering</td>
     </tr>
     <tr>
       <td>Frontend</td>
-      <td>Vite</td>
-      <td><code>client/vite.config.js</code>, client build/dev scripts</td>
-      <td>Fast dev server and optimized production bundling.</td>
+      <td>TanStack React Query, Axios</td>
+      <td>API data fetching, caching, mutations</td>
     </tr>
     <tr>
       <td>Frontend</td>
-      <td>React Router DOM</td>
-      <td><code>client/src/App.jsx</code></td>
-      <td>Routing for auth, student quiz flow, and protected teacher pages.</td>
+      <td>Tailwind CSS, Radix UI, React Hook Form, Zod</td>
+      <td>UI system and validation</td>
     </tr>
     <tr>
       <td>Frontend</td>
-      <td>TanStack React Query</td>
-      <td>Teacher and student pages, API-bound data flows</td>
-      <td>Server-state caching, query lifecycle management, and mutation invalidation.</td>
-    </tr>
-    <tr>
-      <td>Frontend</td>
-      <td>Tailwind CSS + Radix UI</td>
-      <td><code>client/src/components/ui</code>, <code>client/src/index.css</code></td>
-      <td>Design system primitives and utility-first styling.</td>
-    </tr>
-    <tr>
-      <td>Frontend</td>
-      <td>Axios</td>
-      <td><code>client/src/services/api.js</code></td>
-      <td>HTTP client with auth header injection and global error toast interceptor.</td>
-    </tr>
-    <tr>
-      <td>Frontend</td>
-      <td>Recharts</td>
-      <td><code>client/src/components/teacher/ParticipantsTrendChart.jsx</code></td>
-      <td>Dashboard analytics visualization (participants trend charts).</td>
-    </tr>
-    <tr>
-      <td>Frontend</td>
-      <td>Zod</td>
-      <td>Frontend input/schema validation points</td>
-      <td>Runtime-safe validation for structured payload handling.</td>
-    </tr>
-    <tr>
-      <td>Frontend</td>
-      <td>XLSX</td>
-      <td><code>client/src/utils/excelParser.js</code></td>
-      <td>Client-side parsing and validation of question import spreadsheets.</td>
+      <td>Recharts, XLSX</td>
+      <td>Charts and spreadsheet workflows</td>
     </tr>
     <tr>
       <td>Backend</td>
-      <td>Node.js + Express</td>
-      <td><code>server/app.js</code>, <code>server/routes</code>, <code>server/controllers</code></td>
-      <td>REST API, middleware pipeline, and request handling.</td>
+      <td>Node.js, Express</td>
+      <td>REST API and middleware pipeline</td>
     </tr>
     <tr>
       <td>Backend</td>
-      <td>PostgreSQL + <code>pg</code></td>
-      <td><code>server/config/db.js</code>, <code>server/sql/schema.sql</code></td>
-      <td>Relational data storage for users, quizzes, sessions, and responses.</td>
+      <td>PostgreSQL (<code>pg</code>)</td>
+      <td>Primary relational data store</td>
     </tr>
     <tr>
       <td>Backend</td>
-      <td><code>jsonwebtoken</code></td>
-      <td><code>server/controllers/auth.controller.js</code>, <code>server/middleware/authenticate.js</code></td>
-      <td>Teacher authentication using signed JWT access tokens.</td>
+      <td><code>jsonwebtoken</code>, <code>bcryptjs</code></td>
+      <td>JWT auth and password hashing</td>
     </tr>
     <tr>
       <td>Backend</td>
-      <td><code>bcryptjs</code></td>
-      <td><code>server/controllers/auth.controller.js</code></td>
-      <td>Password hashing and credential verification.</td>
-    </tr>
-    <tr>
-      <td>Backend</td>
-      <td><code>exceljs</code></td>
-      <td><code>server/controllers/quizzes.controller.js</code></td>
-      <td>Generate downloadable quiz response exports in <code>.xlsx</code> format.</td>
-    </tr>
-    <tr>
-      <td>Backend</td>
-      <td>Zod</td>
-      <td><code>server/middleware/validate.js</code> + controller schemas</td>
-      <td>Request body/query validation and consistent API error shaping.</td>
+      <td><code>exceljs</code>, <code>multer</code>, Zod</td>
+      <td>Export generation, avatar upload, request validation</td>
     </tr>
     <tr>
       <td>Tooling</td>
-      <td><code>concurrently</code></td>
-      <td>Root <code>package.json</code> scripts</td>
-      <td>Run client and server processes together in local development/start flows.</td>
-    </tr>
-    <tr>
-      <td>Tooling</td>
-      <td><code>nodemon</code></td>
-      <td><code>server/package.json</code> (<code>npm run dev</code>)</td>
-      <td>Auto-restart backend during development on file changes.</td>
+      <td><code>concurrently</code>, <code>nodemon</code></td>
+      <td>Local multi-process dev and server reload</td>
     </tr>
   </tbody>
 </table>
 
 ---
 
-## How To Run
+## Getting Started
 
 ### Prerequisites
+
 - Node.js 20+
 - npm 10+
 - PostgreSQL 14+
 
-### 1. Clone and install dependencies
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/prawesh-12/quiz-platform.git
-cd quizloom
+cd quiz-platform
 npm run install:all
 ```
 
@@ -196,12 +145,16 @@ cp server/.env.example server/.env
 cp client/.env.example client/.env
 ```
 
-Update `server/.env` with at least:
-- `DATABASE_URL`
-- `JWT_SECRET`
-- `CLIENT_URL`
+Update `server/.env`:
 
-### 3. Initialize database schema
+- Required: `DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`
+- Recommended: `ADMIN_NAME`, `JWT_EXPIRES_IN`, `CLIENT_URLS`, `PORT`, `NODE_ENV`
+
+Update `client/.env`:
+
+- `VITE_API_URL` (typically `http://localhost:5000` in local dev)
+
+### 3. Initialize schema
 
 ```bash
 cd server
@@ -209,35 +162,57 @@ psql "$DATABASE_URL" -f sql/schema.sql
 cd ..
 ```
 
-### 4. Run in development mode
+Optional manual migration commands:
+
+```bash
+npm run migrate-plan1 --prefix server
+npm run migrate-plan14-avatar --prefix server
+node server/scripts/migrate_scheduled_status.js
+```
+
+### 4. Run development mode
 
 ```bash
 npm run dev
 ```
 
-Default URLs:
+Default dev URLs:
+
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:5000`
 
-### 5. Build / run production mode
+### 5. Build and run production mode
 
 ```bash
 npm run build
 npm run start
 ```
 
+Notes:
+
+- `npm run build` builds the frontend (`client`) only.
+- `npm run start` runs `server` + `client` preview concurrently.
+
+---
+
+## Auth and Token Model
+
+- Teacher and admin APIs use Bearer JWT (`Authorization: Bearer <token>`).
+- Student progress/submit and violation reporting use `X-Session-Token`.
+- Quiz entry uses `access_token` + `access_code`.
+
 ---
 
 ## Detailed Documentation
 
-For complete project documentation, refer to:
+For complete architecture, routes, API mappings, auth model, and DB details:
 
-- [`structure.md`](./structure.md): full architecture, routes, APIs, auth flow, DB mapping, and lifecycle details.
+- [`structure.md`](./structure.md)
 
 ---
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE)
+MIT - see [`LICENSE`](./LICENSE)
 
 ---
