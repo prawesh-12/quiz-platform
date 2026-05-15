@@ -3,6 +3,26 @@
 QuizLoom is a full-stack quiz platform for teachers, students, and administrators. It supports quiz authoring, scheduled activation, live monitoring, response analytics, proctoring flags, and Excel import/export workflows.
 
 ---
+# Access of platform
+<table border="1" cellpadding="10" cellspacing="0">
+  <tr>
+    <th>Role</th>
+    <th>Email</th>
+    <th>Password</th>
+  </tr>
+  <tr>
+    <td>Admin Login</td>
+    <td>admin@quizloom.com</td>
+    <td>pass@123</td>
+  </tr>
+  <tr>
+    <td>Teacher Login</td>
+    <td>nandini@nandini.com</td>
+    <td>nandini@123</td>
+  </tr>
+</table>
+
+---
 
 ## Previews
 
