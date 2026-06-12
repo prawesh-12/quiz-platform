@@ -1,17 +1,19 @@
 import { Router } from "express";
 
 import {
-  answerProgressSchema,
   enterSession,
-  enterSessionSchema,
   getSessionResult,
   getSessionTiming,
-  progressSessionSchema,
   saveSessionAnswer,
   saveSessionProgress,
-  submitSession,
-  submitSessionSchema
+  submitSession
 } from "../controllers/sessions.controller.js";
+import {
+  answerProgressSchema,
+  enterSessionSchema,
+  progressSessionSchema,
+  submitSessionSchema
+} from "../validators/sessions.validator.js";
 import rateLimit from "../middleware/rateLimit.js";
 import validate from "../middleware/validate.js";
 

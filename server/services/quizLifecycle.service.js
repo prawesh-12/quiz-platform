@@ -1,8 +1,4 @@
-import { randomBytes } from "node:crypto";
-
-function generateAccessToken() {
-  return randomBytes(8).toString("hex");
-}
+import { generateAccessToken } from "../utils/accessToken.js";
 
 export function isValidStatusTransition(currentStatus, nextStatus) {
   if (currentStatus === "draft" && nextStatus === "active") {

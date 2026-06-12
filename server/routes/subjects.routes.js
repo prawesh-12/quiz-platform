@@ -8,11 +8,11 @@ import {
 } from "../controllers/units.controller.js";
 import {
     createSubject,
-    createSubjectSchema,
     deleteSubject,
     getQuizHistoryBySubject,
     listSubjects,
 } from "../controllers/subjects.controller.js";
+import { createSubjectSchema } from "../validators/subjects.validator.js";
 import authenticate from "../middleware/authenticate.js";
 import authorize from "../middleware/authorize.js";
 import validate from "../middleware/validate.js";

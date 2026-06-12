@@ -1,7 +1,4 @@
-import { query } from "../config/db.js";
-
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
-const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+import * as avatarService from "../services/avatars.service.js";
 
 function parseTeacherId(rawId) {
   const teacherId = Number(rawId);
@@ -11,25 +8,10 @@ function parseTeacherId(rawId) {
   return teacherId;
 }
 
-async function fetchAvatarByTeacherId(teacherId) {
-  return query(
-    `
-    SELECT id, avatar_data, avatar_mime
-    FROM teachers
-    WHERE id = $1
-    `,
-    [teacherId]
-  );
-}
-
-function sendAvatarOr404(res, row) {
-  if (!row.avatar_data || !row.avatar_mime) {
-    return res.status(404).json({ error: "Avatar not found" });
-  }
-
-  res.set("Content-Type", row.avatar_mime);
+function sendAvatar(res, { data, mime }) {
+  res.set("Content-Type", mime);
   res.set("Cache-Control", "private, max-age=86400");
-  return res.send(row.avatar_data);
+  return res.send(data);
 }
 
 export async function uploadAvatar(req, res, next) {
@@ -39,35 +21,8 @@ export async function uploadAvatar(req, res, next) {
       return res.status(401).json({ error: "Invalid teacher token" });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ error: "Avatar file is required" });
-    }
-
-    if (!ALLOWED_MIME_TYPES.has(req.file.mimetype)) {
-      return res.status(400).json({ error: "Only JPEG, PNG, or WebP images are allowed" });
-    }
-
-    if (req.file.size > MAX_AVATAR_BYTES) {
-      return res.status(400).json({ error: "Avatar file must be 2MB or smaller" });
-    }
-
-    const result = await query(
-      `
-      UPDATE teachers
-      SET avatar_data = $1,
-          avatar_mime = $2,
-          has_avatar = TRUE
-      WHERE id = $3
-      RETURNING id
-      `,
-      [req.file.buffer, req.file.mimetype, teacherId]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Teacher not found" });
-    }
-
-    return res.status(200).json({ message: "Avatar updated", has_avatar: true });
+    const result = await avatarService.saveAvatar({ teacherId, file: req.file });
+    return res.status(200).json(result);
   } catch (error) {
     return next(error);
   }
@@ -80,12 +35,7 @@ export async function getMyAvatar(req, res, next) {
       return res.status(401).json({ error: "Invalid teacher token" });
     }
 
-    const result = await fetchAvatarByTeacherId(teacherId);
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Teacher not found" });
-    }
-
-    return sendAvatarOr404(res, result.rows[0]);
+    return sendAvatar(res, await avatarService.getAvatar(teacherId));
   } catch (error) {
     return next(error);
   }
@@ -93,28 +43,25 @@ export async function getMyAvatar(req, res, next) {
 
 export async function getTeacherAvatar(req, res, next) {
   try {
-    const teacherId = parseTeacherId(req.params.id);
-    if (!teacherId) {
+    const targetId = parseTeacherId(req.params.id);
+    if (!targetId) {
       return res.status(400).json({ error: "Invalid teacher id" });
     }
 
+    let requesterId = null;
     if (req.user?.role !== "admin") {
-      const requesterId = parseTeacherId(req.user?.userId ?? req.user?.id);
+      requesterId = parseTeacherId(req.user?.userId ?? req.user?.id);
       if (!requesterId) {
         return res.status(401).json({ error: "Invalid teacher token" });
       }
-
-      if (requesterId !== teacherId) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
     }
 
-    const result = await fetchAvatarByTeacherId(teacherId);
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Teacher not found" });
-    }
-
-    return sendAvatarOr404(res, result.rows[0]);
+    const avatar = await avatarService.getAvatarForRequester({
+      targetId,
+      requesterRole: req.user?.role,
+      requesterId,
+    });
+    return sendAvatar(res, avatar);
   } catch (error) {
     return next(error);
   }
@@ -127,23 +74,7 @@ export async function deleteAvatar(req, res, next) {
       return res.status(401).json({ error: "Invalid teacher token" });
     }
 
-    const result = await query(
-      `
-      UPDATE teachers
-      SET avatar_data = NULL,
-          avatar_mime = NULL,
-          has_avatar = FALSE
-      WHERE id = $1
-      RETURNING id
-      `,
-      [teacherId]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Teacher not found" });
-    }
-
-    return res.status(200).json({ message: "Avatar removed", has_avatar: false });
+    return res.status(200).json(await avatarService.removeAvatar(teacherId));
   } catch (error) {
     return next(error);
   }

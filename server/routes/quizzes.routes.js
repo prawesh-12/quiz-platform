@@ -2,9 +2,7 @@ import { Router } from "express";
 
 import {
   autoGenerateQuiz,
-  autoGenerateQuizSchema,
   createManualQuiz,
-  createManualQuizSchema,
   deleteQuiz,
   duplicateQuiz,
   exportQuizResponses,
@@ -14,10 +12,14 @@ import {
   getQuizPreview,
   listQuizzes,
   updateQuiz,
-  updateQuizSchema,
-  updateQuizStatus,
-  updateQuizStatusSchema
+  updateQuizStatus
 } from "../controllers/quizzes.controller.js";
+import {
+  autoGenerateQuizSchema,
+  createManualQuizSchema,
+  updateQuizSchema,
+  updateQuizStatusSchema
+} from "../validators/quizzes.validator.js";
 import { getQuizResponses } from "../controllers/responses.controller.js";
 import authenticate from "../middleware/authenticate.js";
 import authorize from "../middleware/authorize.js";

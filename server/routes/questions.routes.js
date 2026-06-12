@@ -2,14 +2,16 @@ import { Router } from "express";
 
 import {
   bulkImportQuestions,
-  bulkImportQuestionsSchema,
   createQuestion,
-  createQuestionSchema,
   deleteQuestion,
   listQuestions,
-  updateQuestion,
-  updateQuestionSchema
+  updateQuestion
 } from "../controllers/questions.controller.js";
+import {
+  bulkImportQuestionsSchema,
+  createQuestionSchema,
+  updateQuestionSchema
+} from "../validators/questions.validator.js";
 import authenticate from "../middleware/authenticate.js";
 import authorize from "../middleware/authorize.js";
 import validate from "../middleware/validate.js";

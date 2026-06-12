@@ -1,23 +1,8 @@
 import pool from "../config/db.js";
+import { readPositiveIntegerEnv } from "../utils/env.js";
 import { scoreSubmission } from "./scorer.service.js";
 
 const DEFAULT_AUTO_SUBMIT_BATCH_SIZE = 100;
-
-function readPositiveIntegerEnv(name, fallback) {
-  const rawValue = process.env[name];
-
-  if (rawValue == null || rawValue === "") {
-    return fallback;
-  }
-
-  const value = Number(rawValue);
-  if (Number.isInteger(value) && value > 0) {
-    return value;
-  }
-
-  console.warn(`Invalid ${name} value "${rawValue}". Falling back to ${fallback}.`);
-  return fallback;
-}
 
 export async function fetchQuizQuestionsForScoring(dbClient, quizId) {
   const result = await dbClient.query(

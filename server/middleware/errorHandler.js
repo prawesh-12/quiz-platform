@@ -3,8 +3,6 @@ export default function errorHandler(err, req, res, next) {
     return next(err);
   }
 
-  console.error(err);
-
   const PG_ERROR_MAP = {
     "28P01": {
       statusCode: 503,
@@ -28,5 +26,15 @@ export default function errorHandler(err, req, res, next) {
   const statusCode = mapped?.statusCode || err.statusCode || 500;
   const message = mapped?.message || err.message || "Internal server error";
 
-  return res.status(statusCode).json({ error: message });
+  // Only server-side faults are noise-worthy; expected 4xx (validation, not-found) are not.
+  if (statusCode >= 500) {
+    console.error(err);
+  }
+
+  const body = { error: message };
+  if (err.details && typeof err.details === "object") {
+    Object.assign(body, err.details);
+  }
+
+  return res.status(statusCode).json(body);
 }

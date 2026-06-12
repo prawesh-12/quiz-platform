@@ -2,9 +2,9 @@ import { Router } from "express";
 
 import {
   createViolation,
-  createViolationSchema,
   getViolationsBySession
 } from "../controllers/violations.controller.js";
+import { createViolationSchema } from "../validators/violations.validator.js";
 import authenticate from "../middleware/authenticate.js";
 import authorize from "../middleware/authorize.js";
 import rateLimit from "../middleware/rateLimit.js";
