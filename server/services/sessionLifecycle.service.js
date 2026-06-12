@@ -37,32 +37,62 @@ export async function fetchStoredAnswers(dbClient, sessionId) {
   return result.rows;
 }
 
-export async function replaceSessionAnswers(dbClient, sessionId, submittedAnswers, { isCorrect = undefined } = {}) {
-  await dbClient.query(
-    `
-    DELETE FROM student_answers
-    WHERE session_id = $1
-    `,
-    [sessionId]
-  );
+function normalizeAnswers(submittedAnswers, { isCorrect = undefined } = {}) {
+  const answerMap = new Map();
 
   for (const answer of submittedAnswers) {
-    await dbClient.query(
-      `
-      INSERT INTO student_answers (session_id, question_id, selected_option, is_correct)
-      VALUES ($1, $2, $3, $4)
-      ON CONFLICT (session_id, question_id)
-      DO UPDATE
-      SET selected_option = EXCLUDED.selected_option,
-          is_correct = EXCLUDED.is_correct,
-          answered_at = (NOW() AT TIME ZONE 'Asia/Kolkata')
-      `,
-      [sessionId, answer.question_id, answer.selected_option ?? null, isCorrect ?? answer.is_correct ?? null]
-    );
+    const questionId = Number(answer.question_id);
+
+    if (!Number.isInteger(questionId) || questionId <= 0) {
+      continue;
+    }
+
+    answerMap.set(questionId, {
+      question_id: questionId,
+      selected_option: answer.selected_option ?? null,
+      is_correct: isCorrect === undefined ? answer.is_correct ?? null : isCorrect
+    });
   }
+
+  return Array.from(answerMap.values());
 }
 
-export async function finalizeSessionSubmission(dbClient, { sessionId, quizId, submittedAnswers }) {
+export async function upsertSessionAnswers(dbClient, sessionId, submittedAnswers, { isCorrect = undefined } = {}) {
+  const answers = normalizeAnswers(submittedAnswers, { isCorrect });
+
+  if (!answers.length) {
+    return 0;
+  }
+
+  const result = await dbClient.query(
+    `
+    WITH incoming AS (
+      SELECT
+        question_id::int AS question_id,
+        selected_option::char(1) AS selected_option,
+        is_correct::boolean AS is_correct
+      FROM json_to_recordset($2::json) AS answer(
+        question_id int,
+        selected_option text,
+        is_correct boolean
+      )
+    )
+    INSERT INTO student_answers (session_id, question_id, selected_option, is_correct)
+    SELECT $1, question_id, selected_option, is_correct
+    FROM incoming
+    ON CONFLICT (session_id, question_id)
+    DO UPDATE
+    SET selected_option = EXCLUDED.selected_option,
+        is_correct = EXCLUDED.is_correct,
+        answered_at = (NOW() AT TIME ZONE 'Asia/Kolkata')
+    `,
+    [sessionId, JSON.stringify(answers)]
+  );
+
+  return result.rowCount;
+}
+
+export async function finalizeSessionSubmission(dbClient, { sessionId, quizId, submittedAnswers, submissionId = null }) {
   const quizQuestions = await fetchQuizQuestionsForScoring(dbClient, quizId);
 
   if (!quizQuestions.length) {
@@ -75,7 +105,7 @@ export async function finalizeSessionSubmission(dbClient, { sessionId, quizId, s
 
   const { gradedAnswers, score, total_points } = scoreSubmission(quizQuestions, submittedAnswers);
 
-  await replaceSessionAnswers(dbClient, sessionId, gradedAnswers);
+  await upsertSessionAnswers(dbClient, sessionId, gradedAnswers);
 
   await dbClient.query(
     `
@@ -83,10 +113,11 @@ export async function finalizeSessionSubmission(dbClient, { sessionId, quizId, s
     SET status = 'submitted',
         score = $1,
         total_points = $2,
-        submitted_at = (NOW() AT TIME ZONE 'Asia/Kolkata')
+        submitted_at = (NOW() AT TIME ZONE 'Asia/Kolkata'),
+        submission_id = COALESCE($4, submission_id)
     WHERE id = $3
     `,
-    [score, total_points, sessionId]
+    [score, total_points, sessionId, submissionId]
   );
 
   const breakdown = quizQuestions.map((question) => {

@@ -13,3 +13,5 @@ db_plan.md
 .agents/
 .kombai/
 security.md
+extras/
+skills-lock.json

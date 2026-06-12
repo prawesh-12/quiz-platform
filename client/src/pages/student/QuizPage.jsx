@@ -60,6 +60,14 @@ function secondsUntil(targetMs, nowMs) {
     return Math.max(0, Math.ceil((targetMs - nowMs) / 1000));
 }
 
+function createSubmissionId() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+    }
+
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function QuestionContent({ question }) {
     if (!question) {
         return null;
@@ -83,9 +91,11 @@ export default function QuizPage() {
     const location = useLocation();
     const [submitError, setSubmitError] = useState("");
     const [answers, setAnswers] = useState({});
+    const [dirtyAnswers, setDirtyAnswers] = useState({});
     const [result, setResult] = useState(null);
     const [hasSubmitted, setHasSubmitted] = useState(false);
     const { toast } = useToast();
+    const submissionIdRef = useRef(createSubmissionId());
 
     const statePayload = location.state;
     const storedPayload = useMemo(() => readStoredPayload(), []);
@@ -194,12 +204,28 @@ export default function QuizPage() {
 
     const submitMutation = useMutation({
         mutationFn: ({ submittedAnswers }) =>
-            sessionService.submit({ answers: submittedAnswers }, sessionToken),
+            sessionService.submit(
+                {
+                    answers: submittedAnswers,
+                    submission_id: submissionIdRef.current,
+                },
+                sessionToken,
+            ),
     });
 
     const progressMutation = useMutation({
-        mutationFn: ({ partialAnswers }) =>
-            sessionService.saveProgress({ answers: partialAnswers }, sessionToken),
+        mutationFn: ({ partialAnswers }) => {
+            if (partialAnswers.length === 1) {
+                const [answer] = partialAnswers;
+                return sessionService.saveAnswer(
+                    answer.question_id,
+                    { selected_option: answer.selected_option },
+                    sessionToken,
+                );
+            }
+
+            return sessionService.saveProgress({ answers: partialAnswers }, sessionToken);
+        },
         onSuccess: (data) => {
             syncServerTiming(data);
 
@@ -405,8 +431,13 @@ export default function QuizPage() {
             return undefined;
         }
 
+        const dirtyEntries = Object.entries(dirtyAnswers);
+        if (!dirtyEntries.length) {
+            return undefined;
+        }
+
         const timeout = window.setTimeout(() => {
-            const partialAnswers = Object.entries(answers).map(
+            const partialAnswers = dirtyEntries.map(
                 ([questionId, selectedOption]) => ({
                     question_id: Number(questionId),
                     selected_option: selectedOption || null,
@@ -414,13 +445,30 @@ export default function QuizPage() {
             );
 
             if (partialAnswers.length) {
-                progressMutation.mutate({ partialAnswers });
+                progressMutation
+                    .mutateAsync({ partialAnswers })
+                    .then(() => {
+                        setDirtyAnswers((prev) => {
+                            const next = { ...prev };
+
+                            for (const [questionId, selectedOption] of dirtyEntries) {
+                                if (next[questionId] === selectedOption) {
+                                    delete next[questionId];
+                                }
+                            }
+
+                            return next;
+                        });
+                    })
+                    .catch(() => {
+                        // Keep dirty answers queued; the next answer change will retry them.
+                    });
             }
-        }, 600);
+        }, 1000);
 
         return () => window.clearTimeout(timeout);
     }, [
-        answers,
+        dirtyAnswers,
         hasSubmitted,
         payload,
         progressMutation,
@@ -434,6 +482,10 @@ export default function QuizPage() {
         }
 
         setAnswers((prev) => ({
+            ...prev,
+            [questionId]: optionKey,
+        }));
+        setDirtyAnswers((prev) => ({
             ...prev,
             [questionId]: optionKey,
         }));

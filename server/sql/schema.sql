@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS student_sessions (
   division VARCHAR(10) NOT NULL,
   group_no VARCHAR(10) NOT NULL,
   session_token VARCHAR(64) UNIQUE NOT NULL,
+  submission_id VARCHAR(64),
   status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'submitted')),
   score INT,
   total_points INT,
@@ -127,6 +128,9 @@ CREATE INDEX IF NOT EXISTS idx_questions_subject_id ON questions(subject_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_questions_quiz_id ON quiz_questions(quiz_id);
 CREATE INDEX IF NOT EXISTS idx_student_sessions_quiz_id ON student_sessions(quiz_id);
 CREATE INDEX IF NOT EXISTS idx_student_sessions_session_token ON student_sessions(session_token);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_student_sessions_submission_id
+ON student_sessions (submission_id)
+WHERE submission_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_student_answers_session_id ON student_answers(session_id);
 CREATE INDEX IF NOT EXISTS idx_violation_flags_session_id ON violation_flags(session_id);
 CREATE INDEX IF NOT EXISTS idx_questions_unit_id ON questions(unit_id);

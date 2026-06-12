@@ -5,7 +5,7 @@ import pool, { query } from "../config/db.js";
 import {
     fetchStoredAnswers,
     finalizeSessionSubmission,
-    replaceSessionAnswers,
+    upsertSessionAnswers,
 } from "../services/sessionLifecycle.service.js";
 import { resolveQuizWindow } from "../services/quizTiming.service.js";
 
@@ -28,14 +28,23 @@ export const enterSessionSchema = z.object({
 
 export const submitSessionSchema = z.object({
     answers: z.array(answerPayloadSchema).default([]),
+    submission_id: z.string().trim().min(1).max(64).optional(),
 });
 
 export const progressSessionSchema = z.object({
     answers: z.array(answerPayloadSchema).default([]),
 });
 
+export const answerProgressSchema = z.object({
+    selected_option: optionSchema.nullable(),
+});
+
 const sessionHeadersSchema = z.object({
     "x-session-token": z.string().trim().min(8).max(128),
+});
+
+const answerParamsSchema = z.object({
+    questionId: z.coerce.number().int().positive(),
 });
 
 async function fetchQuizQuestions(quizId, dbClient = query) {
@@ -114,7 +123,7 @@ function timingPayload(window) {
     };
 }
 
-async function fetchSessionContext(dbClient, sessionToken) {
+async function fetchSessionContext(dbClient, sessionToken, { lockSession = false } = {}) {
     const sessionResult = await dbClient.query(
         `
       SELECT
@@ -123,6 +132,7 @@ async function fetchSessionContext(dbClient, sessionToken) {
         ss.status,
         ss.score,
         ss.total_points,
+        ss.submission_id,
         q.status AS quiz_status,
         q.scheduled_start,
         q.scheduled_end,
@@ -132,6 +142,7 @@ async function fetchSessionContext(dbClient, sessionToken) {
       FROM student_sessions ss
       INNER JOIN quizzes q ON q.id = ss.quiz_id
       WHERE ss.session_token = $1
+      ${lockSession ? "FOR UPDATE OF ss" : ""}
       `,
         [sessionToken],
     );
@@ -158,6 +169,14 @@ async function fetchSessionContext(dbClient, sessionToken) {
     };
 }
 
+async function rollbackQuietly(client) {
+    try {
+        await client.query("ROLLBACK");
+    } catch {
+        // ignore rollback failures
+    }
+}
+
 function buildSessionClosedPayload(session, quizWindow) {
     return {
         session_closed:
@@ -180,6 +199,46 @@ export async function getSessionTiming(req, res, next) {
         return res.status(200).json(
             buildSessionClosedPayload(context.session, context.quizWindow),
         );
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res
+                .status(400)
+                .json({ error: "Missing or invalid session token header" });
+        }
+
+        return next(error);
+    }
+}
+
+export async function getSessionResult(req, res, next) {
+    try {
+        const headerPayload = sessionHeadersSchema.parse(req.headers);
+        const sessionToken = headerPayload["x-session-token"];
+
+        const context = await fetchSessionContext(pool, sessionToken);
+        if (!context) {
+            return res.status(404).json({ error: "Session not found" });
+        }
+
+        const { session, quizWindow } = context;
+
+        if (session.status !== "submitted") {
+            return res.status(409).json({
+                error: "Session result is not available yet",
+                ...timingPayload(quizWindow),
+            });
+        }
+
+        const breakdown = await fetchBreakdown(pool, session.id, session.quiz_id);
+
+        return res.status(200).json({
+            already_submitted: true,
+            score: Number(session.score ?? 0),
+            total_points: Number(session.total_points ?? 0),
+            percentage: withPercent(session.score, session.total_points),
+            breakdown,
+            ...timingPayload(quizWindow),
+        });
     } catch (error) {
         if (error instanceof z.ZodError) {
             return res
@@ -292,16 +351,20 @@ export async function enterSession(req, res, next) {
     }
 }
 
-export async function saveSessionProgress(req, res, next) {
+async function saveAnswersForSession(req, res, next, answers) {
     const client = await pool.connect();
 
     try {
         const headerPayload = sessionHeadersSchema.parse(req.headers);
         const sessionToken = headerPayload["x-session-token"];
-        const { answers } = req.validatedBody;
 
-        const context = await fetchSessionContext(client, sessionToken);
+        await client.query("BEGIN");
+
+        const context = await fetchSessionContext(client, sessionToken, {
+            lockSession: true,
+        });
         if (!context) {
+            await rollbackQuietly(client);
             return res.status(404).json({ error: "Session not found" });
         }
 
@@ -313,6 +376,7 @@ export async function saveSessionProgress(req, res, next) {
                 session.id,
                 session.quiz_id,
             );
+            await client.query("COMMIT");
             return res.status(200).json({
                 session_closed: true,
                 already_submitted: true,
@@ -325,6 +389,7 @@ export async function saveSessionProgress(req, res, next) {
         }
 
         if (quizWindow.phase === "scheduled") {
+            await rollbackQuietly(client);
             return res.status(409).json({
                 error: "Quiz has not started yet",
                 ...timingPayload(quizWindow),
@@ -332,6 +397,7 @@ export async function saveSessionProgress(req, res, next) {
         }
 
         if (quizWindow.phase !== "active") {
+            await rollbackQuietly(client);
             return res.status(409).json({
                 error: "Quiz has ended. Responses are no longer accepted.",
                 session_closed: true,
@@ -339,8 +405,7 @@ export async function saveSessionProgress(req, res, next) {
             });
         }
 
-        await client.query("BEGIN");
-        await replaceSessionAnswers(client, session.id, answers, {
+        await upsertSessionAnswers(client, session.id, answers, {
             isCorrect: null,
         });
         await client.query("COMMIT");
@@ -350,11 +415,7 @@ export async function saveSessionProgress(req, res, next) {
             ...timingPayload(quizWindow),
         });
     } catch (error) {
-        try {
-            await client.query("ROLLBACK");
-        } catch {
-            // ignore rollback failures
-        }
+        await rollbackQuietly(client);
 
         if (error instanceof z.ZodError) {
             return res
@@ -368,16 +429,44 @@ export async function saveSessionProgress(req, res, next) {
     }
 }
 
+export async function saveSessionProgress(req, res, next) {
+    return saveAnswersForSession(req, res, next, req.validatedBody.answers);
+}
+
+export async function saveSessionAnswer(req, res, next) {
+    try {
+        const { questionId } = answerParamsSchema.parse(req.params);
+
+        return saveAnswersForSession(req, res, next, [
+            {
+                question_id: questionId,
+                selected_option: req.validatedBody.selected_option,
+            },
+        ]);
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ error: "Invalid question id" });
+        }
+
+        return next(error);
+    }
+}
+
 export async function submitSession(req, res, next) {
     const client = await pool.connect();
 
     try {
         const headerPayload = sessionHeadersSchema.parse(req.headers);
         const sessionToken = headerPayload["x-session-token"];
-        const { answers } = req.validatedBody;
+        const { answers, submission_id: submissionId = null } = req.validatedBody;
 
-        const context = await fetchSessionContext(client, sessionToken);
+        await client.query("BEGIN");
+
+        const context = await fetchSessionContext(client, sessionToken, {
+            lockSession: true,
+        });
         if (!context) {
+            await rollbackQuietly(client);
             return res.status(404).json({ error: "Session not found" });
         }
 
@@ -389,6 +478,7 @@ export async function submitSession(req, res, next) {
                 session.id,
                 session.quiz_id,
             );
+            await client.query("COMMIT");
             return res.status(200).json({
                 already_submitted: true,
                 score: Number(session.score ?? 0),
@@ -400,6 +490,7 @@ export async function submitSession(req, res, next) {
         }
 
         if (quizWindow.phase === "scheduled") {
+            await rollbackQuietly(client);
             return res.status(409).json({
                 error: "Quiz has not started yet",
                 ...timingPayload(quizWindow),
@@ -407,18 +498,11 @@ export async function submitSession(req, res, next) {
         }
 
         if (quizWindow.phase !== "active") {
+            await rollbackQuietly(client);
             return res.status(409).json({
                 error: "Quiz has ended. Responses are no longer accepted.",
                 session_closed: true,
                 ...timingPayload(quizWindow),
-            });
-        }
-
-        await client.query("BEGIN");
-
-        if (answers.length) {
-            await replaceSessionAnswers(client, session.id, answers, {
-                isCorrect: null,
             });
         }
 
@@ -429,6 +513,7 @@ export async function submitSession(req, res, next) {
             sessionId: session.id,
             quizId: session.quiz_id,
             submittedAnswers,
+            submissionId,
         });
 
         await client.query("COMMIT");
@@ -441,11 +526,7 @@ export async function submitSession(req, res, next) {
             ...timingPayload(quizWindow),
         });
     } catch (error) {
-        try {
-            await client.query("ROLLBACK");
-        } catch {
-            // ignore rollback failures
-        }
+        await rollbackQuietly(client);
 
         if (error instanceof z.ZodError) {
             return res

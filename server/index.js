@@ -115,6 +115,17 @@ try {
   `);
 
   await query(`
+    ALTER TABLE student_sessions
+    ADD COLUMN IF NOT EXISTS submission_id VARCHAR(64);
+  `);
+
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_student_sessions_submission_id
+    ON student_sessions (submission_id)
+    WHERE submission_id IS NOT NULL;
+  `);
+
+  await query(`
     CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_start ON quizzes(scheduled_start);
   `);
 
