@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
 import { transitionQuizStatus } from "./quizLifecycle.service.js";
+import { finalizePendingSessionsForQuiz } from "./sessionLifecycle.service.js";
 
 export async function processScheduledTransitions() {
   const client = await pool.connect();
@@ -43,6 +44,7 @@ export async function processScheduledTransitions() {
       `
     );
 
+    const quizzesToFinalize = [];
     for (const row of endRows.rows) {
       await client.query("BEGIN");
       const result = await transitionQuizStatus(client, {
@@ -55,6 +57,18 @@ export async function processScheduledTransitions() {
         await client.query("ROLLBACK");
       } else {
         await client.query("COMMIT");
+        if (result.requires_finalization) {
+          quizzesToFinalize.push(row.id);
+        }
+      }
+    }
+
+    // Auto-submit after the 'ended' status committed; one quiz failing must not block the rest.
+    for (const quizId of quizzesToFinalize) {
+      try {
+        await finalizePendingSessionsForQuiz(quizId);
+      } catch (error) {
+        console.error(`Scheduler failed to auto-submit pending sessions for quiz ${quizId}:`, error);
       }
     }
   } finally {

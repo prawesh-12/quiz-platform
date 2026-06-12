@@ -114,6 +114,20 @@ try {
     ON student_answers(session_id, question_id);
   `);
 
+  // Drop indexes now made redundant by the unique index created above (created first so
+  // the answer-upsert ON CONFLICT never loses its arbiter when the old constraint goes).
+  await query(`
+    ALTER TABLE student_answers
+    DROP CONSTRAINT IF EXISTS student_answers_session_id_question_id_key;
+  `);
+  await query(`DROP INDEX IF EXISTS idx_student_answers_session_id;`);
+  await query(`DROP INDEX IF EXISTS idx_student_sessions_quiz_id;`);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_student_sessions_quiz_status
+    ON student_sessions(quiz_id, status);
+  `);
+
   await query(`
     ALTER TABLE student_sessions
     ADD COLUMN IF NOT EXISTS submission_id VARCHAR(64);
@@ -131,6 +145,16 @@ try {
 
   await query(`
     CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_end ON quizzes(scheduled_end);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_quizzes_created_by_status
+    ON quizzes(created_by, status);
+  `);
+
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_quizzes_access_token_status
+    ON quizzes(access_token, status);
   `);
 
   await query(`

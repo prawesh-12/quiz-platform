@@ -1,7 +1,5 @@
 import { randomBytes } from "node:crypto";
 
-import { finalizePendingSessionsForQuiz } from "./sessionLifecycle.service.js";
-
 function generateAccessToken() {
   return randomBytes(8).toString("hex");
 }
@@ -65,10 +63,9 @@ export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enfor
     accessToken = generateAccessToken();
   }
 
-  let autoSubmittedCount = 0;
-  if (statusToPersist === "ended") {
-    autoSubmittedCount = await finalizePendingSessionsForQuiz(dbClient, quizId);
-  }
+  // Don't auto-submit inside this transaction (it would hold every locked session row
+  // until all are graded); flag it so the caller finalizes after this status commits.
+  const requiresFinalization = statusToPersist === "ended";
 
   await dbClient.query(
     `
@@ -101,6 +98,6 @@ export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enfor
 
   return {
     quiz: updatedResult.rows[0],
-    auto_submitted_count: autoSubmittedCount
+    requires_finalization: requiresFinalization
   };
 }

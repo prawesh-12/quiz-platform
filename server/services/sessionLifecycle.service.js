@@ -1,4 +1,23 @@
+import pool from "../config/db.js";
 import { scoreSubmission } from "./scorer.service.js";
+
+const DEFAULT_AUTO_SUBMIT_BATCH_SIZE = 100;
+
+function readPositiveIntegerEnv(name, fallback) {
+  const rawValue = process.env[name];
+
+  if (rawValue == null || rawValue === "") {
+    return fallback;
+  }
+
+  const value = Number(rawValue);
+  if (Number.isInteger(value) && value > 0) {
+    return value;
+  }
+
+  console.warn(`Invalid ${name} value "${rawValue}". Falling back to ${fallback}.`);
+  return fallback;
+}
 
 export async function fetchQuizQuestionsForScoring(dbClient, quizId) {
   const result = await dbClient.query(
@@ -92,9 +111,7 @@ export async function upsertSessionAnswers(dbClient, sessionId, submittedAnswers
   return result.rowCount;
 }
 
-export async function finalizeSessionSubmission(dbClient, { sessionId, quizId, submittedAnswers, submissionId = null }) {
-  const quizQuestions = await fetchQuizQuestionsForScoring(dbClient, quizId);
-
+async function finalizeSessionSubmissionWithQuestions(dbClient, { sessionId, quizQuestions, submittedAnswers, submissionId = null }) {
   if (!quizQuestions.length) {
     return {
       score: 0,
@@ -141,27 +158,75 @@ export async function finalizeSessionSubmission(dbClient, { sessionId, quizId, s
   };
 }
 
-export async function finalizePendingSessionsForQuiz(dbClient, quizId) {
-  const pendingSessionsResult = await dbClient.query(
-    `
-    SELECT id, quiz_id
-    FROM student_sessions
-    WHERE quiz_id = $1 AND status = 'pending'
-    ORDER BY id ASC
-    `,
-    [quizId]
-  );
+export async function finalizeSessionSubmission(dbClient, { sessionId, quizId, submittedAnswers, submissionId = null }) {
+  const quizQuestions = await fetchQuizQuestionsForScoring(dbClient, quizId);
 
+  return finalizeSessionSubmissionWithQuestions(dbClient, {
+    sessionId,
+    quizQuestions,
+    submittedAnswers,
+    submissionId
+  });
+}
+
+// Finalizes pending sessions one batch per transaction so locks release between
+// batches (instead of one giant transaction) and multiple workers can run in parallel
+// via SKIP LOCKED. Caller must commit the quiz's 'ended' status before calling this.
+export async function finalizePendingSessionsForQuiz(quizId, { batchSize } = {}) {
+  const effectiveBatchSize =
+    batchSize || readPositiveIntegerEnv("AUTO_SUBMIT_BATCH_SIZE", DEFAULT_AUTO_SUBMIT_BATCH_SIZE);
+
+  // Immutable for a running quiz, so fetch once for all batches.
+  const quizQuestions = await fetchQuizQuestionsForScoring(pool, quizId);
   let endedCount = 0;
 
-  for (const session of pendingSessionsResult.rows) {
-    const storedAnswers = await fetchStoredAnswers(dbClient, session.id);
-    await finalizeSessionSubmission(dbClient, {
-      sessionId: session.id,
-      quizId: session.quiz_id,
-      submittedAnswers: storedAnswers
-    });
-    endedCount += 1;
+  while (true) {
+    const client = await pool.connect();
+    let batchCount = 0;
+
+    try {
+      await client.query("BEGIN");
+
+      const pendingSessionsResult = await client.query(
+        `
+        SELECT id, quiz_id
+        FROM student_sessions
+        WHERE quiz_id = $1 AND status = 'pending'
+        ORDER BY id ASC
+        LIMIT $2
+        FOR UPDATE SKIP LOCKED
+        `,
+        [quizId, effectiveBatchSize]
+      );
+
+      for (const session of pendingSessionsResult.rows) {
+        const storedAnswers = await fetchStoredAnswers(client, session.id);
+        await finalizeSessionSubmissionWithQuestions(client, {
+          sessionId: session.id,
+          quizQuestions,
+          submittedAnswers: storedAnswers
+        });
+        batchCount += 1;
+      }
+
+      await client.query("COMMIT");
+    } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // ignore rollback failures
+      }
+      client.release();
+      throw error;
+    }
+
+    client.release();
+    endedCount += batchCount;
+
+    // Short batch = no more pending rows reachable (drained, or locked by another worker).
+    if (batchCount < effectiveBatchSize) {
+      break;
+    }
   }
 
   return endedCount;

@@ -96,8 +96,7 @@ CREATE TABLE IF NOT EXISTS student_answers (
   question_id INT REFERENCES questions(id),
   selected_option CHAR(1) CHECK (selected_option IN ('a', 'b', 'c', 'd')),
   is_correct BOOLEAN,
-  answered_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE (session_id, question_id)
+  answered_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS violation_flags (
@@ -126,17 +125,25 @@ CREATE TABLE IF NOT EXISTS teacher_subjects (
 
 CREATE INDEX IF NOT EXISTS idx_questions_subject_id ON questions(subject_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_questions_quiz_id ON quiz_questions(quiz_id);
-CREATE INDEX IF NOT EXISTS idx_student_sessions_quiz_id ON student_sessions(quiz_id);
+-- Composite (quiz_id, status) also serves quiz_id-only lookups via its leading column,
+-- so no separate single-column idx_student_sessions_quiz_id is kept (avoids duplicate writes).
+CREATE INDEX IF NOT EXISTS idx_student_sessions_quiz_status ON student_sessions(quiz_id, status);
 CREATE INDEX IF NOT EXISTS idx_student_sessions_session_token ON student_sessions(session_token);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_student_sessions_submission_id
 ON student_sessions (submission_id)
 WHERE submission_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_student_answers_session_id ON student_answers(session_id);
+-- Single unique index on (session_id, question_id): backs the answer-upsert ON CONFLICT
+-- and the per-session answer reads. Defined here (not as an inline table constraint) so
+-- there is exactly one such index rather than a constraint + a duplicate index.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_student_answers_session_question_unique
+ON student_answers(session_id, question_id);
 CREATE INDEX IF NOT EXISTS idx_violation_flags_session_id ON violation_flags(session_id);
 CREATE INDEX IF NOT EXISTS idx_questions_unit_id ON questions(unit_id);
 CREATE INDEX IF NOT EXISTS idx_questions_in_subject_bank ON questions(in_subject_bank);
 CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_start ON quizzes(scheduled_start);
 CREATE INDEX IF NOT EXISTS idx_quizzes_scheduled_end ON quizzes(scheduled_end);
+CREATE INDEX IF NOT EXISTS idx_quizzes_created_by_status ON quizzes(created_by, status);
+CREATE INDEX IF NOT EXISTS idx_quizzes_access_token_status ON quizzes(access_token, status);
 CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at);
 CREATE INDEX IF NOT EXISTS idx_teacher_subjects_teacher_id ON teacher_subjects(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_teacher_subjects_subject_id ON teacher_subjects(subject_id);

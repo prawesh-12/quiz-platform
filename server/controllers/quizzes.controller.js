@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import pool, { query } from "../config/db.js";
 import { transitionQuizStatus } from "../services/quizLifecycle.service.js";
+import { finalizePendingSessionsForQuiz } from "../services/sessionLifecycle.service.js";
 import {
   planActivationWindow,
   resolveQuizWindow,
@@ -821,9 +822,19 @@ export async function updateQuizStatus(req, res, next) {
 
     await client.query("COMMIT");
 
+    // Auto-submit after the status commit; best-effort so a failure doesn't undo the end.
+    let autoSubmittedCount = 0;
+    if (transitionResult.requires_finalization) {
+      try {
+        autoSubmittedCount = await finalizePendingSessionsForQuiz(id);
+      } catch (error) {
+        console.error(`Failed to auto-submit pending sessions for quiz ${id}:`, error);
+      }
+    }
+
     return res.status(200).json({
       quiz: transitionResult.quiz,
-      auto_submitted_count: transitionResult.auto_submitted_count,
+      auto_submitted_count: autoSubmittedCount,
       share_url: transitionResult.quiz?.access_token
         ? `${process.env.CLIENT_URL}/quiz/enter/${transitionResult.quiz.access_token}`
         : null,
