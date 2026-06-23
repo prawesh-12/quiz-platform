@@ -20,7 +20,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/useToast";
 import { sessionService } from "@/services/sessionService";
 import { theme } from "@/theme";
+import { backoffWithJitter } from "@/utils/jitter";
 import {
+    QUIZ_SESSION_ANSWERS_KEY,
+    QUIZ_SESSION_DIRTY_KEY,
     QUIZ_SESSION_PAYLOAD_KEY,
     QUIZ_SESSION_TOKEN_KEY,
 } from "@/utils/sessionKeys";
@@ -36,6 +39,25 @@ function readStoredPayload() {
     } catch {
         return null;
     }
+}
+
+function readStoredAnswers(key) {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) {
+        return {};
+    }
+
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function clearStoredAnswers() {
+    sessionStorage.removeItem(QUIZ_SESSION_ANSWERS_KEY);
+    sessionStorage.removeItem(QUIZ_SESSION_DIRTY_KEY);
 }
 
 function toMillis(value) {
@@ -90,8 +112,13 @@ function QuestionContent({ question }) {
 export default function QuizPage() {
     const location = useLocation();
     const [submitError, setSubmitError] = useState("");
-    const [answers, setAnswers] = useState({});
-    const [dirtyAnswers, setDirtyAnswers] = useState({});
+    // Restore answers + unsynced dirty answers so a mid-quiz reload doesn't lose them.
+    const [answers, setAnswers] = useState(() =>
+        readStoredAnswers(QUIZ_SESSION_ANSWERS_KEY),
+    );
+    const [dirtyAnswers, setDirtyAnswers] = useState(() =>
+        readStoredAnswers(QUIZ_SESSION_DIRTY_KEY),
+    );
     const [result, setResult] = useState(null);
     const [hasSubmitted, setHasSubmitted] = useState(false);
     const { toast } = useToast();
@@ -153,6 +180,10 @@ export default function QuizPage() {
                 : "active"),
     );
     const autoSubmitTriggeredRef = useRef(false);
+    // Live mirror of dirtyAnswers so flush handlers read the latest without re-binding.
+    const dirtyAnswersRef = useRef(dirtyAnswers);
+    const retryAttemptRef = useRef(0);
+    const [retryTick, setRetryTick] = useState(0);
 
     const syncServerTiming = useCallback((response) => {
         if (response?.server_now) {
@@ -241,6 +272,7 @@ export default function QuizPage() {
                 setHasSubmitted(true);
                 sessionStorage.removeItem(QUIZ_SESSION_TOKEN_KEY);
                 sessionStorage.removeItem(QUIZ_SESSION_PAYLOAD_KEY);
+                clearStoredAnswers();
                 toast({
                     title: "Session ended",
                     description:
@@ -335,6 +367,7 @@ export default function QuizPage() {
 
             sessionStorage.removeItem(QUIZ_SESSION_TOKEN_KEY);
             sessionStorage.removeItem(QUIZ_SESSION_PAYLOAD_KEY);
+            clearStoredAnswers();
         } catch (error) {
             const apiData = error?.response?.data;
             if (apiData) {
@@ -426,55 +459,118 @@ export default function QuizPage() {
         return () => window.removeEventListener("popstate", handlePopState);
     }, [hasSubmitted]);
 
+    // Mirror pending changes to ref + sessionStorage for flush handlers and reload recovery.
+    useEffect(() => {
+        dirtyAnswersRef.current = dirtyAnswers;
+        try {
+            sessionStorage.setItem(
+                QUIZ_SESSION_DIRTY_KEY,
+                JSON.stringify(dirtyAnswers),
+            );
+        } catch {
+            // Storage may be unavailable; in-memory state still drives saves.
+        }
+    }, [dirtyAnswers]);
+
+    // Persist chosen answers so a mid-quiz reload restores the student's selections.
+    useEffect(() => {
+        try {
+            sessionStorage.setItem(
+                QUIZ_SESSION_ANSWERS_KEY,
+                JSON.stringify(answers),
+            );
+        } catch {
+            // ignore storage errors
+        }
+    }, [answers]);
+
+    const flushDirtyAnswers = useCallback(() => {
+        if (!sessionToken || hasSubmitted || !payload || quizState !== "active") {
+            return Promise.resolve();
+        }
+
+        const dirtyEntries = Object.entries(dirtyAnswersRef.current);
+        if (!dirtyEntries.length) {
+            return Promise.resolve();
+        }
+
+        const partialAnswers = dirtyEntries.map(
+            ([questionId, selectedOption]) => ({
+                question_id: Number(questionId),
+                selected_option: selectedOption || null,
+            }),
+        );
+
+        return progressMutation
+            .mutateAsync({ partialAnswers })
+            .then(() => {
+                retryAttemptRef.current = 0;
+                setDirtyAnswers((prev) => {
+                    const next = { ...prev };
+
+                    for (const [questionId, selectedOption] of dirtyEntries) {
+                        if (next[questionId] === selectedOption) {
+                            delete next[questionId];
+                        }
+                    }
+
+                    return next;
+                });
+            })
+            .catch(() => {
+                // Keep queued; retry with exponential backoff instead of waiting for
+                // the next answer change.
+                const delay = backoffWithJitter(retryAttemptRef.current);
+                retryAttemptRef.current += 1;
+                window.setTimeout(() => setRetryTick((tick) => tick + 1), delay);
+            });
+    }, [hasSubmitted, payload, progressMutation, quizState, sessionToken]);
+
+    // Debounced autosave: fire ~1s after the last change, or when a backoff retry ticks.
     useEffect(() => {
         if (!sessionToken || hasSubmitted || !payload || quizState !== "active") {
             return undefined;
         }
 
-        const dirtyEntries = Object.entries(dirtyAnswers);
-        if (!dirtyEntries.length) {
+        if (!Object.keys(dirtyAnswers).length) {
             return undefined;
         }
 
         const timeout = window.setTimeout(() => {
-            const partialAnswers = dirtyEntries.map(
-                ([questionId, selectedOption]) => ({
-                    question_id: Number(questionId),
-                    selected_option: selectedOption || null,
-                }),
-            );
-
-            if (partialAnswers.length) {
-                progressMutation
-                    .mutateAsync({ partialAnswers })
-                    .then(() => {
-                        setDirtyAnswers((prev) => {
-                            const next = { ...prev };
-
-                            for (const [questionId, selectedOption] of dirtyEntries) {
-                                if (next[questionId] === selectedOption) {
-                                    delete next[questionId];
-                                }
-                            }
-
-                            return next;
-                        });
-                    })
-                    .catch(() => {
-                        // Keep dirty answers queued; the next answer change will retry them.
-                    });
-            }
+            flushDirtyAnswers();
         }, 1000);
 
         return () => window.clearTimeout(timeout);
     }, [
         dirtyAnswers,
+        flushDirtyAnswers,
         hasSubmitted,
         payload,
-        progressMutation,
         quizState,
+        retryTick,
         sessionToken,
     ]);
+
+    // Flush pending answers when the tab is hidden or the page unloads.
+    useEffect(() => {
+        if (!sessionToken || hasSubmitted) {
+            return undefined;
+        }
+
+        const flushOnHide = () => {
+            if (document.visibilityState === "hidden") {
+                flushDirtyAnswers();
+            }
+        };
+
+        document.addEventListener("visibilitychange", flushOnHide);
+        window.addEventListener("pagehide", flushDirtyAnswers);
+
+        return () => {
+            document.removeEventListener("visibilitychange", flushOnHide);
+            window.removeEventListener("pagehide", flushDirtyAnswers);
+        };
+    }, [flushDirtyAnswers, hasSubmitted, sessionToken]);
 
     const handleSelectOption = (questionId, optionKey) => {
         if (quizState !== "active") {

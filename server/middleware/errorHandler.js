@@ -1,3 +1,6 @@
+import { captureException } from "../config/observability.js";
+import logger, { serializeError } from "../utils/logger.js";
+
 export default function errorHandler(err, req, res, next) {
   if (res.headersSent) {
     return next(err);
@@ -14,7 +17,7 @@ export default function errorHandler(err, req, res, next) {
     },
     "42P01": {
       statusCode: 503,
-      message: "Database schema is missing. Run server/sql/schema.sql against the configured database."
+      message: "Database schema is missing. Run `npm run db:migrate` against the configured database."
     },
     "ECONNREFUSED": {
       statusCode: 503,
@@ -28,7 +31,12 @@ export default function errorHandler(err, req, res, next) {
 
   // Only server-side faults are noise-worthy; expected 4xx (validation, not-found) are not.
   if (statusCode >= 500) {
-    console.error(err);
+    logger.error("unhandled.error", {
+      requestId: req.id,
+      route: req.originalUrl?.split("?")[0],
+      ...serializeError(err)
+    });
+    captureException(err, { requestId: req.id, route: req.originalUrl?.split("?")[0] });
   }
 
   const body = { error: message };

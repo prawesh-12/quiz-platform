@@ -11,7 +11,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { sessionService } from "@/services/sessionService";
 import { theme } from "@/theme";
-import { QUIZ_SESSION_PAYLOAD_KEY, QUIZ_SESSION_TOKEN_KEY } from "@/utils/sessionKeys";
+import {
+  QUIZ_SESSION_ANSWERS_KEY,
+  QUIZ_SESSION_DIRTY_KEY,
+  QUIZ_SESSION_PAYLOAD_KEY,
+  QUIZ_SESSION_TOKEN_KEY
+} from "@/utils/sessionKeys";
 
 const entrySchema = z.object({
   name: z.string().trim().min(2, "Name is required"),
@@ -68,6 +73,9 @@ export default function EntryPage() {
 
       sessionStorage.setItem(QUIZ_SESSION_TOKEN_KEY, data.session_token);
       sessionStorage.setItem(QUIZ_SESSION_PAYLOAD_KEY, JSON.stringify(payload));
+      // Drop any stale answers from a previous/abandoned session before this one starts.
+      sessionStorage.removeItem(QUIZ_SESSION_ANSWERS_KEY);
+      sessionStorage.removeItem(QUIZ_SESSION_DIRTY_KEY);
 
       navigate("/quiz/take", {
         replace: true,

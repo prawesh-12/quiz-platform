@@ -73,10 +73,15 @@ export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enfor
           THEN (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp
           ELSE scheduled_start
         END,
-        scheduled_end = CASE 
-          WHEN $1::varchar = 'active' AND scheduled_end IS NULL AND duration_mins > 0 
+        scheduled_end = CASE
+          WHEN $1::varchar = 'active' AND scheduled_end IS NULL AND duration_mins > 0
           THEN ((NOW() AT TIME ZONE 'Asia/Kolkata') + make_interval(mins => duration_mins))::timestamp
-          ELSE scheduled_end 
+          -- Ending early: clamp the end to now so elapsed/running-time freezes at the
+          -- actual stop instead of counting on to the original scheduled end.
+          WHEN $1::varchar = 'ended'
+            AND (scheduled_end IS NULL OR scheduled_end > (NOW() AT TIME ZONE 'Asia/Kolkata'))
+          THEN (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp
+          ELSE scheduled_end
         END
     WHERE id = $3
     `,

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/hooks/useAuth";
 import { quizService } from "@/services/quizService";
 import { subjectService } from "@/services/subjectService";
+import { withJitter } from "@/utils/jitter";
 
 export default function OngoingQuizListPage() {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ export default function OngoingQuizListPage() {
   const ongoingQuery = useQuery({
     queryKey: ["quizzes", "active", "ongoing-list"],
     queryFn: () => quizService.list({ status: "active", page: 1, limit: 50 }),
-    refetchInterval: LIVE_REFRESH_MS,
+    refetchInterval: () => withJitter(LIVE_REFRESH_MS),
     refetchIntervalInBackground: true
   });
 

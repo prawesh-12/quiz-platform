@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { quizService } from "@/services/quizService";
 import { subjectService } from "@/services/subjectService";
+import { withJitter } from "@/utils/jitter";
 import { theme } from "@/theme";
 
 const PAGE_SIZE = 12;
@@ -62,7 +63,7 @@ export default function QuizLibraryPage() {
   const quizzesQuery = useQuery({
     queryKey: ["quizzes", "library"],
     queryFn: fetchAllQuizzes,
-    refetchInterval: 10_000,
+    refetchInterval: () => withJitter(10_000),
     refetchIntervalInBackground: true,
   });
 

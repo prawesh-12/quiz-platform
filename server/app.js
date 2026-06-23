@@ -1,3 +1,4 @@
+import compression from "compression";
 import cors from "cors";
 import express from "express";
 import path from "path";
@@ -6,7 +7,9 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { query } from "./config/db.js";
 import errorHandler from "./middleware/errorHandler.js";
+import requestLogger from "./middleware/requestLogger.js";
 import adminRouter from "./routes/admin.routes.js";
 import authRouter from "./routes/auth.routes.js";
 import questionsRouter from "./routes/questions.routes.js";
@@ -43,10 +46,23 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(compression());
+app.use(requestLogger);
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "256kb" }));
 
+// Liveness: cheap, no dependencies — used by orchestrators to know the process is up.
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });
+});
+
+// Readiness: verifies the process can actually serve traffic (DB reachable).
+app.get("/api/ready", async (req, res) => {
+  try {
+    await query("SELECT 1");
+    res.status(200).json({ status: "ready" });
+  } catch (error) {
+    res.status(503).json({ status: "unavailable" });
+  }
 });
 
 app.use("/api/auth", authRouter);

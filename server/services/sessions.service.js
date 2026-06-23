@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import pool from "../config/db.js";
 import { AppError } from "../utils/AppError.js";
 import { withTransaction } from "../utils/withTransaction.js";
+import { getStudentSnapshotQuestions } from "./quizSnapshot.service.js";
 import { resolveQuizWindow } from "./quizTiming.service.js";
 import {
   fetchStoredAnswers,
@@ -130,8 +131,9 @@ export async function enterSession(payload) {
     throw new AppError(403, "Invalid access code");
   }
 
-  const questions = await sessions.fetchStudentQuizQuestions(pool, quiz.id);
-  if (!questions.length) {
+  // Student-safe questions from the Redis snapshot (PG fallback) — absorbs the start spike.
+  const sanitizedQuestions = await getStudentSnapshotQuestions(quiz.id);
+  if (!sanitizedQuestions.length) {
     throw new AppError(400, "Quiz has no questions configured");
   }
 
@@ -150,8 +152,6 @@ export async function enterSession(payload) {
     groupNo: payload.group_no,
     sessionToken,
   });
-
-  const sanitizedQuestions = questions.map(({ correct_option, ...question }) => question);
 
   return {
     session_token: sessionToken,

@@ -67,13 +67,15 @@ export async function findExistingSubjectIds(db, subjectIds) {
 }
 
 export async function insertTeacher(db, teacher) {
+  // Security: only the bcrypt hash is stored. plain_password is intentionally no longer
+  // written; the admin credentials view still reads it for legacy rows created earlier.
   const result = await db.query(
     `
-    INSERT INTO teachers (name, email, password, school, contact_no, plain_password)
-    VALUES ($1, $2, $3, $4, $5, $6)
+    INSERT INTO teachers (name, email, password, school, contact_no)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING id, name, email, school, contact_no, created_at
     `,
-    [teacher.name, teacher.email, teacher.passwordHash, teacher.school, teacher.contact_no ?? null, teacher.password],
+    [teacher.name, teacher.email, teacher.passwordHash, teacher.school, teacher.contact_no ?? null],
   );
 
   return result.rows[0];

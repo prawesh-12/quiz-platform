@@ -1,8 +1,11 @@
 import pool from "../config/db.js";
 import { AppError } from "../utils/AppError.js";
 import { generateAccessToken } from "../utils/accessToken.js";
+import { readPositiveIntegerEnv } from "../utils/env.js";
 import { normalizeNullableText } from "../utils/text.js";
 import { withTransaction } from "../utils/withTransaction.js";
+import { getCachedJson, invalidateCachePrefix } from "./cache.service.js";
+import { invalidateQuizSnapshot, refreshQuizSnapshot } from "./quizSnapshot.service.js";
 import { planActivationWindow, resolveQuizWindow } from "./quizTiming.service.js";
 import { transitionQuizStatus } from "./quizLifecycle.service.js";
 import { finalizePendingSessionsForQuiz } from "./sessionLifecycle.service.js";
@@ -267,7 +270,7 @@ export async function updateQuiz({ id, userId, payload }) {
     throw new AppError(400, "No valid fields to update");
   }
 
-  return withTransaction(async (client) => {
+  const updated = await withTransaction(async (client) => {
     if (reorderedIds) {
       for (let index = 0; index < reorderedIds.length; index += 1) {
         await quizzes.setQuizQuestionOrder(client, id, reorderedIds[index], index + 1);
@@ -278,6 +281,11 @@ export async function updateQuiz({ id, userId, payload }) {
     const quiz = await quizzes.findQuizDetail(client, id, userId);
     return { quiz };
   });
+
+  // A teacher edit must not leave students on a stale snapshot; next entry rebuilds it.
+  await invalidateQuizSnapshot(id);
+
+  return updated;
 }
 
 export async function changeQuizStatus({ id, userId, status }) {
@@ -299,6 +307,17 @@ export async function changeQuizStatus({ id, userId, status }) {
 
     return result;
   });
+
+  // Keep the snapshot consistent with lifecycle: warm on (re)activation, else drop.
+  if (transition.quiz?.status === "active" || transition.quiz?.status === "scheduled") {
+    await refreshQuizSnapshot(id);
+  } else {
+    await invalidateQuizSnapshot(id);
+  }
+
+  // Drop the cached live-stats so the teacher's monitor reflects the new status (and the
+  // clamped end time) on the very next poll instead of serving stale data for the TTL.
+  await invalidateCachePrefix(`quiz:${id}:live_stats:`);
 
   // Auto-submit after the status commit; best-effort so a failure doesn't undo the end.
   let autoSubmittedCount = 0;
@@ -322,7 +341,17 @@ export async function removeQuiz({ id, userId }) {
   await withTransaction((client) => quizzes.deleteQuizCascade(client, id, userId));
 }
 
+// Short-TTL cache (Redis when available, else process-local) so multiple teachers
+// polling the same quiz don't each re-run the aggregates. Keyed by quiz + owner.
+const LIVE_STATS_TTL_MS = readPositiveIntegerEnv("LIVE_STATS_TTL_MS", 3000);
+
 export async function getLiveStats({ id, userId }) {
+  return getCachedJson(`quiz:${id}:live_stats:${userId}`, LIVE_STATS_TTL_MS, () =>
+    computeLiveStats({ id, userId })
+  );
+}
+
+async function computeLiveStats({ id, userId }) {
   const row = await quizzes.findLiveStatsQuiz(pool, id, userId);
   if (!row) {
     throw new AppError(404, "Quiz not found");

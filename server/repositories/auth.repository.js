@@ -30,6 +30,20 @@ export async function findTeacherByEmail(db, email) {
   return result.rows[0] ?? null;
 }
 
+export async function existsRevokedToken(db, tokenHash) {
+  const result = await db.query(
+    `
+    SELECT 1
+    FROM revoked_tokens
+    WHERE token_hash = $1 AND expires_at > NOW()
+    LIMIT 1
+    `,
+    [tokenHash],
+  );
+
+  return result.rowCount > 0;
+}
+
 export async function insertRevokedToken(db, tokenHash, userId, exp) {
   await db.query(
     `

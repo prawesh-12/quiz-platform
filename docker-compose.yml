@@ -1,0 +1,15 @@
+# Optional Redis for local/staging. Connect via REDIS_URL=redis://localhost:6379.
+#   docker compose up -d redis
+services:
+  redis:
+    build: ./docker/redis
+    image: quizloom-redis
+    container_name: quizloom-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

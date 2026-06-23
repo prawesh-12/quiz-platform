@@ -41,6 +41,7 @@ import { useTimer } from "@/hooks/useTimer";
 import { quizService } from "@/services/quizService";
 import { responseService } from "@/services/responseService";
 import { subjectService } from "@/services/subjectService";
+import { withJitter } from "@/utils/jitter";
 import { violationService } from "@/services/violationService";
 import { formatTime } from "@/utils/formatTime";
 
@@ -109,14 +110,14 @@ export default function OngoingQuizPage() {
     queryKey: ["live-stats", quizId],
     enabled: Boolean(quizId),
     queryFn: () => quizService.getLiveStats(quizId),
-    refetchInterval: 5000
+    refetchInterval: () => withJitter(5000)
   });
 
   const responsesQuery = useQuery({
     queryKey: ["quiz-responses", quizId, page, "ongoing"],
     enabled: Boolean(quizId),
     queryFn: () => responseService.getQuizResponses(quizId, { page, limit: 10 }),
-    refetchInterval: 5000
+    refetchInterval: () => withJitter(5000)
   });
 
   const detailsQuery = useQuery({
@@ -224,7 +225,8 @@ export default function OngoingQuizPage() {
 
   const { seconds: elapsedSeconds } = useTimer({
     initialSeconds: Math.max(0, Number(stats?.elapsed_seconds || 0)),
-    enabled: Boolean(quiz) && !isScheduled,
+    // Freeze the running time once the quiz has ended — it's no longer running.
+    enabled: Boolean(quiz) && !isScheduled && !isEnded,
     getSeconds: getElapsedSeconds,
   });
 

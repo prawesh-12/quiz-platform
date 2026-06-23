@@ -6,6 +6,7 @@ import pool from "../config/db.js";
 import { JWT_EXPIRES_IN, JWT_SECRET } from "../config/jwt.js";
 import { AppError } from "../utils/AppError.js";
 import * as authRepo from "../repositories/auth.repository.js";
+import { invalidateRevokedToken } from "./revokedTokens.service.js";
 
 const SALT_ROUNDS = 12;
 const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
@@ -84,12 +85,15 @@ export async function logout({ token, exp, role, userId }) {
     throw new AppError(400, "Invalid token payload for logout");
   }
 
+  const tokenHash = hashToken(token);
   await authRepo.insertRevokedToken(
     pool,
-    hashToken(token),
+    tokenHash,
     role === "teacher" ? Number(userId) : null,
     Number(exp),
   );
+  // Drop any cached "not revoked" result so the revocation takes effect at once.
+  await invalidateRevokedToken(tokenHash);
   await authRepo.deleteExpiredRevokedTokens(pool);
 
   return { message: "Logged out successfully" };

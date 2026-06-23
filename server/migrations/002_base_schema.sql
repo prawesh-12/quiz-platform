@@ -1,3 +1,6 @@
+-- Base schema: all tables and indexes. Idempotent (IF NOT EXISTS) so it is a no-op on
+-- databases that already have the schema.
+
 CREATE TABLE IF NOT EXISTS teachers (
   id SERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL,

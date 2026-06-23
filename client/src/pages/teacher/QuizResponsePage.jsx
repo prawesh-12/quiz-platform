@@ -29,6 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { responseService } from "@/services/responseService";
 import { subjectService } from "@/services/subjectService";
+import { withJitter } from "@/utils/jitter";
 import { violationService } from "@/services/violationService";
 import { quizService } from "@/services/quizService";
 import Pagination from "@/components/ui/pagination";
@@ -95,7 +96,7 @@ export default function QuizResponsePage() {
     queryKey: ["quiz-responses", quizId, page],
     enabled: Boolean(quizId),
     queryFn: () => responseService.getQuizResponses(quizId, { page, limit: 10 }),
-    refetchInterval: 10000
+    refetchInterval: () => withJitter(10000)
   });
 
   const leaderboardQuery = useQuery({

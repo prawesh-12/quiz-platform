@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
+import { Check, Copy } from "lucide-react";
 
 import AssignSubjectsModal from "@/components/admin/AssignSubjectsModal";
 import AdminShell from "@/components/layout/AdminShell";
 import SchoolTabs from "@/components/admin/SchoolTabs";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +27,7 @@ import {
   removeTeacherFromSchool as removeFromSchoolApi
 } from "@/services/adminService";
 import { subjectService } from "@/services/subjectService";
+import { copyToClipboard } from "@/utils/clipboard";
 import { theme } from "@/theme";
 
 const SCHOOL_VALUES = ["SOT", "SLS", "SOET"];
@@ -61,8 +64,11 @@ export default function SchoolTeachersPage() {
     open: false,
     teacherName: "",
     data: null,
-    password: null
+    password: null,
+    oneTime: false
   });
+  const [credCopied, setCredCopied] = useState(false);
+  const [copyConfirmed, setCopyConfirmed] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState(null);
 
   const subjectsQuery = useQuery({
@@ -95,10 +101,14 @@ export default function SchoolTeachersPage() {
       return { response, teacher };
     },
     onSuccess: ({ response, teacher }) => {
+      setCredCopied(false);
+      setCopyConfirmed(false);
       setCredentialsDialog({
         open: true,
         teacherName: teacher.name,
-        data: response?.credentials ?? null
+        data: response?.credentials ?? null,
+        password: null,
+        oneTime: false
       });
     }
   });
@@ -144,6 +154,33 @@ export default function SchoolTeachersPage() {
     setAssignDialogTeacher(teacher);
   };
 
+  const closeCredentialsDialog = () => {
+    setCredentialsDialog((prev) => ({ ...prev, open: false }));
+    setCredCopied(false);
+    setCopyConfirmed(false);
+  };
+
+  const handleCopyCredentials = async () => {
+    const password = credentialsDialog.data?.password || credentialsDialog.password;
+    if (!password) {
+      return;
+    }
+
+    const email = credentialsDialog.data?.email || "";
+    const text = `Email: ${email}\nPassword: ${password}`;
+
+    if (await copyToClipboard(text)) {
+      setCredCopied(true);
+      toast({ title: "Copied", description: "Login credentials copied to clipboard." });
+    } else {
+      toast({
+        title: "Copy failed",
+        description: "Could not access the clipboard. Please copy the password manually.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <AdminShell
       subjects={subjects}
@@ -154,11 +191,14 @@ export default function SchoolTeachersPage() {
       onTeacherAdded={(data, meta) => {
         queryClient.invalidateQueries({ queryKey: ["admin", "teachers", school] });
         if (data?.teacher) {
+          setCredCopied(false);
+          setCopyConfirmed(false);
           setCredentialsDialog({
             open: true,
             teacherName: data.teacher.name,
             data: { name: data.teacher.name, email: data.teacher.email },
-            password: meta?.password ?? null
+            password: meta?.password ?? null,
+            oneTime: true
           });
         }
       }}
@@ -321,12 +361,18 @@ export default function SchoolTeachersPage() {
 
       <Dialog
         open={credentialsDialog.open}
-        onOpenChange={(open) =>
-          setCredentialsDialog((prev) => ({
-            ...prev,
-            open
-          }))
-        }
+        onOpenChange={(open) => {
+          // In one-time mode the password can never be retrieved again, so block any
+          // dismissal (overlay/escape/close) until the admin confirms they copied it.
+          if (!open && credentialsDialog.oneTime && !copyConfirmed) {
+            return;
+          }
+          if (open) {
+            setCredentialsDialog((prev) => ({ ...prev, open: true }));
+          } else {
+            closeCredentialsDialog();
+          }
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -335,6 +381,20 @@ export default function SchoolTeachersPage() {
               Credentials summary for {credentialsDialog.teacherName || "teacher"}.
             </DialogDescription>
           </DialogHeader>
+
+          {credentialsDialog.oneTime ? (
+            <div
+              className="rounded-[var(--ds-radius-md)] border p-3 text-[13px]"
+              style={{
+                borderColor: theme.status?.warning?.border || "#f59e0b",
+                backgroundColor: theme.status?.warning?.bg || "#fffbeb",
+                color: theme.status?.warning?.text || "#92400e"
+              }}
+            >
+              This password is shown <strong>only once</strong> and cannot be retrieved later.
+              Copy it now and share it securely with the teacher.
+            </div>
+          ) : null}
 
           <div className="space-y-3 rounded-[var(--ds-radius-md)] border p-3" style={{ borderColor: theme.border.input }}>
             <div>
@@ -358,9 +418,28 @@ export default function SchoolTeachersPage() {
                 <p className="text-[12px]" style={{ color: theme.text.muted }}>
                   Password
                 </p>
-                <p className="text-[14px]" style={{ color: theme.text.primary, fontWeight: 600 }}>
-                  {credentialsDialog.data?.password || credentialsDialog.password}
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[14px] break-all" style={{ color: theme.text.primary, fontWeight: 600 }}>
+                    {credentialsDialog.data?.password || credentialsDialog.password}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={handleCopyCredentials}
+                  >
+                    {credCopied ? (
+                      <>
+                        <Check className="mr-1 h-4 w-4" /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-1 h-4 w-4" /> Copy
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             ) : (
               <div>
@@ -373,6 +452,24 @@ export default function SchoolTeachersPage() {
               </div>
             )}
           </div>
+
+          {credentialsDialog.oneTime ? (
+            <>
+              <label className="flex cursor-pointer items-start gap-2 text-[13px]" style={{ color: theme.text.primary }}>
+                <Checkbox
+                  className="mt-0.5"
+                  checked={copyConfirmed}
+                  onCheckedChange={(value) => setCopyConfirmed(value === true)}
+                />
+                <span>I have copied the password and saved it securely.</span>
+              </label>
+              <DialogFooter>
+                <Button type="button" disabled={!copyConfirmed} onClick={closeCredentialsDialog}>
+                  Done
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
         </DialogContent>
       </Dialog>
 
