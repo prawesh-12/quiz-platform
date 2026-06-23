@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { EVENTS, publishEvent } from "../config/eventBus.js";
 import logger, { serializeError } from "../utils/logger.js";
 import { transitionQuizStatus } from "./quizLifecycle.service.js";
 import { finalizePendingSessionsForQuiz } from "./sessionLifecycle.service.js";
@@ -44,6 +45,13 @@ async function runTransitions(client) {
       await client.query("ROLLBACK");
     } else {
       await client.query("COMMIT");
+      // A future-dated quiz persists as 'scheduled', not 'active' — only emit on activation.
+      if (result.quiz?.status === "active") {
+        await publishEvent(EVENTS.QUIZ_ACTIVATED, {
+          quizId: row.id,
+          accessToken: result.quiz.access_token ?? null,
+        });
+      }
     }
   }
 
@@ -71,6 +79,7 @@ async function runTransitions(client) {
       await client.query("ROLLBACK");
     } else {
       await client.query("COMMIT");
+      await publishEvent(EVENTS.QUIZ_ENDED, { quizId: row.id });
       if (result.requires_finalization) {
         quizzesToFinalize.push(row.id);
       }

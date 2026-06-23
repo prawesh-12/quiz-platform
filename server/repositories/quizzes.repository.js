@@ -89,24 +89,6 @@ export async function insertQuiz(db, metadata) {
   return result.rows[0];
 }
 
-export async function findUnitByName(db, subjectId, name, userId) {
-  const result = await db.query(
-    `SELECT id FROM units WHERE subject_id = $1 AND name = $2 AND created_by = $3`,
-    [subjectId, name, userId],
-  );
-
-  return result.rows[0] ?? null;
-}
-
-export async function insertUnit(db, name, subjectId, userId) {
-  const result = await db.query(
-    `INSERT INTO units (name, subject_id, created_by) VALUES ($1, $2, $3) RETURNING id`,
-    [name, subjectId, userId],
-  );
-
-  return result.rows[0].id;
-}
-
 export async function linkQuizQuestion(db, quizId, questionId, orderNo) {
   await db.query(
     `INSERT INTO quiz_questions (quiz_id, question_id, order_no) VALUES ($1, $2, $3)`,
@@ -114,14 +96,64 @@ export async function linkQuizQuestion(db, quizId, questionId, orderNo) {
   );
 }
 
+export async function insertInlineQuestion(db, quizId, question) {
+  const result = await db.query(
+    `
+    INSERT INTO quiz_inline_questions (
+      quiz_id, question_text, option_a, option_b, option_c, option_d,
+      correct_option, has_equation, allow_multiple_answers, points, is_required
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    RETURNING id
+    `,
+    [
+      quizId,
+      question.question_text,
+      question.option_a,
+      question.option_b,
+      question.option_c ?? null,
+      question.option_d ?? null,
+      question.correct_option,
+      question.has_equation ?? false,
+      question.allow_multiple_answers ?? false,
+      question.points ?? 1,
+      question.is_required ?? true,
+    ],
+  );
+
+  return result.rows[0].id;
+}
+
+export async function linkInlineQuizQuestion(db, quizId, inlineQuestionId, orderNo) {
+  await db.query(
+    `INSERT INTO quiz_questions (quiz_id, inline_question_id, order_no) VALUES ($1, $2, $3)`,
+    [quizId, inlineQuestionId, orderNo],
+  );
+}
+
+// A quiz's questions come from two sources joined through the membership table; identity
+// is the membership row id so bank and inline questions share one id space.
 export async function findQuizQuestions(db, quizId) {
   const result = await db.query(
     `
-    SELECT q.id, q.subject_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d,
-           q.correct_option, q.has_equation, q.allow_multiple_answers, q.points, q.is_required,
-           qq.order_no
+    SELECT
+      qq.id,
+      COALESCE(q.subject_id, qz.subject_id) AS subject_id,
+      COALESCE(q.question_text, iq.question_text) AS question_text,
+      COALESCE(q.option_a, iq.option_a) AS option_a,
+      COALESCE(q.option_b, iq.option_b) AS option_b,
+      COALESCE(q.option_c, iq.option_c) AS option_c,
+      COALESCE(q.option_d, iq.option_d) AS option_d,
+      COALESCE(q.correct_option, iq.correct_option) AS correct_option,
+      COALESCE(q.has_equation, iq.has_equation) AS has_equation,
+      COALESCE(q.allow_multiple_answers, iq.allow_multiple_answers) AS allow_multiple_answers,
+      COALESCE(q.points, iq.points) AS points,
+      COALESCE(q.is_required, iq.is_required) AS is_required,
+      qq.order_no
     FROM quiz_questions qq
-    INNER JOIN questions q ON q.id = qq.question_id
+    JOIN quizzes qz ON qz.id = qq.quiz_id
+    LEFT JOIN questions q ON q.id = qq.question_id
+    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
     WHERE qq.quiz_id = $1
     ORDER BY qq.order_no ASC, qq.id ASC
     `,
@@ -134,10 +166,20 @@ export async function findQuizQuestions(db, quizId) {
 export async function findQuizQuestionsPreview(db, quizId) {
   const result = await db.query(
     `
-    SELECT q.id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d,
-           q.correct_option, q.has_equation, q.points, qq.order_no
+    SELECT
+      qq.id,
+      COALESCE(q.question_text, iq.question_text) AS question_text,
+      COALESCE(q.option_a, iq.option_a) AS option_a,
+      COALESCE(q.option_b, iq.option_b) AS option_b,
+      COALESCE(q.option_c, iq.option_c) AS option_c,
+      COALESCE(q.option_d, iq.option_d) AS option_d,
+      COALESCE(q.correct_option, iq.correct_option) AS correct_option,
+      COALESCE(q.has_equation, iq.has_equation) AS has_equation,
+      COALESCE(q.points, iq.points) AS points,
+      qq.order_no
     FROM quiz_questions qq
-    INNER JOIN questions q ON q.id = qq.question_id
+    LEFT JOIN questions q ON q.id = qq.question_id
+    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
     WHERE qq.quiz_id = $1
     ORDER BY qq.order_no ASC, qq.id ASC
     `,
@@ -149,17 +191,17 @@ export async function findQuizQuestionsPreview(db, quizId) {
 
 export async function findQuizQuestionIdsOrdered(db, quizId) {
   const result = await db.query(
-    `SELECT question_id FROM quiz_questions WHERE quiz_id = $1 ORDER BY order_no ASC, id ASC`,
+    `SELECT id FROM quiz_questions WHERE quiz_id = $1 ORDER BY order_no ASC, id ASC`,
     [quizId],
   );
 
-  return result.rows.map((row) => Number(row.question_id));
+  return result.rows.map((row) => Number(row.id));
 }
 
-export async function setQuizQuestionOrder(db, quizId, questionId, orderNo) {
+export async function setQuizQuestionOrder(db, quizId, quizQuestionId, orderNo) {
   await db.query(
-    `UPDATE quiz_questions SET order_no = $1 WHERE quiz_id = $2 AND question_id = $3`,
-    [orderNo, quizId, questionId],
+    `UPDATE quiz_questions SET order_no = $1 WHERE quiz_id = $2 AND id = $3`,
+    [orderNo, quizId, quizQuestionId],
   );
 }
 
@@ -347,17 +389,32 @@ export async function insertDuplicateQuiz(db, source, title) {
   return result.rows[0].id;
 }
 
+// Bank references copy by id; inline questions are quiz-owned, so they are deep-copied
+// into fresh rows for the target quiz before being linked.
 export async function copyQuizQuestions(db, targetQuizId, sourceQuizId) {
-  await db.query(
+  const { rows } = await db.query(
     `
-    INSERT INTO quiz_questions (quiz_id, question_id, order_no)
-    SELECT $1, question_id, order_no
-    FROM quiz_questions
-    WHERE quiz_id = $2
-    ORDER BY order_no ASC, id ASC
+    SELECT
+      qq.order_no, qq.question_id,
+      iq.question_text, iq.option_a, iq.option_b, iq.option_c, iq.option_d,
+      iq.correct_option, iq.has_equation, iq.allow_multiple_answers, iq.points, iq.is_required
+    FROM quiz_questions qq
+    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
+    WHERE qq.quiz_id = $1
+    ORDER BY qq.order_no ASC, qq.id ASC
     `,
-    [targetQuizId, sourceQuizId],
+    [sourceQuizId],
   );
+
+  for (const row of rows) {
+    if (row.question_id) {
+      await linkQuizQuestion(db, targetQuizId, row.question_id, row.order_no);
+      continue;
+    }
+
+    const inlineId = await insertInlineQuestion(db, targetQuizId, row);
+    await linkInlineQuizQuestion(db, targetQuizId, inlineId, row.order_no);
+  }
 }
 
 export async function findLeaderboard(db, quizId) {

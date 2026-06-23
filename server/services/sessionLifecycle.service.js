@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { EVENTS, publishEvent } from "../config/eventBus.js";
 import { readPositiveIntegerEnv } from "../utils/env.js";
 import { scoreSubmission } from "./scorer.service.js";
 
@@ -8,17 +9,18 @@ export async function fetchQuizQuestionsForScoring(dbClient, quizId) {
   const result = await dbClient.query(
     `
     SELECT
-      q.id,
-      q.question_text,
-      q.option_a,
-      q.option_b,
-      q.option_c,
-      q.option_d,
-      q.correct_option,
-      q.points,
+      qq.id,
+      COALESCE(q.question_text, iq.question_text) AS question_text,
+      COALESCE(q.option_a, iq.option_a) AS option_a,
+      COALESCE(q.option_b, iq.option_b) AS option_b,
+      COALESCE(q.option_c, iq.option_c) AS option_c,
+      COALESCE(q.option_d, iq.option_d) AS option_d,
+      COALESCE(q.correct_option, iq.correct_option) AS correct_option,
+      COALESCE(q.points, iq.points) AS points,
       qq.order_no
     FROM quiz_questions qq
-    INNER JOIN questions q ON q.id = qq.question_id
+    LEFT JOIN questions q ON q.id = qq.question_id
+    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
     WHERE qq.quiz_id = $1
     ORDER BY qq.order_no ASC, qq.id ASC
     `,
@@ -168,6 +170,8 @@ export async function finalizePendingSessionsForQuiz(quizId, { batchSize } = {})
   while (true) {
     const client = await pool.connect();
     let batchCount = 0;
+    // Collected per batch, published only after the batch commits.
+    const submittedEvents = [];
 
     try {
       await client.query("BEGIN");
@@ -186,10 +190,16 @@ export async function finalizePendingSessionsForQuiz(quizId, { batchSize } = {})
 
       for (const session of pendingSessionsResult.rows) {
         const storedAnswers = await fetchStoredAnswers(client, session.id);
-        await finalizeSessionSubmissionWithQuestions(client, {
+        const finalized = await finalizeSessionSubmissionWithQuestions(client, {
           sessionId: session.id,
           quizQuestions,
           submittedAnswers: storedAnswers
+        });
+        submittedEvents.push({
+          sessionId: session.id,
+          quizId,
+          score: finalized.score,
+          totalPoints: finalized.total_points
         });
         batchCount += 1;
       }
@@ -206,6 +216,12 @@ export async function finalizePendingSessionsForQuiz(quizId, { batchSize } = {})
     }
 
     client.release();
+
+    // Best-effort, post-commit; no-op without Redis (auto-submit must not depend on it).
+    for (const event of submittedEvents) {
+      await publishEvent(EVENTS.SESSION_SUBMITTED, event);
+    }
+
     endedCount += batchCount;
 
     // Short batch = no more pending rows reachable (drained, or locked by another worker).

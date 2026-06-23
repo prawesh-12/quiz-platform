@@ -4,6 +4,11 @@ import { readPositiveIntegerEnv } from "../utils/env.js";
 
 const STATEMENT_TIMEOUT_MS = readPositiveIntegerEnv("PG_STATEMENT_TIMEOUT_MS", 15000);
 
+// Domain schemas resolve via search_path so unqualified table names keep working after
+// tables are namespaced. public stays first so unqualified CREATE and schema_migrations
+// land there. SET ignores schemas that do not exist yet, so this is safe before migration.
+const SEARCH_PATH = "public, auth, questionbank, quiz, exam, analytics";
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: readPositiveIntegerEnv("PG_POOL_MAX", 20),
@@ -13,11 +18,14 @@ const pool = new Pool({
     process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
-// Bound every query so a single stuck statement cannot hold a pool connection forever.
+// Pin search_path and bound every query so a single stuck statement cannot hold a pool
+// connection forever. SET takes no bind params; both values are static, not user input.
 pool.on("connect", (client) => {
-  client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((error) => {
-    console.error("Failed to set statement_timeout on new connection:", error);
-  }); 
+  client
+    .query(`SET search_path TO ${SEARCH_PATH}; SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`)
+    .catch((error) => {
+      console.error("Failed to initialize new connection:", error);
+    });
 });
 
 pool.on("error", (error) => {

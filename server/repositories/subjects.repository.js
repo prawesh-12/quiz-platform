@@ -72,11 +72,20 @@ export async function findSubjectQuizHistoryRows(db, subjectId, requester) {
     `
     SELECT
       qz.id AS quiz_id, qz.title, qz.quiz_date, qz.status, qz.created_at AS quiz_created_at,
-      q.id AS question_id, q.question_text, q.correct_option, q.points, q.has_equation,
-      q.option_a, q.option_b, q.option_c, q.option_d, qq.order_no
+      qq.id AS question_id,
+      COALESCE(q.question_text, iq.question_text) AS question_text,
+      COALESCE(q.correct_option, iq.correct_option) AS correct_option,
+      COALESCE(q.points, iq.points) AS points,
+      COALESCE(q.has_equation, iq.has_equation) AS has_equation,
+      COALESCE(q.option_a, iq.option_a) AS option_a,
+      COALESCE(q.option_b, iq.option_b) AS option_b,
+      COALESCE(q.option_c, iq.option_c) AS option_c,
+      COALESCE(q.option_d, iq.option_d) AS option_d,
+      qq.order_no
     FROM quizzes qz
     JOIN quiz_questions qq ON qq.quiz_id = qz.id
-    JOIN questions q ON q.id = qq.question_id
+    LEFT JOIN questions q ON q.id = qq.question_id
+    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
     WHERE qz.subject_id = $1
       AND ($2::text = 'admin' OR qz.created_by = $3)
     ORDER BY qz.quiz_date DESC NULLS LAST, qz.created_at DESC, qq.order_no ASC

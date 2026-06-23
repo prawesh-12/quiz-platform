@@ -14,7 +14,11 @@ db_plan.md
 .kombai/
 security.md
 extras/
-.claude/
-skills-lock.json
+
 docs.md
 structure.md
+docs/
+README.md
+
+.claude/
+skills-lock.json

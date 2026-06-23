@@ -24,10 +24,19 @@ export async function fetchStudentQuizQuestions(db, quizId) {
   const result = await db.query(
     `
     SELECT
-      q.id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d,
-      q.has_equation, q.points, q.correct_option, qq.order_no
+      qq.id,
+      COALESCE(q.question_text, iq.question_text) AS question_text,
+      COALESCE(q.option_a, iq.option_a) AS option_a,
+      COALESCE(q.option_b, iq.option_b) AS option_b,
+      COALESCE(q.option_c, iq.option_c) AS option_c,
+      COALESCE(q.option_d, iq.option_d) AS option_d,
+      COALESCE(q.has_equation, iq.has_equation) AS has_equation,
+      COALESCE(q.points, iq.points) AS points,
+      COALESCE(q.correct_option, iq.correct_option) AS correct_option,
+      qq.order_no
     FROM quiz_questions qq
-    INNER JOIN questions q ON q.id = qq.question_id
+    LEFT JOIN questions q ON q.id = qq.question_id
+    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
     WHERE qq.quiz_id = $1
     ORDER BY qq.order_no ASC, qq.id ASC
     `,
@@ -79,11 +88,15 @@ export async function fetchBreakdownRows(db, sessionId, quizId) {
   const result = await db.query(
     `
     SELECT
-      qq.order_no, q.id AS question_id, q.question_text, q.points, q.correct_option,
+      qq.order_no, qq.id AS question_id,
+      COALESCE(q.question_text, iq.question_text) AS question_text,
+      COALESCE(q.points, iq.points) AS points,
+      COALESCE(q.correct_option, iq.correct_option) AS correct_option,
       sa.selected_option, sa.is_correct
     FROM quiz_questions qq
-    INNER JOIN questions q ON q.id = qq.question_id
-    LEFT JOIN student_answers sa ON sa.session_id = $1 AND sa.question_id = q.id
+    LEFT JOIN questions q ON q.id = qq.question_id
+    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
+    LEFT JOIN student_answers sa ON sa.session_id = $1 AND sa.question_id = qq.id
     WHERE qq.quiz_id = $2
     ORDER BY qq.order_no ASC, qq.id ASC
     `,

@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 
 import pool from "../config/db.js";
+import { EVENTS, publishEvent } from "../config/eventBus.js";
 import { AppError } from "../utils/AppError.js";
 import { withTransaction } from "../utils/withTransaction.js";
 import { getStudentSnapshotQuestions } from "./quizSnapshot.service.js";
@@ -196,7 +197,10 @@ export async function saveAnswers(sessionToken, answers) {
 }
 
 export async function submitSession(sessionToken, { answers, submissionId = null }) {
-  return withTransaction(async (client) => {
+  // Set inside the transaction only on a fresh submission, then published after commit.
+  let submittedEvent = null;
+
+  const payload = await withTransaction(async (client) => {
     const context = buildSessionContext(
       await sessions.findSessionContextRow(client, sessionToken, { lock: true }),
     );
@@ -223,6 +227,13 @@ export async function submitSession(sessionToken, { answers, submissionId = null
       submissionId,
     });
 
+    submittedEvent = {
+      sessionId: session.id,
+      quizId: session.quiz_id,
+      score: result.score,
+      totalPoints: result.total_points,
+    };
+
     return {
       score: result.score,
       total_points: result.total_points,
@@ -231,4 +242,10 @@ export async function submitSession(sessionToken, { answers, submissionId = null
       ...timingPayload(quizWindow),
     };
   });
+
+  if (submittedEvent) {
+    await publishEvent(EVENTS.SESSION_SUBMITTED, submittedEvent);
+  }
+
+  return payload;
 }

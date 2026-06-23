@@ -25,9 +25,33 @@ function sanitizeQuestions(rows) {
   return rows.map(({ correct_option, ...question }) => question);
 }
 
+// Full question set including correct_option (needed for scoring); sanitized before it
+// ever reaches a student.
+async function loadQuizQuestions(quizId) {
+  return fetchStudentQuizQuestions(pool, quizId);
+}
+
 async function loadSanitizedQuestions(quizId) {
-  const rows = await fetchStudentQuizQuestions(pool, quizId);
-  return sanitizeQuestions(rows);
+  return sanitizeQuestions(await loadQuizQuestions(quizId));
+}
+
+// Durable snapshot owned by the exam domain; keeps correct_option for server-side
+// scoring. Best-effort so a write failure never blocks the caller.
+async function storeSnapshotRow(quizId, questions) {
+  try {
+    await pool.query(
+      `
+      INSERT INTO exam.quiz_snapshot (quiz_id, payload)
+      VALUES ($1, $2::jsonb)
+      ON CONFLICT (quiz_id) DO UPDATE
+      SET payload = EXCLUDED.payload,
+          built_at = NOW()
+      `,
+      [quizId, JSON.stringify(questions)]
+    );
+  } catch (error) {
+    logger.warn("snapshot.row_store_failed", { quizId, ...serializeError(error) });
+  }
 }
 
 async function storeSnapshot(quizId, questions) {
@@ -65,16 +89,15 @@ export async function getStudentSnapshotQuestions(quizId) {
   return questions;
 }
 
-// Force-rebuild from PostgreSQL (e.g. after activation). No-op without Redis.
+// Force-rebuild after activation or edit. Persists the durable row regardless of Redis;
+// warms the student cache when Redis is available.
 export async function refreshQuizSnapshot(quizId) {
-  const redis = getRedis();
-  if (!redis || !isRedisReady()) {
+  const questions = await loadQuizQuestions(quizId);
+  if (!questions.length) {
     return;
   }
-  const questions = await loadSanitizedQuestions(quizId);
-  if (questions.length) {
-    await storeSnapshot(quizId, questions);
-  }
+  await storeSnapshotRow(quizId, questions);
+  await storeSnapshot(quizId, sanitizeQuestions(questions));
 }
 
 export async function invalidateQuizSnapshot(quizId) {
@@ -128,8 +151,12 @@ export async function prewarmScheduledQuizzes() {
         continue; // another worker owns this quiz's prewarm
       }
 
-      const questions = await loadSanitizedQuestions(row.id);
-      if (questions.length && (await storeSnapshot(row.id, questions))) {
+      const questions = await loadQuizQuestions(row.id);
+      if (!questions.length) {
+        continue;
+      }
+      await storeSnapshotRow(row.id, questions);
+      if (await storeSnapshot(row.id, sanitizeQuestions(questions))) {
         prewarmed += 1;
         logger.info("snapshot.prewarmed", { quizId: row.id, questions: questions.length });
       }

@@ -4,13 +4,13 @@ import { generateAccessToken } from "../utils/accessToken.js";
 import { readPositiveIntegerEnv } from "../utils/env.js";
 import { normalizeNullableText } from "../utils/text.js";
 import { withTransaction } from "../utils/withTransaction.js";
+import { EVENTS, publishEvent } from "../config/eventBus.js";
 import { getCachedJson, invalidateCachePrefix } from "./cache.service.js";
 import { invalidateQuizSnapshot, refreshQuizSnapshot } from "./quizSnapshot.service.js";
 import { planActivationWindow, resolveQuizWindow } from "./quizTiming.service.js";
 import { transitionQuizStatus } from "./quizLifecycle.service.js";
 import { finalizePendingSessionsForQuiz } from "./sessionLifecycle.service.js";
 import * as quizzes from "../repositories/quizzes.repository.js";
-import { insertQuestion } from "../repositories/questions.repository.js";
 import { subjectBelongsToTeacher } from "../repositories/subjects.repository.js";
 
 const NULLABLE_TEXT_FIELDS = new Set([
@@ -80,26 +80,6 @@ async function assertSubjectOwned(subjectId, userId) {
   }
 }
 
-// Resolve the unit id for a manual question, creating the unit on demand and caching
-// created units so repeated new_unit_name values in one request reuse the same unit.
-async function resolveQuestionUnitId(client, item, subjectId, userId, createdUnits) {
-  if (!item.new_unit_name) {
-    return item.unit_id ?? null;
-  }
-
-  if (createdUnits.has(item.new_unit_name)) {
-    return createdUnits.get(item.new_unit_name);
-  }
-
-  const existing = await quizzes.findUnitByName(client, subjectId, item.new_unit_name, userId);
-  const unitId = existing
-    ? existing.id
-    : await quizzes.insertUnit(client, item.new_unit_name, subjectId, userId);
-
-  createdUnits.set(item.new_unit_name, unitId);
-  return unitId;
-}
-
 export async function listQuizzes({ userId, search, status, page, limit }) {
   const offset = (page - 1) * limit;
   const rows = await quizzes.listQuizzesForOwner(pool, { userId, status, search, limit, offset });
@@ -117,21 +97,12 @@ export async function createManualQuiz({ userId, payload }) {
   return withTransaction(async (client) => {
     const quiz = await quizzes.insertQuiz(client, metadata);
     const insertedQuestions = [];
-    const createdUnits = new Map();
 
     for (let index = 0; index < payload.questions.length; index += 1) {
       const item = payload.questions[index];
-      const unitId = await resolveQuestionUnitId(client, item, metadata.subject_id, userId, createdUnits);
-
-      const question = await insertQuestion(client, {
-        ...item,
-        subject_id: metadata.subject_id,
-        created_by: userId,
-        unit_id: unitId,
-      });
-
-      insertedQuestions.push(question);
-      await quizzes.linkQuizQuestion(client, quiz.id, question.id, index + 1);
+      const inlineId = await quizzes.insertInlineQuestion(client, quiz.id, item);
+      await quizzes.linkInlineQuizQuestion(client, quiz.id, inlineId, index + 1);
+      insertedQuestions.push({ ...item, id: inlineId });
     }
 
     return { quiz, questions: insertedQuestions };
@@ -318,6 +289,16 @@ export async function changeQuizStatus({ id, userId, status }) {
   // Drop the cached live-stats so the teacher's monitor reflects the new status (and the
   // clamped end time) on the very next poll instead of serving stale data for the TTL.
   await invalidateCachePrefix(`quiz:${id}:live_stats:`);
+
+  // Publish the lifecycle event after the status commit (best-effort; no-op without Redis).
+  if (transition.quiz?.status === "active") {
+    await publishEvent(EVENTS.QUIZ_ACTIVATED, {
+      quizId: id,
+      accessToken: transition.quiz.access_token ?? null,
+    });
+  } else if (transition.quiz?.status === "ended") {
+    await publishEvent(EVENTS.QUIZ_ENDED, { quizId: id });
+  }
 
   // Auto-submit after the status commit; best-effort so a failure doesn't undo the end.
   let autoSubmittedCount = 0;
