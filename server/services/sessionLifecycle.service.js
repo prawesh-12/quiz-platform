@@ -10,17 +10,16 @@ export async function fetchQuizQuestionsForScoring(dbClient, quizId) {
     `
     SELECT
       qq.id,
-      COALESCE(q.question_text, iq.question_text) AS question_text,
-      COALESCE(q.option_a, iq.option_a) AS option_a,
-      COALESCE(q.option_b, iq.option_b) AS option_b,
-      COALESCE(q.option_c, iq.option_c) AS option_c,
-      COALESCE(q.option_d, iq.option_d) AS option_d,
-      COALESCE(q.correct_option, iq.correct_option) AS correct_option,
-      COALESCE(q.points, iq.points) AS points,
+      iq.question_text,
+      iq.option_a,
+      iq.option_b,
+      iq.option_c,
+      iq.option_d,
+      iq.correct_option,
+      iq.points,
       qq.order_no
     FROM quiz_questions qq
-    LEFT JOIN questions q ON q.id = qq.question_id
-    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
+    JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
     WHERE qq.quiz_id = $1
     ORDER BY qq.order_no ASC, qq.id ASC
     `,

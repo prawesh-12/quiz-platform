@@ -30,6 +30,7 @@ services:
     container_name: quizloom-api
     environment:
       REDIS_URL: redis://redis:6379
+      QUESTIONBANK_INTERNAL_URL: http://questionbank:5000
     expose:
       - "5000"
 
@@ -59,6 +60,7 @@ services:
     depends_on:
       - api
       - auth
+      - questionbank
     ports:
       - "8080:80"
     volumes:
@@ -81,10 +83,19 @@ services:
     restart: unless-stopped
 
   questionbank:
-    <<: *monolith
-    profiles: ["split"]
+    build: ./services/questionbank
+    image: quizloom-questionbank
+    container_name: quizloom-questionbank
+    env_file:
+      - ./services/questionbank/.env
     environment:
       REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    restart: unless-stopped
 
   quiz:
     <<: *monolith

@@ -11,7 +11,8 @@ import { planActivationWindow, resolveQuizWindow } from "./quizTiming.service.js
 import { transitionQuizStatus } from "./quizLifecycle.service.js";
 import { finalizePendingSessionsForQuiz } from "./sessionLifecycle.service.js";
 import * as quizzes from "../repositories/quizzes.repository.js";
-import { subjectBelongsToTeacher } from "../repositories/subjects.repository.js";
+import { subjectBelongsToTeacher } from "../repositories/subjectAccess.repository.js";
+import { selectBankQuestions } from "./questionBank.client.js";
 
 const NULLABLE_TEXT_FIELDS = new Set([
   "batch",
@@ -75,7 +76,7 @@ function applyActivationWindow(metadata) {
 }
 
 async function assertSubjectOwned(subjectId, userId) {
-  if (!(await subjectBelongsToTeacher(pool, subjectId, userId))) {
+  if (!(await subjectBelongsToTeacher(subjectId, userId))) {
     throw new AppError(404, "Subject not found");
   }
 }
@@ -109,50 +110,30 @@ export async function createManualQuiz({ userId, payload }) {
   });
 }
 
-async function selectBankQuestionIds(unitSelections, subjectId) {
-  const questionIds = [];
-
-  for (const selection of unitSelections) {
-    const unit = await quizzes.findUnitInSubject(pool, selection.unit_id, subjectId);
-    if (!unit) {
-      throw new AppError(
-        400,
-        `Invalid unit selection. unit_id ${selection.unit_id} does not belong to this subject.`,
-      );
-    }
-
-    const available = await quizzes.countBankQuestionsInUnit(pool, selection.unit_id, subjectId);
-    if (available < selection.count) {
-      throw new AppError(
-        400,
-        `Not enough questions in "${unit.name}" (unit_id: ${selection.unit_id}). Requested ${selection.count}, available ${available}.`,
-      );
-    }
-
-    const picked = await quizzes.pickRandomBankQuestions(pool, selection.unit_id, subjectId, selection.count);
-    questionIds.push(...picked);
-  }
-
-  if (questionIds.length === 0) {
-    throw new AppError(400, "No questions selected");
-  }
-
-  return questionIds;
-}
-
 export async function autoGenerateQuiz({ userId, payload }) {
   const metadata = normalizeQuizMeta(payload, userId);
   applyActivationWindow(metadata);
   await assertSubjectOwned(metadata.subject_id, userId);
 
-  const questionIds = await selectBankQuestionIds(payload.unit_selections, metadata.subject_id);
+  const questions = await selectBankQuestions({
+    subjectId: metadata.subject_id,
+    unitSelections: payload.unit_selections,
+  });
+  if (questions.length === 0) {
+    throw new AppError(400, "No questions selected");
+  }
 
   return withTransaction(async (client) => {
     const quiz = await quizzes.insertQuiz(client, metadata);
-    for (let index = 0; index < questionIds.length; index += 1) {
-      await quizzes.linkQuizQuestion(client, quiz.id, questionIds[index], index + 1);
+    for (let index = 0; index < questions.length; index += 1) {
+      const bank = questions[index];
+      const inlineId = await quizzes.insertInlineQuestion(client, quiz.id, {
+        ...bank,
+        source_question_id: bank.id,
+      });
+      await quizzes.linkInlineQuizQuestion(client, quiz.id, inlineId, index + 1);
     }
-    return { quiz, question_count: questionIds.length };
+    return { quiz, question_count: questions.length };
   });
 }
 

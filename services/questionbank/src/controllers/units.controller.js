@@ -7,6 +7,9 @@ import {
 } from "../validators/units.validator.js";
 import * as unitService from "../services/units.service.js";
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+
 function getRequester(req) {
   return {
     id: req.user.userId ?? req.user.id,
@@ -78,8 +81,8 @@ export async function deleteUnit(req, res, next) {
 export async function getUnitQuestions(req, res, next) {
   try {
     const { id } = unitIdParamSchema.parse(req.params);
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
+    const page = Number(req.query.page) || DEFAULT_PAGE;
+    const limit = Number(req.query.limit) || DEFAULT_LIMIT;
     const result = await unitService.getUnitQuestions({
       id,
       page,

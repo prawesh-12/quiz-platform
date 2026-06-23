@@ -1,5 +1,5 @@
-// Admin-facing reads over content. created_by_name resolves against the local teachers
-// projection fed by the auth service.
+// Admin-facing reads over content. created_by is returned as the raw teacher id; teachers
+// live in the auth service, so no name join happens here.
 
 export async function findAllSubjectsWithCounts(db) {
   const result = await db.query(
@@ -18,10 +18,9 @@ export async function findAllSubjectsWithCounts(db) {
 export async function findSubjectQuestionsForAdmin(db, subjectId) {
   const result = await db.query(
     `
-    SELECT q.*, u.name AS unit_name, t.name AS created_by_name
+    SELECT q.*, u.name AS unit_name
     FROM questions q
     LEFT JOIN units u ON u.id = q.unit_id
-    LEFT JOIN teachers t ON t.id = q.created_by
     WHERE q.subject_id = $1
     ORDER BY q.created_at DESC
     `,

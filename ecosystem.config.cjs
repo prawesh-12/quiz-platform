@@ -8,7 +8,9 @@ module.exports = {
       instances: Number(process.env.API_INSTANCES || 2),
       max_memory_restart: "512M",
       env: {
-        NODE_ENV: "production"
+        NODE_ENV: "production",
+        PORT: 5000,
+        QUESTIONBANK_INTERNAL_URL: "http://127.0.0.1:5002"
       }
     },
     {
@@ -41,7 +43,20 @@ module.exports = {
       instances: Number(process.env.AUTH_INSTANCES || 1),
       max_memory_restart: "512M",
       env: {
-        NODE_ENV: "production"
+        NODE_ENV: "production",
+        PORT: 5001
+      }
+    },
+    {
+      name: "quizloom-questionbank",
+      cwd: "./services/questionbank",
+      script: "index.js",
+      exec_mode: "cluster",
+      instances: Number(process.env.QUESTIONBANK_INSTANCES || 1),
+      max_memory_restart: "512M",
+      env: {
+        NODE_ENV: "production",
+        PORT: 5002
       }
     }
   ]

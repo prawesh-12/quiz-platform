@@ -101,9 +101,10 @@ export async function insertInlineQuestion(db, quizId, question) {
     `
     INSERT INTO quiz_inline_questions (
       quiz_id, question_text, option_a, option_b, option_c, option_d,
-      correct_option, has_equation, allow_multiple_answers, points, is_required
+      correct_option, has_equation, allow_multiple_answers, points, is_required,
+      source_question_id
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     RETURNING id
     `,
     [
@@ -118,6 +119,7 @@ export async function insertInlineQuestion(db, quizId, question) {
       question.allow_multiple_answers ?? false,
       question.points ?? 1,
       question.is_required ?? true,
+      question.source_question_id ?? null,
     ],
   );
 
@@ -131,29 +133,27 @@ export async function linkInlineQuizQuestion(db, quizId, inlineQuestionId, order
   );
 }
 
-// A quiz's questions come from two sources joined through the membership table; identity
-// is the membership row id so bank and inline questions share one id space.
+// Identity is the membership row id; question content lives in the quiz-owned inline rows.
 export async function findQuizQuestions(db, quizId) {
   const result = await db.query(
     `
     SELECT
       qq.id,
-      COALESCE(q.subject_id, qz.subject_id) AS subject_id,
-      COALESCE(q.question_text, iq.question_text) AS question_text,
-      COALESCE(q.option_a, iq.option_a) AS option_a,
-      COALESCE(q.option_b, iq.option_b) AS option_b,
-      COALESCE(q.option_c, iq.option_c) AS option_c,
-      COALESCE(q.option_d, iq.option_d) AS option_d,
-      COALESCE(q.correct_option, iq.correct_option) AS correct_option,
-      COALESCE(q.has_equation, iq.has_equation) AS has_equation,
-      COALESCE(q.allow_multiple_answers, iq.allow_multiple_answers) AS allow_multiple_answers,
-      COALESCE(q.points, iq.points) AS points,
-      COALESCE(q.is_required, iq.is_required) AS is_required,
+      qz.subject_id,
+      iq.question_text,
+      iq.option_a,
+      iq.option_b,
+      iq.option_c,
+      iq.option_d,
+      iq.correct_option,
+      iq.has_equation,
+      iq.allow_multiple_answers,
+      iq.points,
+      iq.is_required,
       qq.order_no
     FROM quiz_questions qq
     JOIN quizzes qz ON qz.id = qq.quiz_id
-    LEFT JOIN questions q ON q.id = qq.question_id
-    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
+    JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
     WHERE qq.quiz_id = $1
     ORDER BY qq.order_no ASC, qq.id ASC
     `,
@@ -168,18 +168,17 @@ export async function findQuizQuestionsPreview(db, quizId) {
     `
     SELECT
       qq.id,
-      COALESCE(q.question_text, iq.question_text) AS question_text,
-      COALESCE(q.option_a, iq.option_a) AS option_a,
-      COALESCE(q.option_b, iq.option_b) AS option_b,
-      COALESCE(q.option_c, iq.option_c) AS option_c,
-      COALESCE(q.option_d, iq.option_d) AS option_d,
-      COALESCE(q.correct_option, iq.correct_option) AS correct_option,
-      COALESCE(q.has_equation, iq.has_equation) AS has_equation,
-      COALESCE(q.points, iq.points) AS points,
+      iq.question_text,
+      iq.option_a,
+      iq.option_b,
+      iq.option_c,
+      iq.option_d,
+      iq.correct_option,
+      iq.has_equation,
+      iq.points,
       qq.order_no
     FROM quiz_questions qq
-    LEFT JOIN questions q ON q.id = qq.question_id
-    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
+    JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
     WHERE qq.quiz_id = $1
     ORDER BY qq.order_no ASC, qq.id ASC
     `,
@@ -434,39 +433,3 @@ export async function findLeaderboard(db, quizId) {
   return result.rows;
 }
 
-export async function findUnitInSubject(db, unitId, subjectId) {
-  const result = await db.query(
-    `SELECT id, name FROM units WHERE id = $1 AND subject_id = $2`,
-    [unitId, subjectId],
-  );
-
-  return result.rows[0] ?? null;
-}
-
-export async function countBankQuestionsInUnit(db, unitId, subjectId) {
-  const result = await db.query(
-    `
-    SELECT COUNT(*)::int AS available_count
-    FROM questions
-    WHERE unit_id = $1 AND in_subject_bank = TRUE AND subject_id = $2
-    `,
-    [unitId, subjectId],
-  );
-
-  return result.rows[0]?.available_count ?? 0;
-}
-
-export async function pickRandomBankQuestions(db, unitId, subjectId, count) {
-  const result = await db.query(
-    `
-    SELECT id
-    FROM questions
-    WHERE unit_id = $1 AND in_subject_bank = TRUE AND subject_id = $2
-    ORDER BY RANDOM()
-    LIMIT $3
-    `,
-    [unitId, subjectId, count],
-  );
-
-  return result.rows.map((row) => row.id);
-}

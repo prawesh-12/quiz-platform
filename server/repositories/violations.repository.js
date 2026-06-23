@@ -39,13 +39,12 @@ export async function findSessionAnswers(db, sessionId, quizId) {
     `
     SELECT
       qq.order_no, qq.id AS question_id,
-      COALESCE(q.question_text, iq.question_text) AS question_text,
-      COALESCE(q.correct_option, iq.correct_option) AS correct_option,
-      COALESCE(q.points, iq.points) AS points,
+      iq.question_text,
+      iq.correct_option,
+      iq.points,
       sa.selected_option, sa.is_correct, sa.answered_at
     FROM quiz_questions qq
-    LEFT JOIN questions q ON q.id = qq.question_id
-    LEFT JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
+    JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
     LEFT JOIN student_answers sa ON sa.session_id = $1 AND sa.question_id = qq.id
     WHERE qq.quiz_id = $2
     ORDER BY qq.order_no ASC, qq.id ASC

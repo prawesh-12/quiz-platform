@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { subjectIdParamSchema } from "../validators/admin.validator.js";
+import { adminSubjectIdParamSchema } from "../validators/internal.validator.js";
 import * as adminService from "../services/admin.service.js";
 
 export async function getAllSubjectsForAdmin(_req, res, next) {
@@ -13,7 +13,7 @@ export async function getAllSubjectsForAdmin(_req, res, next) {
 
 export async function getSubjectQuestionsForAdmin(req, res, next) {
   try {
-    const { id } = subjectIdParamSchema.parse(req.params);
+    const { id } = adminSubjectIdParamSchema.parse(req.params);
     return res.status(200).json(await adminService.getSubjectQuestionsForAdmin(id));
   } catch (error) {
     if (error instanceof z.ZodError) {

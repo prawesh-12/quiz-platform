@@ -7,6 +7,7 @@ const [
   { runMigrations },
   { startSchedulerConsumer },
   { startAuthProjectionConsumer },
+  { startQuestionBankProjectionConsumer },
   { initObservability },
   { registerGracefulShutdown },
   { default: logger },
@@ -17,6 +18,7 @@ const [
   import("./config/migrations.js"),
   import("./services/schedulerConsumer.service.js"),
   import("./services/authProjection.consumer.js"),
+  import("./services/questionbankProjection.consumer.js"),
   import("./config/observability.js"),
   import("./utils/gracefulShutdown.js"),
   import("./utils/logger.js"),
@@ -45,12 +47,14 @@ if ((process.env.WORKER_RUN_MIGRATIONS ?? "true").toLowerCase() !== "false") {
 
 const schedulerConsumer = startSchedulerConsumer();
 const authProjectionConsumer = startAuthProjectionConsumer();
+const questionBankProjectionConsumer = startQuestionBankProjectionConsumer();
 
 logger.info("worker.started", { owner: "worker" });
 
 registerGracefulShutdown([
   { name: "scheduler-consumer", run: async () => schedulerConsumer?.stop?.() },
   { name: "auth-projection-consumer", run: async () => authProjectionConsumer?.stop?.() },
+  { name: "questionbank-projection-consumer", run: async () => questionBankProjectionConsumer?.stop?.() },
   { name: "redis", run: () => closeRedis() },
   { name: "pg-pool", run: () => pool.end() }
 ]);

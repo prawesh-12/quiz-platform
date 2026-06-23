@@ -2,39 +2,6 @@ import pool from "../config/db.js";
 import { AppError } from "../utils/AppError.js";
 import * as subjects from "../repositories/subjects.repository.js";
 
-export async function listSubjects(requester) {
-  return { subjects: await subjects.listSubjects(pool, requester) };
-}
-
-export async function createSubject({ name, requester }) {
-  const createdBy = requester.role === "admin" ? null : requester.id;
-
-  try {
-    const subject = await subjects.insertSubject(pool, name, createdBy);
-    return { subject };
-  } catch (error) {
-    if (error?.code === "23505") {
-      throw new AppError(409, "A subject with this name already exists");
-    }
-    throw error;
-  }
-}
-
-export async function deleteSubject({ id, requester }) {
-  try {
-    const deleted = await subjects.deleteSubject(pool, id, requester);
-    if (!deleted) {
-      throw new AppError(404, "Subject not found");
-    }
-    return { message: "Subject deleted" };
-  } catch (error) {
-    if (error?.code === "23503") {
-      throw new AppError(409, "Cannot delete subject while quizzes still reference it");
-    }
-    throw error;
-  }
-}
-
 // Group the flat quiz/question join into quizzes each holding their questions.
 function groupQuizHistory(rows) {
   const quizzes = new Map();
