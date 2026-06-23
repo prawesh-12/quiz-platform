@@ -2,12 +2,8 @@ import { getRedis, isRedisReady } from "./redis.js";
 import { readPositiveIntegerEnv } from "../utils/env.js";
 import logger, { serializeError } from "../utils/logger.js";
 
-// Domain event bus over Redis Streams. Producers publish here; for now nothing consumes
-// — services attach consumer groups once they are extracted. Best-effort: no Redis (or
-// Redis down) is a silent no-op so a publish can never break the request path. Stream is
-// chosen from the event's domain prefix (e.g. "quiz.activated" → "events:quiz") so each
-// future service subscribes to the streams it owns. Approximate MAXLEN keeps streams
-// bounded without blocking.
+// Best-effort event bus over Redis Streams; no Redis is a silent no-op. Stream is keyed by
+// the event's domain prefix (e.g. quiz.activated -> events:quiz).
 
 export const EVENTS = Object.freeze({
   QUIZ_ACTIVATED: "quiz.activated",

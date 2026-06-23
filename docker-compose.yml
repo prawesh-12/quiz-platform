@@ -1,10 +1,5 @@
-# One command runs the whole platform locally. By default it brings up the gateway, the
-# monolith API, the scheduler (worker), and Redis. The five domain services are defined
-# under the "split" profile so the target topology exists now and is activated per
-# extraction:  docker compose --profile split up
-#
-# Every service currently runs the same monolith image; each is narrowed to its own
-# domain (and its own database) when it is extracted.
+# Default stack: gateway, api, worker, scheduler, redis.
+# Domain services run under the "split" profile:  docker compose --profile split up
 
 x-monolith: &monolith
   build: ./server
@@ -35,17 +30,28 @@ services:
     container_name: quizloom-api
     environment:
       REDIS_URL: redis://redis:6379
-      SCHEDULER_ENABLED: "false"
     expose:
       - "5000"
 
-  scheduler:
+  worker:
     <<: *monolith
-    container_name: quizloom-scheduler
+    container_name: quizloom-worker
     command: ["node", "worker.js"]
     environment:
       REDIS_URL: redis://redis:6379
-      SCHEDULER_ENABLED: "true"
+
+  scheduler:
+    build: ./services/scheduler
+    image: quizloom-scheduler
+    container_name: quizloom-scheduler
+    env_file:
+      - ./server/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   gateway:
     image: nginx:1.27-alpine
@@ -63,32 +69,27 @@ services:
     profiles: ["split"]
     environment:
       REDIS_URL: redis://redis:6379
-      SCHEDULER_ENABLED: "false"
 
   questionbank:
     <<: *monolith
     profiles: ["split"]
     environment:
       REDIS_URL: redis://redis:6379
-      SCHEDULER_ENABLED: "false"
 
   quiz:
     <<: *monolith
     profiles: ["split"]
     environment:
       REDIS_URL: redis://redis:6379
-      SCHEDULER_ENABLED: "false"
 
   exam:
     <<: *monolith
     profiles: ["split"]
     environment:
       REDIS_URL: redis://redis:6379
-      SCHEDULER_ENABLED: "false"
 
   analytics:
     <<: *monolith
     profiles: ["split"]
     environment:
       REDIS_URL: redis://redis:6379
-      SCHEDULER_ENABLED: "false"

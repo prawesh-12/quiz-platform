@@ -1,11 +1,12 @@
-// PM2 process model for a 1000+ student deployment: N stateless API instances plus a
-// single worker that owns scheduled quiz transitions and batch auto-submit.
+// PM2 process model for a 1000+ student deployment: N stateless API instances, a single
+// worker that reacts to scheduler signals (status transitions, batch auto-submit, snapshot
+// builds), and a single scheduler that detects due quizzes and publishes those signals.
 //
 //   pm2 start ecosystem.config.cjs
 //
-// The API runs with SCHEDULER_ENABLED=false so only the worker drives transitions.
-// (Even if that flag were wrong, the scheduler is guarded by a Postgres advisory lock,
-// so at most one process ever transitions a quiz.)
+// The scheduler is a separate package: run `npm install` in ./services/scheduler first.
+// Duplicate signals are harmless — transitions are idempotent and auto-submit uses
+// FOR UPDATE SKIP LOCKED — so a second worker would also be safe.
 module.exports = {
   apps: [
     {
@@ -16,8 +17,7 @@ module.exports = {
       instances: Number(process.env.API_INSTANCES || 2),
       max_memory_restart: "512M",
       env: {
-        NODE_ENV: "production",
-        SCHEDULER_ENABLED: "false"
+        NODE_ENV: "production"
       }
     },
     {
@@ -28,8 +28,18 @@ module.exports = {
       instances: 1,
       max_memory_restart: "512M",
       env: {
-        NODE_ENV: "production",
-        SCHEDULER_ENABLED: "true"
+        NODE_ENV: "production"
+      }
+    },
+    {
+      name: "quizloom-scheduler",
+      cwd: "./services/scheduler",
+      script: "index.js",
+      exec_mode: "fork",
+      instances: 1,
+      max_memory_restart: "256M",
+      env: {
+        NODE_ENV: "production"
       }
     }
   ]
