@@ -6,7 +6,7 @@ import authorize from "../middleware/authorize.js";
 
 const subjectsRouter = Router();
 
-subjectsRouter.use(authenticate);
-subjectsRouter.get("/:id/quiz-history", authorize("teacher"), getQuizHistoryBySubject);
+subjectsRouter.use(authenticate, authorize("teacher", "admin"));
+subjectsRouter.get("/:id/quiz-history", getQuizHistoryBySubject);
 
 export default subjectsRouter;

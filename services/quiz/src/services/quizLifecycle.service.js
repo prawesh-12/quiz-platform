@@ -16,7 +16,7 @@ export function isValidStatusTransition(currentStatus, nextStatus) {
   return false;
 }
 
-export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enforceTransition = true }) {
+async function loadTransitionRow(dbClient, quizId) {
   const quizResult = await dbClient.query(
     `
     SELECT
@@ -32,52 +32,34 @@ export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enfor
     [quizId]
   );
 
-  if (quizResult.rowCount === 0) {
-    return null;
-  }
+  return quizResult.rows[0] ?? null;
+}
 
-  const quiz = quizResult.rows[0];
-  if (enforceTransition && !isValidStatusTransition(quiz.status, nextStatus)) {
-    return {
-      error: `Invalid status transition from ${quiz.status} to ${nextStatus}`
-    };
-  }
-
-  let statusToPersist = nextStatus;
-  if (nextStatus === "active" && quiz.starts_in_future) {
-    statusToPersist = "scheduled";
-  }
-
-  let accessToken = quiz.access_token;
-  if ((statusToPersist === "active" || statusToPersist === "scheduled") && !accessToken) {
+function resolveAccessToken(quiz, statusToPersist) {
+  if ((statusToPersist === "active" || statusToPersist === "scheduled") && !quiz.access_token) {
     if (!quiz.access_code) {
-      return {
-        error: "Access code is required before activating quiz"
-      };
+      return { error: "Access code is required before activating quiz" };
     }
-
-    accessToken = generateAccessToken();
+    return { token: generateAccessToken() };
   }
 
-  // Don't auto-submit inside this transaction (it would hold every locked session row
-  // until all are graded); flag it so the caller finalizes after this status commits.
-  const requiresFinalization = statusToPersist === "ended";
+  return { token: quiz.access_token };
+}
 
+async function persistTransition(dbClient, statusToPersist, accessToken, quizId) {
   await dbClient.query(
     `
     UPDATE quizzes
     SET status = $1::varchar,
         access_token = COALESCE($2, access_token),
         scheduled_start = CASE
-          WHEN $1::varchar = 'active' AND scheduled_start IS NULL 
+          WHEN $1::varchar = 'active' AND scheduled_start IS NULL
           THEN (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp
           ELSE scheduled_start
         END,
         scheduled_end = CASE
           WHEN $1::varchar = 'active' AND scheduled_end IS NULL AND duration_mins > 0
           THEN ((NOW() AT TIME ZONE 'Asia/Kolkata') + make_interval(mins => duration_mins))::timestamp
-          -- Ending early: clamp the end to now so elapsed/running-time freezes at the
-          -- actual stop instead of counting on to the original scheduled end.
           WHEN $1::varchar = 'ended'
             AND (scheduled_end IS NULL OR scheduled_end > (NOW() AT TIME ZONE 'Asia/Kolkata'))
           THEN (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp
@@ -87,13 +69,36 @@ export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enfor
     `,
     [statusToPersist, accessToken, quizId]
   );
+}
+
+export async function transitionQuizStatus(dbClient, { quizId, nextStatus, enforceTransition = true }) {
+  const quiz = await loadTransitionRow(dbClient, quizId);
+  if (!quiz) {
+    return null;
+  }
+
+  if (enforceTransition && !isValidStatusTransition(quiz.status, nextStatus)) {
+    return { error: `Invalid status transition from ${quiz.status} to ${nextStatus}` };
+  }
+
+  let statusToPersist = nextStatus;
+  if (nextStatus === "active" && quiz.starts_in_future) {
+    statusToPersist = "scheduled";
+  }
+
+  const resolved = resolveAccessToken(quiz, statusToPersist);
+  if (resolved.error) {
+    return { error: resolved.error };
+  }
+
+  // Don't auto-submit inside this transaction; flag it so the Exam service finalizes after
+  // the quiz.ended event. Quiz never touches Exam tables.
+  const requiresFinalization = statusToPersist === "ended";
+
+  await persistTransition(dbClient, statusToPersist, resolved.token, quizId);
 
   const updatedResult = await dbClient.query(
-    `
-    SELECT id, status, access_token
-    FROM quizzes
-    WHERE id = $1
-    `,
+    `SELECT id, status, access_token FROM quizzes WHERE id = $1`,
     [quizId]
   );
 

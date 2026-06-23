@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { subjectIdParamSchema } from "../validators/subjects.validator.js";
+import { subjectIdParamSchema } from "../validators/quizzes.validator.js";
 import * as subjectService from "../services/subjects.service.js";
 
 function getRequester(req) {

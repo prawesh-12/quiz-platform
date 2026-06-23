@@ -58,6 +58,19 @@ module.exports = {
         NODE_ENV: "production",
         PORT: 5002
       }
+    },
+    {
+      name: "quizloom-quiz",
+      cwd: "./services/quiz",
+      script: "index.js",
+      exec_mode: "cluster",
+      instances: Number(process.env.QUIZ_INSTANCES || 1),
+      max_memory_restart: "512M",
+      env: {
+        NODE_ENV: "production",
+        PORT: 5003,
+        QUESTIONBANK_INTERNAL_URL: "http://127.0.0.1:5002"
+      }
     }
   ]
 };

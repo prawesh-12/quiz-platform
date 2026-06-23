@@ -13,7 +13,6 @@ import requestLogger from "./middleware/requestLogger.js";
 import adminRouter from "./routes/admin.routes.js";
 import quizzesRouter from "./routes/quizzes.routes.js";
 import sessionsRouter from "./routes/sessions.routes.js";
-import subjectsRouter from "./routes/subjects.routes.js";
 import teachersRouter from "./routes/teachers.routes.js";
 import violationsRouter from "./routes/violations.routes.js";
 
@@ -63,7 +62,6 @@ app.get("/api/ready", async (req, res) => {
 });
 
 app.use("/api/admin", adminRouter);
-app.use("/api/subjects", subjectsRouter);
 app.use("/api/teachers", teachersRouter);
 app.use("/api/quizzes", quizzesRouter);
 app.use("/api/sessions", sessionsRouter);

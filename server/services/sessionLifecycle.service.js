@@ -8,20 +8,15 @@ const DEFAULT_AUTO_SUBMIT_BATCH_SIZE = 100;
 export async function fetchQuizQuestionsForScoring(dbClient, quizId) {
   const result = await dbClient.query(
     `
-    SELECT
-      qq.id,
-      iq.question_text,
-      iq.option_a,
-      iq.option_b,
-      iq.option_c,
-      iq.option_d,
-      iq.correct_option,
-      iq.points,
-      qq.order_no
-    FROM quiz_questions qq
-    JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
-    WHERE qq.quiz_id = $1
-    ORDER BY qq.order_no ASC, qq.id ASC
+    SELECT q.id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d,
+           q.correct_option, q.points, q.order_no
+    FROM exam.quiz_snapshot s
+    CROSS JOIN jsonb_to_recordset(s.payload) AS q(
+      id int, question_text text, option_a text, option_b text, option_c text, option_d text,
+      correct_option text, points int, order_no int
+    )
+    WHERE s.quiz_id = $1
+    ORDER BY q.order_no ASC, q.id ASC
     `,
     [quizId]
   );

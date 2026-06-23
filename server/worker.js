@@ -5,7 +5,7 @@ dotenv.config();
 const [
   { default: pool },
   { runMigrations },
-  { startSchedulerConsumer },
+  { startQuizEventsConsumer },
   { startAuthProjectionConsumer },
   { startQuestionBankProjectionConsumer },
   { initObservability },
@@ -16,7 +16,7 @@ const [
 ] = await Promise.all([
   import("./config/db.js"),
   import("./config/migrations.js"),
-  import("./services/schedulerConsumer.service.js"),
+  import("./services/quizEvents.consumer.js"),
   import("./services/authProjection.consumer.js"),
   import("./services/questionbankProjection.consumer.js"),
   import("./config/observability.js"),
@@ -45,14 +45,14 @@ if ((process.env.WORKER_RUN_MIGRATIONS ?? "true").toLowerCase() !== "false") {
   }
 }
 
-const schedulerConsumer = startSchedulerConsumer();
+const quizEventsConsumer = startQuizEventsConsumer();
 const authProjectionConsumer = startAuthProjectionConsumer();
 const questionBankProjectionConsumer = startQuestionBankProjectionConsumer();
 
 logger.info("worker.started", { owner: "worker" });
 
 registerGracefulShutdown([
-  { name: "scheduler-consumer", run: async () => schedulerConsumer?.stop?.() },
+  { name: "quiz-events-consumer", run: async () => quizEventsConsumer?.stop?.() },
   { name: "auth-projection-consumer", run: async () => authProjectionConsumer?.stop?.() },
   { name: "questionbank-projection-consumer", run: async () => questionBankProjectionConsumer?.stop?.() },
   { name: "redis", run: () => closeRedis() },

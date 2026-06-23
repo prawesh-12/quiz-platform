@@ -20,31 +20,6 @@ export async function findActiveQuizByAccessToken(db, accessToken) {
   return result.rows[0] ?? null;
 }
 
-export async function fetchStudentQuizQuestions(db, quizId) {
-  const result = await db.query(
-    `
-    SELECT
-      qq.id,
-      iq.question_text,
-      iq.option_a,
-      iq.option_b,
-      iq.option_c,
-      iq.option_d,
-      iq.has_equation,
-      iq.points,
-      iq.correct_option,
-      qq.order_no
-    FROM quiz_questions qq
-    JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
-    WHERE qq.quiz_id = $1
-    ORDER BY qq.order_no ASC, qq.id ASC
-    `,
-    [quizId],
-  );
-
-  return result.rows;
-}
-
 export async function insertStudentSession(db, session) {
   await db.query(
     `
@@ -86,17 +61,15 @@ export async function findSessionContextRow(db, sessionToken, { lock = false } =
 export async function fetchBreakdownRows(db, sessionId, quizId) {
   const result = await db.query(
     `
-    SELECT
-      qq.order_no, qq.id AS question_id,
-      iq.question_text,
-      iq.points,
-      iq.correct_option,
-      sa.selected_option, sa.is_correct
-    FROM quiz_questions qq
-    JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
-    LEFT JOIN student_answers sa ON sa.session_id = $1 AND sa.question_id = qq.id
-    WHERE qq.quiz_id = $2
-    ORDER BY qq.order_no ASC, qq.id ASC
+    SELECT q.order_no, q.id AS question_id, q.question_text, q.points, q.correct_option,
+           sa.selected_option, sa.is_correct
+    FROM exam.quiz_snapshot s
+    CROSS JOIN jsonb_to_recordset(s.payload) AS q(
+      id int, order_no int, question_text text, points int, correct_option text
+    )
+    LEFT JOIN student_answers sa ON sa.session_id = $1 AND sa.question_id = q.id
+    WHERE s.quiz_id = $2
+    ORDER BY q.order_no ASC, q.id ASC
     `,
     [sessionId, quizId],
   );

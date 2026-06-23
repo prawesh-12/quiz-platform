@@ -9,7 +9,7 @@ const PREWARM_DEDUP_SECONDS = Number(process.env.SCHEDULER_PREWARM_DEDUP_SECONDS
 
 async function emitStartDue() {
   const { rows } = await query(
-    `SELECT id FROM quiz.quizzes
+    `SELECT id FROM quizzes
      WHERE status = 'scheduled' AND scheduled_start IS NOT NULL
        AND scheduled_start <= ${NOW_IST}`,
   );
@@ -20,7 +20,7 @@ async function emitStartDue() {
 
 async function emitEndDue() {
   const { rows } = await query(
-    `SELECT id FROM quiz.quizzes
+    `SELECT id FROM quizzes
      WHERE status = 'active' AND scheduled_end IS NOT NULL
        AND scheduled_end <= ${NOW_IST}`,
   );
@@ -31,7 +31,7 @@ async function emitEndDue() {
 
 async function emitPrewarmDue() {
   const { rows } = await query(
-    `SELECT id FROM quiz.quizzes
+    `SELECT id FROM quizzes
      WHERE status = 'scheduled' AND scheduled_start IS NOT NULL
        AND scheduled_start BETWEEN ${NOW_IST}
          AND ${NOW_IST} + make_interval(mins => $1)`,

@@ -46,7 +46,7 @@ services:
     image: quizloom-scheduler
     container_name: quizloom-scheduler
     env_file:
-      - ./server/.env
+      - ./services/quiz/.env
     environment:
       REDIS_URL: redis://redis:6379
     depends_on:
@@ -61,6 +61,7 @@ services:
       - api
       - auth
       - questionbank
+      - quiz
     ports:
       - "8080:80"
     volumes:
@@ -98,10 +99,20 @@ services:
     restart: unless-stopped
 
   quiz:
-    <<: *monolith
-    profiles: ["split"]
+    build: ./services/quiz
+    image: quizloom-quiz
+    container_name: quizloom-quiz
+    env_file:
+      - ./services/quiz/.env
     environment:
       REDIS_URL: redis://redis:6379
+      QUESTIONBANK_INTERNAL_URL: http://questionbank:5000
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    restart: unless-stopped
 
   exam:
     <<: *monolith

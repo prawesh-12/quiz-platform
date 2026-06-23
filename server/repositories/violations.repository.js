@@ -37,17 +37,15 @@ export async function findTeacherSession(db, sessionId, userId) {
 export async function findSessionAnswers(db, sessionId, quizId) {
   const result = await db.query(
     `
-    SELECT
-      qq.order_no, qq.id AS question_id,
-      iq.question_text,
-      iq.correct_option,
-      iq.points,
-      sa.selected_option, sa.is_correct, sa.answered_at
-    FROM quiz_questions qq
-    JOIN quiz_inline_questions iq ON iq.id = qq.inline_question_id
-    LEFT JOIN student_answers sa ON sa.session_id = $1 AND sa.question_id = qq.id
-    WHERE qq.quiz_id = $2
-    ORDER BY qq.order_no ASC, qq.id ASC
+    SELECT q.order_no, q.id AS question_id, q.question_text, q.correct_option, q.points,
+           sa.selected_option, sa.is_correct, sa.answered_at
+    FROM exam.quiz_snapshot s
+    CROSS JOIN jsonb_to_recordset(s.payload) AS q(
+      id int, order_no int, question_text text, correct_option text, points int
+    )
+    LEFT JOIN student_answers sa ON sa.session_id = $1 AND sa.question_id = q.id
+    WHERE s.quiz_id = $2
+    ORDER BY q.order_no ASC, q.id ASC
     `,
     [sessionId, quizId],
   );

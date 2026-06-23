@@ -11,7 +11,6 @@
     "test": "node --test tests/*.test.js",
     "create-admin": "node scripts/create_admin.js",
     "db:migrate": "node scripts/migrate.js",
-    "snapshot:backfill": "node scripts/backfill_quiz_snapshots.js",
     "db:maintenance": "node scripts/db_maintenance.js",
     "seed:load": "node scripts/seed_load.js"
   },
