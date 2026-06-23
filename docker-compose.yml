@@ -1,6 +1,3 @@
-# One command runs the whole platform: gateway (routing + static SPA), the six services,
-# the scheduler, and Redis. Build the client first so gateway can serve client/dist.
-
 services:
   redis:
     build: ./docker/redis
