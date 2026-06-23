@@ -6,6 +6,7 @@ const [
   { default: pool },
   { runMigrations },
   { startSchedulerConsumer },
+  { startAuthProjectionConsumer },
   { initObservability },
   { registerGracefulShutdown },
   { default: logger },
@@ -15,6 +16,7 @@ const [
   import("./config/db.js"),
   import("./config/migrations.js"),
   import("./services/schedulerConsumer.service.js"),
+  import("./services/authProjection.consumer.js"),
   import("./config/observability.js"),
   import("./utils/gracefulShutdown.js"),
   import("./utils/logger.js"),
@@ -41,12 +43,14 @@ if ((process.env.WORKER_RUN_MIGRATIONS ?? "true").toLowerCase() !== "false") {
   }
 }
 
-const consumer = startSchedulerConsumer();
+const schedulerConsumer = startSchedulerConsumer();
+const authProjectionConsumer = startAuthProjectionConsumer();
 
 logger.info("worker.started", { owner: "worker" });
 
 registerGracefulShutdown([
-  { name: "scheduler-consumer", run: async () => consumer?.stop?.() },
+  { name: "scheduler-consumer", run: async () => schedulerConsumer?.stop?.() },
+  { name: "auth-projection-consumer", run: async () => authProjectionConsumer?.stop?.() },
   { name: "redis", run: () => closeRedis() },
   { name: "pg-pool", run: () => pool.end() }
 ]);

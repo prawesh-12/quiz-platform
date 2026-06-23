@@ -58,6 +58,7 @@ services:
     container_name: quizloom-gateway
     depends_on:
       - api
+      - auth
     ports:
       - "8080:80"
     volumes:
@@ -65,10 +66,19 @@ services:
     restart: unless-stopped
 
   auth:
-    <<: *monolith
-    profiles: ["split"]
+    build: ./services/auth
+    image: quizloom-auth
+    container_name: quizloom-auth
+    env_file:
+      - ./services/auth/.env
     environment:
       REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    restart: unless-stopped
 
   questionbank:
     <<: *monolith

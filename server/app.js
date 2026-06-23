@@ -11,7 +11,6 @@ import { query } from "./config/db.js";
 import errorHandler from "./middleware/errorHandler.js";
 import requestLogger from "./middleware/requestLogger.js";
 import adminRouter from "./routes/admin.routes.js";
-import authRouter from "./routes/auth.routes.js";
 import questionsRouter from "./routes/questions.routes.js";
 import quizzesRouter from "./routes/quizzes.routes.js";
 import sessionsRouter from "./routes/sessions.routes.js";
@@ -65,7 +64,6 @@ app.get("/api/ready", async (req, res) => {
   }
 });
 
-app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/subjects", subjectsRouter);
 app.use("/api/teachers", teachersRouter);

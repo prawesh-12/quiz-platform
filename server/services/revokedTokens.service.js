@@ -1,24 +1,22 @@
-import pool from "../config/db.js";
-import * as authRepo from "../repositories/auth.repository.js";
-import { readPositiveIntegerEnv } from "../utils/env.js";
-import { getCachedJson, invalidateCache } from "./cache.service.js";
+import { getRedis, isRedisReady } from "../config/redis.js";
+import logger, { serializeError } from "../utils/logger.js";
 
-// The revoked-token lookup runs on every authenticated request, so a momentary DB
-// slowdown (e.g. a serverless cold start) otherwise fails all auth at once. Cache the
-// result for a short TTL: active sessions stay off the DB, and logout invalidates the
-// entry so a revocation is seen immediately when the cache layer is reachable.
-const TTL_MS = readPositiveIntegerEnv("REVOKED_TOKEN_CACHE_TTL_MS", 60000);
-
-function cacheKey(tokenHash) {
+function revokedKey(tokenHash) {
   return `revoked:${tokenHash}`;
 }
 
+// Auth writes revoked:<hash> on logout with TTL = token life. Redis down: treat as not
+// revoked so an outage can't lock everyone out — tokens still expire on their own.
 export async function isTokenRevoked(tokenHash) {
-  return getCachedJson(cacheKey(tokenHash), TTL_MS, () =>
-    authRepo.existsRevokedToken(pool, tokenHash),
-  );
-}
+  const redis = getRedis();
+  if (!redis || !isRedisReady()) {
+    return false;
+  }
 
-export async function invalidateRevokedToken(tokenHash) {
-  await invalidateCache(cacheKey(tokenHash));
+  try {
+    return (await redis.exists(revokedKey(tokenHash))) === 1;
+  } catch (error) {
+    logger.warn("revoked.check_failed", serializeError(error));
+    return false;
+  }
 }
