@@ -10,10 +10,8 @@ const __dirname = path.dirname(__filename);
 import { query } from "./config/db.js";
 import errorHandler from "./middleware/errorHandler.js";
 import requestLogger from "./middleware/requestLogger.js";
-import adminRouter from "./routes/admin.routes.js";
 import quizzesRouter from "./routes/quizzes.routes.js";
 import sessionsRouter from "./routes/sessions.routes.js";
-import teachersRouter from "./routes/teachers.routes.js";
 import violationsRouter from "./routes/violations.routes.js";
 
 const app = express();
@@ -61,8 +59,6 @@ app.get("/api/ready", async (req, res) => {
   }
 });
 
-app.use("/api/admin", adminRouter);
-app.use("/api/teachers", teachersRouter);
 app.use("/api/quizzes", quizzesRouter);
 app.use("/api/sessions", sessionsRouter);
 app.use("/api/violations", violationsRouter);

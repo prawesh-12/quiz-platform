@@ -193,7 +193,8 @@ export async function finalizePendingSessionsForQuiz(quizId, { batchSize } = {})
           sessionId: session.id,
           quizId,
           score: finalized.score,
-          totalPoints: finalized.total_points
+          totalPoints: finalized.total_points,
+          submittedAt: new Date().toISOString()
         });
         batchCount += 1;
       }

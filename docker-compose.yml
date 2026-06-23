@@ -62,6 +62,7 @@ services:
       - auth
       - questionbank
       - quiz
+      - analytics
     ports:
       - "8080:80"
     volumes:
@@ -121,7 +122,16 @@ services:
       REDIS_URL: redis://redis:6379
 
   analytics:
-    <<: *monolith
-    profiles: ["split"]
+    build: ./services/analytics
+    image: quizloom-analytics
+    container_name: quizloom-analytics
+    env_file:
+      - ./services/analytics/.env
     environment:
       REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    restart: unless-stopped

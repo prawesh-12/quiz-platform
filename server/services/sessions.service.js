@@ -144,7 +144,7 @@ export async function enterSession(payload) {
   }
 
   const sessionToken = uuidv4().replaceAll("-", "");
-  await sessions.insertStudentSession(pool, {
+  const sessionId = await sessions.insertStudentSession(pool, {
     quizId: quiz.id,
     name: payload.name,
     rollNo: payload.roll_no,
@@ -152,6 +152,17 @@ export async function enterSession(payload) {
     division: payload.division,
     groupNo: payload.group_no,
     sessionToken,
+  });
+
+  await publishEvent(EVENTS.SESSION_STARTED, {
+    sessionId,
+    quizId: quiz.id,
+    name: payload.name,
+    rollNo: payload.roll_no,
+    email: payload.email,
+    division: payload.division,
+    groupNo: payload.group_no,
+    startedAt: new Date().toISOString(),
   });
 
   return {
@@ -232,6 +243,7 @@ export async function submitSession(sessionToken, { answers, submissionId = null
       quizId: session.quiz_id,
       score: result.score,
       totalPoints: result.total_points,
+      submittedAt: new Date().toISOString(),
     };
 
     return {

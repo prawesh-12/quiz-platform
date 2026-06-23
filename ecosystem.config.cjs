@@ -71,6 +71,18 @@ module.exports = {
         PORT: 5003,
         QUESTIONBANK_INTERNAL_URL: "http://127.0.0.1:5002"
       }
+    },
+    {
+      name: "quizloom-analytics",
+      cwd: "./services/analytics",
+      script: "index.js",
+      exec_mode: "cluster",
+      instances: Number(process.env.ANALYTICS_INSTANCES || 1),
+      max_memory_restart: "512M",
+      env: {
+        NODE_ENV: "production",
+        PORT: 5004
+      }
     }
   ]
 };

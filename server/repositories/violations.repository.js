@@ -3,7 +3,7 @@
 
 export async function findSessionByToken(db, sessionToken) {
   const result = await db.query(
-    `SELECT id, status FROM student_sessions WHERE session_token = $1`,
+    `SELECT id, status, quiz_id FROM student_sessions WHERE session_token = $1`,
     [sessionToken],
   );
 

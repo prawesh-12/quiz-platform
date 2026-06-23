@@ -21,10 +21,11 @@ export async function findActiveQuizByAccessToken(db, accessToken) {
 }
 
 export async function insertStudentSession(db, session) {
-  await db.query(
+  const result = await db.query(
     `
     INSERT INTO student_sessions (quiz_id, name, roll_no, email, division, group_no, session_token, status, started_at)
     VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', (NOW() AT TIME ZONE 'Asia/Kolkata')::timestamp)
+    RETURNING id
     `,
     [
       session.quizId,
@@ -36,6 +37,8 @@ export async function insertStudentSession(db, session) {
       session.sessionToken,
     ],
   );
+
+  return result.rows[0].id;
 }
 
 // Session joined with its quiz, plus the server clock. Pass `lock` to take a row lock

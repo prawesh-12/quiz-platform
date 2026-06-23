@@ -6,9 +6,9 @@ import logger, { serializeError } from "../utils/logger.js";
 // the event's domain prefix (e.g. quiz.activated -> events:quiz).
 
 export const EVENTS = Object.freeze({
-  QUIZ_ACTIVATED: "quiz.activated",
-  QUIZ_ENDED: "quiz.ended",
+  SESSION_STARTED: "session.started",
   SESSION_SUBMITTED: "session.submitted",
+  VIOLATION_FLAGGED: "violation.flagged",
 });
 
 const STREAM_MAXLEN = readPositiveIntegerEnv("EVENT_STREAM_MAXLEN", 10000);

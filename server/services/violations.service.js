@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { EVENTS, publishEvent } from "../config/eventBus.js";
 import { AppError } from "../utils/AppError.js";
 import * as violations from "../repositories/violations.repository.js";
 
@@ -13,6 +14,7 @@ export async function createViolation({ sessionToken, payload }) {
   }
 
   await violations.insertViolation(pool, session.id, payload.type, payload.description);
+  await publishEvent(EVENTS.VIOLATION_FLAGGED, { sessionId: session.id, quizId: session.quiz_id });
   return { message: "Violation logged" };
 }
 
