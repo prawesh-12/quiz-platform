@@ -1,21 +1,20 @@
 module.exports = {
   apps: [
     {
-      name: "quizloom-api",
-      cwd: "./server",
+      name: "quizloom-exam",
+      cwd: "./services/exam",
       script: "index.js",
       exec_mode: "cluster",
-      instances: Number(process.env.API_INSTANCES || 2),
+      instances: Number(process.env.EXAM_INSTANCES || 2),
       max_memory_restart: "512M",
       env: {
         NODE_ENV: "production",
-        PORT: 5000,
-        QUESTIONBANK_INTERNAL_URL: "http://127.0.0.1:5002"
+        PORT: 5005
       }
     },
     {
-      name: "quizloom-worker",
-      cwd: "./server",
+      name: "quizloom-exam-worker",
+      cwd: "./services/exam",
       script: "worker.js",
       exec_mode: "fork",
       instances: 1,

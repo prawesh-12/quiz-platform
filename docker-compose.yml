@@ -1,15 +1,5 @@
-# Default stack: gateway, api, worker, scheduler, redis.
-# Domain services run under the "split" profile:  docker compose --profile split up
-
-x-monolith: &monolith
-  build: ./server
-  image: quizloom-server
-  env_file:
-    - ./server/.env
-  depends_on:
-    redis:
-      condition: service_healthy
-  restart: unless-stopped
+# One command runs the whole platform: gateway (routing + static SPA), the six services,
+# the scheduler, and Redis. Build the client first so gateway can serve client/dist.
 
 services:
   redis:
@@ -25,48 +15,20 @@ services:
       timeout: 3s
       retries: 5
 
-  api:
-    <<: *monolith
-    container_name: quizloom-api
-    environment:
-      REDIS_URL: redis://redis:6379
-      QUESTIONBANK_INTERNAL_URL: http://questionbank:5000
-    expose:
-      - "5000"
-
-  worker:
-    <<: *monolith
-    container_name: quizloom-worker
-    command: ["node", "worker.js"]
-    environment:
-      REDIS_URL: redis://redis:6379
-
-  scheduler:
-    build: ./services/scheduler
-    image: quizloom-scheduler
-    container_name: quizloom-scheduler
-    env_file:
-      - ./services/quiz/.env
-    environment:
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
   gateway:
     image: nginx:1.27-alpine
     container_name: quizloom-gateway
     depends_on:
-      - api
       - auth
       - questionbank
       - quiz
       - analytics
+      - exam
     ports:
       - "8080:80"
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./client/dist:/usr/share/nginx/html:ro
     restart: unless-stopped
 
   auth:
@@ -115,12 +77,6 @@ services:
       - "5000"
     restart: unless-stopped
 
-  exam:
-    <<: *monolith
-    profiles: ["split"]
-    environment:
-      REDIS_URL: redis://redis:6379
-
   analytics:
     build: ./services/analytics
     image: quizloom-analytics
@@ -134,4 +90,46 @@ services:
         condition: service_healthy
     expose:
       - "5000"
+    restart: unless-stopped
+
+  exam:
+    build: ./services/exam
+    image: quizloom-exam
+    container_name: quizloom-exam
+    env_file:
+      - ./services/exam/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    restart: unless-stopped
+
+  exam-worker:
+    build: ./services/exam
+    image: quizloom-exam
+    container_name: quizloom-exam-worker
+    command: ["node", "worker.js"]
+    env_file:
+      - ./services/exam/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduler:
+    build: ./services/scheduler
+    image: quizloom-scheduler
+    container_name: quizloom-scheduler
+    env_file:
+      - ./services/quiz/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
