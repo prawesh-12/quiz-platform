@@ -33,6 +33,12 @@ export function createTtlCache({ maxEntries = DEFAULT_MAX_ENTRIES } = {}) {
     evictIfNeeded();
   }
 
+  // ttlMs may be a number or a (value) => number resolver. The in-flight placeholder uses
+  // the resolver's no-value result; the resolved value re-sets with its own TTL.
+  function resolveTtl(ttlMs, value) {
+    return typeof ttlMs === "function" ? ttlMs(value) : ttlMs;
+  }
+
   // Cache factory() for ttlMs. Concurrent callers reuse the in-flight promise (one run).
   async function getOrSet(key, ttlMs, factory) {
     const cached = get(key);
@@ -40,10 +46,10 @@ export function createTtlCache({ maxEntries = DEFAULT_MAX_ENTRIES } = {}) {
       return cached;
     }
     const promise = Promise.resolve().then(factory);
-    set(key, promise, ttlMs);
+    set(key, promise, resolveTtl(ttlMs, undefined));
     try {
       const value = await promise;
-      set(key, value, ttlMs);
+      set(key, value, resolveTtl(ttlMs, value));
       return value;
     } catch (error) {
       store.delete(key);

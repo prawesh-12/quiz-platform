@@ -5,9 +5,14 @@ const TOO_MANY_REQUESTS = 429;
 const MS_PER_SECOND = 1000;
 
 // Load-test escape hatch: a single host shares one IP, so per-IP limits would throttle
-// the test. NEVER enable in production.
-const RATE_LIMIT_DISABLED =
+// the test. Ignored in production so login brute-force protection can never be switched off.
+const RATE_LIMIT_DISABLE_REQUESTED =
   String(process.env.RATE_LIMIT_DISABLED || "").toLowerCase() === "true";
+const RATE_LIMIT_DISABLED = RATE_LIMIT_DISABLE_REQUESTED && process.env.NODE_ENV !== "production";
+
+if (RATE_LIMIT_DISABLE_REQUESTED && process.env.NODE_ENV === "production") {
+  logger.warn("ratelimit.disable_ignored_in_production", {});
+}
 
 // In-memory fallback buckets (per process) used when Redis is unavailable.
 const buckets = new Map();

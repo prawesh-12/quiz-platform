@@ -2,9 +2,14 @@ import { getRedis, isRedisReady } from "../config/redis.js";
 import logger, { serializeError } from "../utils/logger.js";
 
 // Load-test escape hatch: a single host shares one IP, so per-IP limits would throttle
-// the test. NEVER enable in production.
-const RATE_LIMIT_DISABLED =
+// the test. Ignored in production so login brute-force protection can never be switched off.
+const RATE_LIMIT_DISABLE_REQUESTED =
   String(process.env.RATE_LIMIT_DISABLED || "").toLowerCase() === "true";
+const RATE_LIMIT_DISABLED = RATE_LIMIT_DISABLE_REQUESTED && process.env.NODE_ENV !== "production";
+
+if (RATE_LIMIT_DISABLE_REQUESTED && process.env.NODE_ENV === "production") {
+  logger.warn("ratelimit.disable_ignored_in_production", {});
+}
 
 const MILLIS_PER_SECOND = 1000;
 

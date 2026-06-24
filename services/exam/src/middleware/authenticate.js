@@ -38,7 +38,7 @@ export default async function authenticate(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] });
 
     if (await isTokenRevoked(hashToken(token))) {
       return res.status(401).json({ error: "Token has been revoked" });

@@ -8,6 +8,12 @@ import createTtlCache from "../utils/ttlCache.js";
 const LOCAL_MAX_ENTRIES = 2000;
 const local = createTtlCache({ maxEntries: LOCAL_MAX_ENTRIES });
 
+// ttlMs may be a number or a (value) => number resolver, so a caller can vary the TTL by
+// the cached value (e.g. cache positives long, negatives briefly).
+function resolveTtl(ttlMs, value) {
+  return typeof ttlMs === "function" ? ttlMs(value) : ttlMs;
+}
+
 // Resolve factory() for ttlMs, preferring Redis; fall through to local on any Redis error.
 export async function getCachedJson(key, ttlMs, factory) {
   const redis = getRedis();
@@ -20,7 +26,7 @@ export async function getCachedJson(key, ttlMs, factory) {
       }
 
       const value = await factory();
-      await redis.set(key, JSON.stringify(value), "PX", ttlMs);
+      await redis.set(key, JSON.stringify(value), "PX", resolveTtl(ttlMs, value));
       return value;
     } catch (error) {
       logger.warn("cache.redis_read_failed", { key, ...serializeError(error) });
