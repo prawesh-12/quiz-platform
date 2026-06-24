@@ -2,8 +2,8 @@ import pool from "../config/db.js";
 import { AppError } from "../utils/AppError.js";
 import { withTransaction } from "../utils/withTransaction.js";
 import { transitionQuizStatus } from "./quizLifecycle.service.js";
-import { emitQuizSnapshot } from "./quizSnapshot.service.js";
-import { emitQuizUpserted, emitQuizEnded, emitQuizDeleted } from "./quizEvents.service.js";
+import { enqueueQuizSnapshot } from "./quizSnapshot.service.js";
+import { enqueueQuizUpserted, enqueueQuizEnded, enqueueQuizDeleted } from "./quizEvents.service.js";
 import * as quizzes from "../repositories/quizzes.repository.js";
 import * as quizQuestions from "../repositories/quizQuestions.repository.js";
 
@@ -33,14 +33,15 @@ export async function getQuizWithQuestions({ id, userId }) {
   return { quiz, questions };
 }
 
-// Keep snapshot, lifecycle event, and end signal consistent after a status commit.
-async function announceStatusChange(id, transition) {
-  await emitQuizUpserted(id);
+// Keep snapshot, lifecycle event, and end signal consistent with the status change, all in
+// the same tx so the events commit atomically with the row.
+async function announceStatusChange(client, id, status) {
+  await enqueueQuizUpserted(client, id);
 
-  if (transition.quiz?.status === "active") {
-    await emitQuizSnapshot(id);
-  } else if (transition.quiz?.status === "ended") {
-    await emitQuizEnded(id);
+  if (status === "active") {
+    await enqueueQuizSnapshot(client, id);
+  } else if (status === "ended") {
+    await enqueueQuizEnded(client, id);
   }
 }
 
@@ -61,10 +62,9 @@ export async function changeQuizStatus({ id, userId, status }) {
       throw new AppError(400, result.error);
     }
 
+    await announceStatusChange(client, id, result.quiz?.status);
     return result;
   });
-
-  await announceStatusChange(id, transition);
 
   return { quiz: transition.quiz, autoSubmittedCount: 0 };
 }
@@ -75,10 +75,12 @@ export async function removeQuiz({ id, userId }) {
     throw new AppError(404, "Quiz not found");
   }
 
-  const deleted = await withTransaction((client) => quizzes.deleteQuizCascade(client, id, userId));
-  if (deleted) {
-    await emitQuizDeleted(id);
-  }
+  await withTransaction(async (client) => {
+    const deleted = await quizzes.deleteQuizCascade(client, id, userId);
+    if (deleted) {
+      await enqueueQuizDeleted(client, id);
+    }
+  });
 }
 
 export async function getPreview({ id, userId }) {

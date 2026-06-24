@@ -1,19 +1,20 @@
-import pool from "../config/db.js";
-import { EVENTS, publishEvent } from "../config/eventBus.js";
+import { EVENTS } from "../config/eventBus.js";
+import { enqueueOutboxEvent } from "../config/outbox.js";
 import * as quizzes from "../repositories/quizzes.repository.js";
 
-// Best-effort lifecycle event carrying the full quiz metadata row.
-export async function emitQuizUpserted(quizId) {
-  const meta = await quizzes.findQuizMetaById(pool, quizId);
+// Lifecycle event carrying the full quiz metadata row; enqueued in the caller's tx so it
+// commits atomically with the status/row change it describes.
+export async function enqueueQuizUpserted(client, quizId) {
+  const meta = await quizzes.findQuizMetaById(client, quizId);
   if (meta) {
-    await publishEvent(EVENTS.QUIZ_UPSERTED, meta);
+    await enqueueOutboxEvent(client, EVENTS.QUIZ_UPSERTED, meta);
   }
 }
 
-export async function emitQuizEnded(quizId) {
-  await publishEvent(EVENTS.QUIZ_ENDED, { quizId });
+export async function enqueueQuizEnded(client, quizId) {
+  await enqueueOutboxEvent(client, EVENTS.QUIZ_ENDED, { quizId });
 }
 
-export async function emitQuizDeleted(quizId) {
-  await publishEvent(EVENTS.QUIZ_DELETED, { quizId });
+export async function enqueueQuizDeleted(client, quizId) {
+  await enqueueOutboxEvent(client, EVENTS.QUIZ_DELETED, { quizId });
 }

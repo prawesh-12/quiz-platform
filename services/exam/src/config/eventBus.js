@@ -17,6 +17,11 @@ function streamFor(type) {
   return `events:${String(type).split(".")[0]}`;
 }
 
+// Exam streams are keyed by event prefix; the outbox stores the resolved stream per row.
+export function resolveStream(type) {
+  return streamFor(type);
+}
+
 // Returns the stream entry id on success, or false when nothing was published.
 export async function publishEvent(type, payload = {}) {
   const redis = getRedis();

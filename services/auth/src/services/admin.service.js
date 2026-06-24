@@ -1,7 +1,8 @@
 import bcrypt from "bcryptjs";
 
 import pool from "../config/db.js";
-import { EVENTS, publishEvent } from "../config/eventBus.js";
+import { EVENTS } from "../config/eventBus.js";
+import { enqueueOutboxEvent } from "../config/outbox.js";
 import { AppError } from "../utils/AppError.js";
 import { withTransaction } from "../utils/withTransaction.js";
 import * as adminRepo from "../repositories/admin.repository.js";
@@ -25,8 +26,8 @@ function toUniqueIds(subjectIds = []) {
   return [...new Set(subjectIds)];
 }
 
-async function publishTeacherUpserted(teacher) {
-  await publishEvent(EVENTS.TEACHER_UPSERTED, {
+async function enqueueTeacherUpserted(client, teacher) {
+  await enqueueOutboxEvent(client, EVENTS.TEACHER_UPSERTED, {
     id: teacher.id,
     name: teacher.name,
     email: teacher.email,
@@ -34,12 +35,12 @@ async function publishTeacherUpserted(teacher) {
   });
 }
 
-async function publishSubjectAssignments(teacherId, assignedIds, removedIds) {
+async function enqueueSubjectAssignments(client, teacherId, assignedIds, removedIds) {
   for (const subjectId of assignedIds) {
-    await publishEvent(EVENTS.TEACHER_SUBJECTS_ASSIGNED, { teacherId, subjectId });
+    await enqueueOutboxEvent(client, EVENTS.TEACHER_SUBJECTS_ASSIGNED, { teacherId, subjectId });
   }
   for (const subjectId of removedIds) {
-    await publishEvent(EVENTS.TEACHER_SUBJECTS_REMOVED, { teacherId, subjectId });
+    await enqueueOutboxEvent(client, EVENTS.TEACHER_SUBJECTS_REMOVED, { teacherId, subjectId });
   }
 }
 
@@ -65,11 +66,7 @@ export async function addTeacher(payload) {
   const subjectIds = toUniqueIds(payload.subject_ids);
   const passwordHash = await bcrypt.hash(payload.password, SALT_ROUNDS);
 
-  const result = await insertTeacherWithSubjects({ ...payload, email, passwordHash }, subjectIds);
-
-  await publishTeacherUpserted(result.teacher);
-  await publishSubjectAssignments(result.teacher.id, subjectIds, []);
-  return result;
+  return insertTeacherWithSubjects({ ...payload, email, passwordHash }, subjectIds);
 }
 
 async function insertTeacherWithSubjects(teacherInput, subjectIds) {
@@ -85,6 +82,8 @@ async function insertTeacherWithSubjects(teacherInput, subjectIds) {
         await adminRepo.assignTeacherSubjects(client, teacher.id, subjectIds);
       }
 
+      await enqueueTeacherUpserted(client, teacher);
+      await enqueueSubjectAssignments(client, teacher.id, subjectIds, []);
       return { teacher, assigned_subject_ids: subjectIds };
     });
   } catch (error) {
@@ -102,9 +101,7 @@ export async function assignSubjects(teacherId, incomingSubjectIds) {
     throw new AppError(404, "Teacher not found");
   }
 
-  const result = await applySubjectAssignment(teacherId, subjectIds);
-  await publishSubjectAssignments(teacherId, result.added, result.removed);
-  return result.response;
+  return applySubjectAssignment(teacherId, subjectIds);
 }
 
 async function applySubjectAssignment(teacherId, subjectIds) {
@@ -120,12 +117,9 @@ async function applySubjectAssignment(teacherId, subjectIds) {
     const previousSet = new Set(previous);
     const added = subjectIds.filter((id) => !previousSet.has(id));
     const removed = previous.filter((id) => !next.has(id));
+    await enqueueSubjectAssignments(client, teacherId, added, removed);
 
-    return {
-      added,
-      removed,
-      response: { teacher_id: teacherId, assigned_subject_ids: subjectIds },
-    };
+    return { teacher_id: teacherId, assigned_subject_ids: subjectIds };
   });
 }
 
@@ -147,7 +141,7 @@ export async function getTeacherCredentials(teacherId) {
 }
 
 export async function deleteTeacher(teacherId) {
-  const result = await withTransaction(async (client) => {
+  return withTransaction(async (client) => {
     await adminRepo.detachTeacherDependencies(client, teacherId);
 
     const teacher = await adminRepo.deleteTeacher(client, teacherId);
@@ -155,9 +149,7 @@ export async function deleteTeacher(teacherId) {
       throw new AppError(404, "Teacher not found");
     }
 
+    await enqueueOutboxEvent(client, EVENTS.TEACHER_DELETED, { teacherId });
     return { message: "Teacher removed", teacher };
   });
-
-  await publishEvent(EVENTS.TEACHER_DELETED, { teacherId });
-  return result;
 }

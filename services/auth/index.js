@@ -94,6 +94,9 @@ try {
   process.exit(1);
 }
 
+const { startOutboxRelay } = await import("./src/config/outbox.js");
+const outboxRelay = startOutboxRelay();
+
 const server = app.listen(PORT, () => {
   logger.info("server.listening", { port: PORT });
 });
@@ -114,6 +117,7 @@ if (KEEPWARM_ENABLED) {
 registerGracefulShutdown(
   [
     { name: "http-server", run: closeServer(server) },
+    { name: "outbox-relay", run: () => outboxRelay.stop() },
     { name: "redis", run: () => closeRedis() },
     { name: "pg-pool", run: () => pool.end() }
   ],

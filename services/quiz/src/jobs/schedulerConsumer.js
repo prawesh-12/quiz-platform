@@ -1,9 +1,10 @@
 import pool from "../config/db.js";
 import { startStreamConsumer } from "../config/eventConsumer.js";
+import { withTransaction } from "../utils/withTransaction.js";
 import logger, { serializeError } from "../utils/logger.js";
 import { transitionQuizStatus } from "../services/quizLifecycle.service.js";
-import { emitQuizSnapshot } from "../services/quizSnapshot.service.js";
-import { emitQuizUpserted, emitQuizEnded } from "../services/quizEvents.service.js";
+import { enqueueQuizSnapshot } from "../services/quizSnapshot.service.js";
+import { enqueueQuizUpserted, enqueueQuizEnded } from "../services/quizEvents.service.js";
 
 // Reacts to the scheduler's due signals: status flip and snapshot build. Quiz never
 // touches Exam tables; auto-submit is the Exam service's reaction to quiz.ended.
@@ -15,8 +16,9 @@ const START_DUE = "quiz.start_due";
 const END_DUE = "quiz.end_due";
 const PREWARM_DUE = "quiz.prewarm_due";
 
-// Invalid (already-transitioned) flips roll back to null, so duplicate signals are no-ops.
-async function transition(quizId, nextStatus) {
+// Flip status and enqueue its events in one tx. Invalid (already-transitioned) flips roll
+// back to null, so duplicate signals are no-ops. enqueue runs before commit with the client.
+async function transition(quizId, nextStatus, enqueue) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -25,6 +27,7 @@ async function transition(quizId, nextStatus) {
       await client.query("ROLLBACK");
       return null;
     }
+    await enqueue(client, result);
     await client.query("COMMIT");
     return result;
   } catch (error) {
@@ -36,21 +39,20 @@ async function transition(quizId, nextStatus) {
 }
 
 async function handleStartDue(quizId) {
-  const result = await transition(quizId, "active");
-  // A future-dated quiz persists as 'scheduled', not 'active' — only act on activation.
-  if (result?.quiz?.status === "active") {
-    await emitQuizUpserted(quizId);
-    await emitQuizSnapshot(quizId);
-  }
+  await transition(quizId, "active", async (client, result) => {
+    // A future-dated quiz persists as 'scheduled', not 'active' — only act on activation.
+    if (result?.quiz?.status === "active") {
+      await enqueueQuizUpserted(client, quizId);
+      await enqueueQuizSnapshot(client, quizId);
+    }
+  });
 }
 
 async function handleEndDue(quizId) {
-  const result = await transition(quizId, "ended");
-  if (!result) {
-    return;
-  }
-  await emitQuizUpserted(quizId);
-  await emitQuizEnded(quizId);
+  await transition(quizId, "ended", async (client) => {
+    await enqueueQuizUpserted(client, quizId);
+    await enqueueQuizEnded(client, quizId);
+  });
 }
 
 function parseQuizId(message) {
@@ -73,7 +75,7 @@ async function handle(message) {
   } else if (message.type === END_DUE) {
     await handleEndDue(quizId);
   } else if (message.type === PREWARM_DUE) {
-    await emitQuizSnapshot(quizId);
+    await withTransaction((client) => enqueueQuizSnapshot(client, quizId));
   }
 }
 

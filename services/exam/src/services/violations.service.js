@@ -1,6 +1,8 @@
 import pool from "../config/db.js";
-import { EVENTS, publishEvent } from "../config/eventBus.js";
+import { EVENTS } from "../config/eventBus.js";
+import { enqueueOutboxEvent } from "../config/outbox.js";
 import { AppError } from "../utils/AppError.js";
+import { withTransaction } from "../utils/withTransaction.js";
 import * as violations from "../repositories/violations.repository.js";
 
 export async function createViolation({ sessionToken, payload }) {
@@ -13,8 +15,13 @@ export async function createViolation({ sessionToken, payload }) {
     throw new AppError(400, "Session is no longer active");
   }
 
-  await violations.insertViolation(pool, session.id, payload.type, payload.description);
-  await publishEvent(EVENTS.VIOLATION_FLAGGED, { sessionId: session.id, quizId: session.quiz_id });
+  await withTransaction(async (client) => {
+    await violations.insertViolation(client, session.id, payload.type, payload.description);
+    await enqueueOutboxEvent(client, EVENTS.VIOLATION_FLAGGED, {
+      sessionId: session.id,
+      quizId: session.quiz_id,
+    });
+  });
   return { message: "Violation logged" };
 }
 

@@ -5,8 +5,10 @@ import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
 import { JWT_EXPIRES_IN, JWT_SECRET } from "../config/jwt.js";
 import { getRedis, isRedisReady } from "../config/redis.js";
-import { EVENTS, publishEvent } from "../config/eventBus.js";
+import { EVENTS } from "../config/eventBus.js";
+import { enqueueOutboxEvent } from "../config/outbox.js";
 import { AppError } from "../utils/AppError.js";
+import { withTransaction } from "../utils/withTransaction.js";
 import logger, { serializeError } from "../utils/logger.js";
 import * as authRepo from "../repositories/auth.repository.js";
 import { invalidateRevokedToken } from "./revokedTokens.service.js";
@@ -50,8 +52,8 @@ function mapTeacherUser(record) {
   };
 }
 
-async function publishTeacherUpserted(teacher) {
-  await publishEvent(EVENTS.TEACHER_UPSERTED, {
+async function enqueueTeacherUpserted(client, teacher) {
+  await enqueueOutboxEvent(client, EVENTS.TEACHER_UPSERTED, {
     id: teacher.id,
     name: teacher.name,
     email: teacher.email,
@@ -87,8 +89,11 @@ export async function register({ name, email, password }) {
   }
 
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-  const teacher = await authRepo.insertTeacher(pool, { name, email: normalizedEmail, hashedPassword });
-  await publishTeacherUpserted(teacher);
+  const teacher = await withTransaction(async (client) => {
+    const created = await authRepo.insertTeacher(client, { name, email: normalizedEmail, hashedPassword });
+    await enqueueTeacherUpserted(client, created);
+    return created;
+  });
   return { user: mapTeacherUser(teacher) };
 }
 
@@ -167,12 +172,14 @@ export async function getCurrentUser(authUser) {
 }
 
 export async function updateProfile({ userId, name }) {
-  const record = await authRepo.updateTeacherName(pool, userId, name);
-  if (!record) {
-    throw new AppError(404, "Teacher not found");
-  }
-
-  await publishTeacherUpserted(record);
+  const record = await withTransaction(async (client) => {
+    const updated = await authRepo.updateTeacherName(client, userId, name);
+    if (!updated) {
+      throw new AppError(404, "Teacher not found");
+    }
+    await enqueueTeacherUpserted(client, updated);
+    return updated;
+  });
   return { user: mapTeacherUser(record) };
 }
 

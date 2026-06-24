@@ -1,5 +1,6 @@
 import pool from "../config/db.js";
-import { EVENTS, publishEvent } from "../config/eventBus.js";
+import { EVENTS } from "../config/eventBus.js";
+import { enqueueOutboxEvent } from "../config/outbox.js";
 import { readPositiveIntegerEnv } from "../utils/env.js";
 import { scoreSubmission } from "./scorer.service.js";
 
@@ -156,7 +157,6 @@ export async function finalizeSessionSubmission(dbClient, { sessionId, quizId, s
 async function finalizeOneBatch(quizId, quizQuestions, effectiveBatchSize) {
   const client = await pool.connect();
   let batchCount = 0;
-  const submittedEvents = [];
 
   try {
     await client.query("BEGIN");
@@ -180,7 +180,8 @@ async function finalizeOneBatch(quizId, quizQuestions, effectiveBatchSize) {
         quizQuestions,
         submittedAnswers: storedAnswers
       });
-      submittedEvents.push({
+      // Enqueued in-tx so the score and its event commit together; relay publishes later.
+      await enqueueOutboxEvent(client, EVENTS.SESSION_SUBMITTED, {
         sessionId: session.id,
         quizId,
         score: finalized.score,
@@ -202,12 +203,6 @@ async function finalizeOneBatch(quizId, quizQuestions, effectiveBatchSize) {
   }
 
   client.release();
-
-  // Best-effort, post-commit; no-op without Redis (auto-submit must not depend on it).
-  for (const event of submittedEvents) {
-    await publishEvent(EVENTS.SESSION_SUBMITTED, event);
-  }
-
   return batchCount;
 }
 

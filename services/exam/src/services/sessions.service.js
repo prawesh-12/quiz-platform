@@ -1,7 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 
 import pool from "../config/db.js";
-import { EVENTS, publishEvent } from "../config/eventBus.js";
+import { EVENTS } from "../config/eventBus.js";
+import { enqueueOutboxEvent } from "../config/outbox.js";
 import { AppError } from "../utils/AppError.js";
 import { withTransaction } from "../utils/withTransaction.js";
 import { getStudentSnapshotQuestions } from "./quizSnapshot.service.js";
@@ -167,25 +168,27 @@ export async function enterSession(payload) {
   }
 
   const sessionToken = uuidv4().replaceAll("-", "");
-  const sessionId = await sessions.insertStudentSession(pool, {
-    quizId: quiz.id,
-    name: payload.name,
-    rollNo: payload.roll_no,
-    email: payload.email,
-    division: payload.division,
-    groupNo: payload.group_no,
-    sessionToken,
-  });
+  await withTransaction(async (client) => {
+    const sessionId = await sessions.insertStudentSession(client, {
+      quizId: quiz.id,
+      name: payload.name,
+      rollNo: payload.roll_no,
+      email: payload.email,
+      division: payload.division,
+      groupNo: payload.group_no,
+      sessionToken,
+    });
 
-  await publishEvent(EVENTS.SESSION_STARTED, {
-    sessionId,
-    quizId: quiz.id,
-    name: payload.name,
-    rollNo: payload.roll_no,
-    email: payload.email,
-    division: payload.division,
-    groupNo: payload.group_no,
-    startedAt: new Date().toISOString(),
+    await enqueueOutboxEvent(client, EVENTS.SESSION_STARTED, {
+      sessionId,
+      quizId: quiz.id,
+      name: payload.name,
+      rollNo: payload.roll_no,
+      email: payload.email,
+      division: payload.division,
+      groupNo: payload.group_no,
+      startedAt: new Date().toISOString(),
+    });
   });
 
   return entryResultPayload(quiz, quizWindow, sessionToken, sanitizedQuestions);
@@ -216,10 +219,7 @@ export async function saveAnswers(sessionToken, answers) {
 }
 
 export async function submitSession(sessionToken, { answers, submissionId = null }) {
-  // Set inside the transaction only on a fresh submission, then published after commit.
-  let submittedEvent = null;
-
-  const payload = await withTransaction(async (client) => {
+  return withTransaction(async (client) => {
     const context = buildSessionContext(
       await sessions.findSessionContextRow(client, sessionToken, { lock: true }),
     );
@@ -246,13 +246,13 @@ export async function submitSession(sessionToken, { answers, submissionId = null
       submissionId,
     });
 
-    submittedEvent = {
+    await enqueueOutboxEvent(client, EVENTS.SESSION_SUBMITTED, {
       sessionId: session.id,
       quizId: session.quiz_id,
       score: result.score,
       totalPoints: result.total_points,
       submittedAt: new Date().toISOString(),
-    };
+    });
 
     return {
       score: result.score,
@@ -262,10 +262,4 @@ export async function submitSession(sessionToken, { answers, submissionId = null
       ...timingPayload(quizWindow),
     };
   });
-
-  if (submittedEvent) {
-    await publishEvent(EVENTS.SESSION_SUBMITTED, submittedEvent);
-  }
-
-  return payload;
 }

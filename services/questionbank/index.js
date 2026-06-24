@@ -104,6 +104,9 @@ try {
 
 const authEventsConsumer = startAuthEventsConsumer();
 
+const { startOutboxRelay } = await import("./src/config/outbox.js");
+const outboxRelay = startOutboxRelay();
+
 const server = app.listen(PORT, () => {
   logger.info("server.listening", { port: PORT });
 });
@@ -125,6 +128,7 @@ registerGracefulShutdown(
   [
     { name: "http-server", run: closeServer(server) },
     { name: "auth-events-consumer", run: () => authEventsConsumer.stop() },
+    { name: "outbox-relay", run: () => outboxRelay.stop() },
     { name: "redis", run: () => closeRedis() },
     { name: "pg-pool", run: () => pool.end() }
   ],

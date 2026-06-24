@@ -16,6 +16,11 @@ export const EVENTS = Object.freeze({
 
 const STREAM_MAXLEN = readPositiveIntegerEnv("EVENT_STREAM_MAXLEN", 10000);
 
+// All auth events share one stream; the outbox stores it per row for relay/debugging.
+export function resolveStream() {
+  return AUTH_STREAM;
+}
+
 // Returns the stream entry id on success, or false when nothing was published.
 export async function publishEvent(type, payload = {}) {
   const redis = getRedis();

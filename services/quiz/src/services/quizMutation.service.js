@@ -4,8 +4,8 @@ import { generateAccessToken } from "../utils/accessToken.js";
 import { normalizeNullableText } from "../utils/text.js";
 import { withTransaction } from "../utils/withTransaction.js";
 import { planActivationWindow } from "./quizTiming.service.js";
-import { emitQuizSnapshot } from "./quizSnapshot.service.js";
-import { emitQuizUpserted } from "./quizEvents.service.js";
+import { enqueueQuizSnapshot } from "./quizSnapshot.service.js";
+import { enqueueQuizUpserted } from "./quizEvents.service.js";
 import * as quizzes from "../repositories/quizzes.repository.js";
 import * as quizQuestions from "../repositories/quizQuestions.repository.js";
 import { subjectBelongsToTeacher } from "../repositories/subjectAccess.repository.js";
@@ -80,11 +80,12 @@ async function assertSubjectOwned(subjectId, userId) {
   }
 }
 
-// After a create that persisted as active, announce state then warm the student snapshot.
-async function announceCreatedQuiz(quiz) {
-  await emitQuizUpserted(quiz.id);
+// After a create that persisted as active, announce state then warm the student snapshot,
+// enqueued in the create tx so the events commit with the quiz row.
+async function announceCreatedQuiz(client, quiz) {
+  await enqueueQuizUpserted(client, quiz.id);
   if (quiz.status === "active") {
-    await emitQuizSnapshot(quiz.id);
+    await enqueueQuizSnapshot(client, quiz.id);
   }
 }
 
@@ -104,10 +105,10 @@ export async function createManualQuiz({ userId, payload }) {
       insertedQuestions.push({ ...item, id: inlineId });
     }
 
+    await announceCreatedQuiz(client, quiz);
     return { quiz, questions: insertedQuestions };
   });
 
-  await announceCreatedQuiz(result.quiz);
   return result;
 }
 
@@ -134,10 +135,10 @@ export async function autoGenerateQuiz({ userId, payload }) {
       });
       await quizQuestions.linkInlineQuizQuestion(client, quiz.id, inlineId, index + 1);
     }
+    await announceCreatedQuiz(client, quiz);
     return { quiz, question_count: questions.length };
   });
 
-  await announceCreatedQuiz(result.quiz);
   return result;
 }
 
@@ -217,6 +218,13 @@ async function applyUpdate(id, userId, patch, reorderedIds) {
 
     await quizzes.updateQuizColumns(client, id, userId, patch);
     const quiz = await quizzes.findQuizDetail(client, id, userId);
+
+    await enqueueQuizUpserted(client, id);
+    // A teacher edit must not leave students on a stale snapshot while the quiz runs.
+    if (quiz?.status === "active") {
+      await enqueueQuizSnapshot(client, id);
+    }
+
     return { quiz };
   });
 }
@@ -234,15 +242,7 @@ export async function updateQuiz({ id, userId, payload }) {
     throw new AppError(400, "No valid fields to update");
   }
 
-  const updated = await applyUpdate(id, userId, patch, reorderedIds);
-
-  await emitQuizUpserted(id);
-  // A teacher edit must not leave students on a stale snapshot while the quiz runs.
-  if (updated.quiz?.status === "active") {
-    await emitQuizSnapshot(id);
-  }
-
-  return updated;
+  return applyUpdate(id, userId, patch, reorderedIds);
 }
 
 export async function duplicateQuiz({ id, userId }) {
@@ -255,9 +255,9 @@ export async function duplicateQuiz({ id, userId }) {
   const newQuizId = await withTransaction(async (client) => {
     const createdId = await quizzes.insertDuplicateQuiz(client, source, title);
     await quizQuestions.copyQuizQuestions(client, createdId, id);
+    await enqueueQuizUpserted(client, createdId);
     return createdId;
   });
 
-  await emitQuizUpserted(newQuizId);
   return { quiz_id: newQuizId };
 }

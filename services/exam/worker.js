@@ -44,12 +44,18 @@ if ((process.env.WORKER_RUN_MIGRATIONS ?? "true").toLowerCase() !== "false") {
 const quizEventsConsumer = startQuizEventsConsumer();
 const questionBankProjectionConsumer = startQuestionBankProjectionConsumer();
 
+// The worker enqueues auto-submit events, so it drains the outbox too (SKIP LOCKED makes
+// running alongside the API's relay safe).
+const { startOutboxRelay } = await import("./src/config/outbox.js");
+const outboxRelay = startOutboxRelay();
+
 logger.info("worker.started", { owner: "worker" });
 
 registerGracefulShutdown(
   [
     { name: "quiz-events-consumer", run: async () => quizEventsConsumer?.stop?.() },
     { name: "questionbank-projection-consumer", run: async () => questionBankProjectionConsumer?.stop?.() },
+    { name: "outbox-relay", run: () => outboxRelay.stop() },
     { name: "redis", run: () => closeRedis() },
     { name: "pg-pool", run: () => pool.end() }
   ],
