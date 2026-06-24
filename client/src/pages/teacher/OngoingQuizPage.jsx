@@ -128,15 +128,35 @@ export default function OngoingQuizPage() {
     queryFn: () => violationService.getBySession(selectedSessionId)
   });
 
+  // Flip the UI to "ended" the instant Stop is clicked; the DB write + auto-submit finish in
+  // the background. This local flag also overrides any in-flight live-stats poll that would
+  // still report "active" until the write lands, so the button can't bounce back.
+  const [stoppedLocally, setStoppedLocally] = useState(false);
+
   const stopMutation = useMutation({
     mutationFn: () => quizService.updateStatus(quizId, "ended"),
+    onMutate: () => {
+      setStoppedLocally(true);
+      setStopDialogOpen(false);
+      queryClient.setQueryData(["live-stats", quizId], (current) =>
+        current?.quiz ? { ...current, quiz: { ...current.quiz, status: "ended" } } : current
+      );
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["live-stats", quizId] });
       queryClient.invalidateQueries({ queryKey: ["quiz-responses", quizId] });
-      setStopDialogOpen(false);
       toast({
         title: "Quiz ended",
         description: `Quiz ended. ${data.auto_submitted_count || 0} pending session(s) auto-submitted.`
+      });
+    },
+    onError: (error) => {
+      setStoppedLocally(false);
+      queryClient.invalidateQueries({ queryKey: ["live-stats", quizId] });
+      toast({
+        title: "Couldn't stop the quiz",
+        description: error?.response?.data?.error || "Please try again.",
+        variant: "destructive"
       });
     }
   });
@@ -163,7 +183,7 @@ export default function OngoingQuizPage() {
   const rows = responsesQuery.data?.responses || [];
   const subjects = subjectsQuery.data?.subjects || [];
 
-  const isEnded = quiz?.status === "ended";
+  const isEnded = stoppedLocally || quiz?.status === "ended";
   const isScheduled = quiz?.status === "scheduled";
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
   const [quizStartTimeMs, setQuizStartTimeMs] = useState(null);

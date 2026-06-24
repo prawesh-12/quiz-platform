@@ -5,7 +5,7 @@ export function Toaster() {
   const { toasts, dismiss } = useToast();
 
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[100] flex w-full max-w-sm flex-col gap-2">
+    <div className="pointer-events-none fixed inset-x-4 top-4 z-[100] flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:w-full sm:max-w-sm">
       {toasts.map((item) => (
         <div
           key={item.id}
@@ -15,11 +15,11 @@ export function Toaster() {
           )}
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              {item.title ? <p className="text-sm font-semibold">{item.title}</p> : null}
-              {item.description ? <p className="text-xs">{item.description}</p> : null}
+            <div className="min-w-0 space-y-1">
+              {item.title ? <p className="break-words text-sm font-semibold">{item.title}</p> : null}
+              {item.description ? <p className="break-words text-xs">{item.description}</p> : null}
             </div>
-            <button type="button" className="text-xs text-muted-foreground" onClick={() => dismiss(item.id)}>
+            <button type="button" className="shrink-0 text-xs text-muted-foreground" onClick={() => dismiss(item.id)}>
               Close
             </button>
           </div>
