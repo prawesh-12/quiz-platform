@@ -152,7 +152,7 @@ export default function AutoGeneratePage() {
       user={user}
       onLogout={logout}
     >
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto w-full max-w-2xl">
         <Card>
           <CardHeader>
             <CardTitle>Generate Quiz Page</CardTitle>

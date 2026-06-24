@@ -157,19 +157,19 @@ export default function QuizResponsePage() {
     >
       <div className="space-y-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <div>
-              <CardTitle>{quiz?.title || "Quiz Responses"}</CardTitle>
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <CardTitle className="break-words">{quiz?.title || "Quiz Responses"}</CardTitle>
               <CardDescription>
                 {quiz?.subject_name || "-"} • {totalResponseCount} student session(s)
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge variant={quiz?.status === "active" ? "default" : "secondary"}>{quiz?.status || "-"}</Badge>
-              <Button type="button" variant="outline" onClick={() => setQuizDetailsOpen(true)}>
+              <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={() => setQuizDetailsOpen(true)}>
                 Quiz details
               </Button>
-              <Button type="button" onClick={downloadExport}>
+              <Button type="button" className="flex-1 sm:flex-none" onClick={downloadExport}>
                 Export Results
               </Button>
             </div>

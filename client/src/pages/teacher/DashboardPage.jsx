@@ -448,7 +448,7 @@ export default function DashboardPage() {
                         );
 
                         const baseClassName =
-                            "h-[102px] min-w-0 flex-1 rounded-[12px] border p-[16px] px-5";
+                            "min-h-[102px] min-w-0 flex-1 rounded-[12px] border p-[16px] px-5";
                         const baseStyle = {
                             borderColor: theme.border.default,
                             backgroundColor: theme.bg.card,
@@ -485,13 +485,13 @@ export default function DashboardPage() {
 
                 <section className="ds-dashboard-middle-row mb-4 flex shrink-0 items-start gap-4">
                     <article
-                        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-5 px-6"
+                        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-4 sm:p-6"
                         style={{
                             borderColor: theme.border.default,
                             backgroundColor: theme.bg.card,
                         }}
                     >
-                        <div className="mb-3 flex flex-nowrap items-center gap-3">
+                        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                             <h2
                                 className="shrink-0"
                                 style={{
@@ -506,7 +506,7 @@ export default function DashboardPage() {
 
                             <div className="min-w-0 flex-1" />
 
-                            <div className="shrink-0 flex items-center gap-2">
+                            <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
                                 <Label
                                     htmlFor="trend-start-date"
                                     style={{
@@ -526,18 +526,17 @@ export default function DashboardPage() {
                                     onChange={(event) =>
                                         setStartDateInput(event.target.value)
                                     }
-                                    className="h-8 w-[120px] px-2 text-[12px]"
+                                    className="h-8 w-full px-2 text-[12px] sm:w-[120px]"
                                     style={{
                                         border: "1px solid #E4E4E4",
                                         borderRadius: "8px",
                                         height: "32px",
                                         padding: "0 8px",
                                         fontSize: "12px",
-                                        width: "120px",
                                     }}
                                 />
                             </div>
-                            <div className="shrink-0 flex items-center gap-2">
+                            <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
                                 <Label
                                     htmlFor="trend-end-date"
                                     style={{
@@ -557,20 +556,19 @@ export default function DashboardPage() {
                                     onChange={(event) =>
                                         setEndDateInput(event.target.value)
                                     }
-                                    className="h-8 w-[120px] px-2 text-[12px]"
+                                    className="h-8 w-full px-2 text-[12px] sm:w-[120px]"
                                     style={{
                                         border: "1px solid #E4E4E4",
                                         borderRadius: "8px",
                                         height: "32px",
                                         padding: "0 8px",
                                         fontSize: "12px",
-                                        width: "120px",
                                     }}
                                 />
                             </div>
                             <Button
                                 type="button"
-                                className="h-8 shrink-0 whitespace-nowrap text-[13px]"
+                                className="h-8 w-full shrink-0 justify-center whitespace-nowrap text-[13px] sm:w-auto"
                                 style={{
                                     background: "#1C1C1E",
                                     color: "#FFFFFF",
@@ -634,7 +632,7 @@ export default function DashboardPage() {
 
                     <div className="ds-dashboard-right-col self-start flex w-[320px] shrink-0 flex-col gap-3">
                         <article
-                            className="rounded-[14px] border p-5"
+                            className="rounded-[14px] border p-4 sm:p-5"
                             style={{
                                 borderColor: theme.border.default,
                                 backgroundColor: theme.bg.card,
@@ -829,7 +827,7 @@ export default function DashboardPage() {
                 </section>
 
                 <section
-                    className="min-h-0 flex-1 rounded-[14px] border p-5"
+                    className="min-h-0 flex-1 rounded-[14px] border p-4 sm:p-5"
                     style={{
                         borderColor: theme.border.default,
                         backgroundColor: theme.bg.card,
@@ -853,7 +851,7 @@ export default function DashboardPage() {
                             Last 4 quizzes
                         </p>
                     </div>
-                    <div className="ds-dashboard-table-wrap overflow-hidden">
+                    <div className="ds-dashboard-table-wrap overflow-x-auto">
                         <table className="ds-dashboard-table w-full border-collapse">
                             <thead
                                 style={{ backgroundColor: theme.bg.content }}

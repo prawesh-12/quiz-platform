@@ -150,7 +150,7 @@ export default function QuizLibraryPage() {
     >
       <div className="flex min-h-0 flex-1 flex-col gap-5">
         <section
-          className="rounded-[12px] border p-5"
+          className="rounded-[12px] border p-4 sm:p-5"
           style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
         >
           <h1 className="text-[24px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>

@@ -579,26 +579,28 @@ export default function ManualQuizPage() {
       user={user}
       onLogout={logout}
     >
-      <div className="mx-auto max-w-6xl space-y-6">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
         <Card>
-          <CardHeader className="flex flex-row items-start justify-between gap-4 border-b pb-4">
+          <CardHeader className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>Manual Quiz Page</CardTitle>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
+                className="flex-1 sm:flex-none"
                 onClick={saveAsDraft}
                 disabled={saveManualMutation.isPending || updateQuizMutation.isPending}
               >
                 Save as Draft
               </Button>
-              <Button type="button" variant="outline" onClick={() => setPreviewDialogOpen(true)}>
+              <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={() => setPreviewDialogOpen(true)}>
                 Preview
               </Button>
               <Button
                 type="button"
+                className="flex-1 sm:flex-none"
                 onClick={activateQuiz}
                 disabled={saveManualMutation.isPending || updateQuizMutation.isPending}
               >
@@ -606,7 +608,7 @@ export default function ManualQuizPage() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="max-w-3xl space-y-3 pt-4">
+          <CardContent className="w-full max-w-3xl space-y-3 p-4 pt-4 sm:p-6">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
               <div className="w-full space-y-2 md:col-span-3">
                 <Label>Quiz Title</Label>
@@ -627,7 +629,7 @@ export default function ManualQuizPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
               <div className="w-full space-y-2">
                 <Label>Duration (mins)</Label>
                 <Input
@@ -651,7 +653,7 @@ export default function ManualQuizPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
               <div className="w-full space-y-2">
                 <Label>Scheduled Start</Label>
                 <DateTimePicker value={scheduledStart} onChange={handleScheduledStartChange} placeholder="Select start" />
@@ -674,12 +676,12 @@ export default function ManualQuizPage() {
 
             <Separator />
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <Label className="text-xs">Import Questions from Excel</Label>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-40">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="w-full sm:w-40">
                 <Select value={importSubjectId} onValueChange={setImportSubjectId}>
                   <SelectValue placeholder="Import subject" />
                   <SelectContent>
@@ -691,8 +693,8 @@ export default function ManualQuizPage() {
                   </SelectContent>
                 </Select>
                 </div>
-                <Label htmlFor="excel-import-quiz" className="cursor-pointer">
-                  <div className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground">
+                <Label htmlFor="excel-import-quiz" className="w-full cursor-pointer sm:w-auto">
+                  <div className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground sm:w-auto">
                     <FileSpreadsheet className="h-4 w-4" />
                     Import Excel
                   </div>

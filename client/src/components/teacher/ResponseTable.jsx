@@ -44,15 +44,15 @@ export default function ResponseTable({ rows, onOpenDetails }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Student</TableHead>
-          <TableHead>Roll No</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Division</TableHead>
-          <TableHead>Group</TableHead>
-          <TableHead>Score</TableHead>
-          <TableHead>Submitted At</TableHead>
-          <TableHead>Flags</TableHead>
-          <TableHead className="w-28">Details</TableHead>
+          <TableHead className="whitespace-nowrap">Student</TableHead>
+          <TableHead className="whitespace-nowrap">Roll No</TableHead>
+          <TableHead className="whitespace-nowrap">Email</TableHead>
+          <TableHead className="whitespace-nowrap">Division</TableHead>
+          <TableHead className="whitespace-nowrap">Group</TableHead>
+          <TableHead className="whitespace-nowrap">Score</TableHead>
+          <TableHead className="whitespace-nowrap">Submitted At</TableHead>
+          <TableHead className="whitespace-nowrap">Flags</TableHead>
+          <TableHead className="w-28 whitespace-nowrap">Details</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -65,13 +65,13 @@ export default function ResponseTable({ rows, onOpenDetails }) {
         ) : (
           rows.map((row) => (
             <TableRow key={row.session_id}>
-              <TableCell>{row.name}</TableCell>
-              <TableCell>{row.roll_no}</TableCell>
-              <TableCell>{row.email}</TableCell>
-              <TableCell>{row.division}</TableCell>
-              <TableCell>{row.group_no}</TableCell>
-              <TableCell>{formatScore(row)}</TableCell>
-              <TableCell>{formatDateTime(row.submitted_at)}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.name}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.roll_no}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.email}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.division}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.group_no}</TableCell>
+              <TableCell className="whitespace-nowrap">{formatScore(row)}</TableCell>
+              <TableCell className="whitespace-nowrap">{formatDateTime(row.submitted_at)}</TableCell>
               <TableCell>
                 <div className="flex flex-wrap gap-1">
                   {VIOLATION_TYPES.map((type) => (

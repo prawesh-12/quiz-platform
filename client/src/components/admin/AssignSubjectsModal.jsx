@@ -129,10 +129,10 @@ export default function AssignSubjectsModal({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)} disabled={isSaving}>
+          <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange?.(false)} disabled={isSaving}>
             Cancel
           </Button>
-          <Button type="button" disabled={isSaving || !teacherId} onClick={handleSave}>
+          <Button type="button" className="w-full sm:w-auto" disabled={isSaving || !teacherId} onClick={handleSave}>
             {isSaving ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>

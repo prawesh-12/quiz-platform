@@ -150,7 +150,7 @@ export default function ProfilePage() {
             <CardTitle>Teacher Profile</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center">
               {avatarPreviewUrl ? (
                 <img
                   src={avatarPreviewUrl}
@@ -166,7 +166,7 @@ export default function ProfilePage() {
                 />
               )}
 
-              <div className="flex min-w-[220px] flex-1 flex-wrap items-center gap-2">
+              <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:w-auto sm:min-w-[220px] sm:flex-row sm:flex-wrap sm:items-center">
                 <input
                   ref={avatarInputRef}
                   type="file"
@@ -178,6 +178,7 @@ export default function ProfilePage() {
                 <Button
                   type="button"
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={uploadAvatarMutation.isPending || removeAvatarMutation.isPending}
                 >
@@ -187,6 +188,7 @@ export default function ProfilePage() {
                 {selectedAvatarFile ? (
                   <Button
                     type="button"
+                    className="w-full sm:w-auto"
                     onClick={() => uploadAvatarMutation.mutate(selectedAvatarFile)}
                     disabled={uploadAvatarMutation.isPending || removeAvatarMutation.isPending}
                   >
@@ -198,6 +200,7 @@ export default function ProfilePage() {
                   <Button
                     type="button"
                     variant="outline"
+                    className="w-full sm:w-auto"
                     onClick={() => removeAvatarMutation.mutate()}
                     disabled={uploadAvatarMutation.isPending || removeAvatarMutation.isPending}
                   >
@@ -230,6 +233,7 @@ export default function ProfilePage() {
 
             <Button
               type="button"
+              className="w-full sm:w-auto"
               onClick={() =>
                 updateProfileMutation.mutate({
                   name: name.trim()
@@ -261,6 +265,7 @@ export default function ProfilePage() {
             </div>
             <Button
               type="button"
+              className="w-full sm:w-auto"
               onClick={() =>
                 changePasswordMutation.mutate({
                   current_password: currentPassword,

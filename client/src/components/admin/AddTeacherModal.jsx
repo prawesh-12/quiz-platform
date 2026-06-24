@@ -241,12 +241,13 @@ export default function AddTeacherModal({
             <Button
               type="button"
               variant="outline"
+              className="w-full sm:w-auto"
               disabled={isSubmitting}
               onClick={() => onOpenChange?.(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
               {isSubmitting ? "Creating..." : "Create Teacher"}
             </Button>
           </DialogFooter>

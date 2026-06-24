@@ -99,14 +99,14 @@ function QuestionContent({ question }) {
         return (
             <div className="space-y-2">
                 <Badge variant="secondary">Equation</Badge>
-                <pre className="whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-base">
+                <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted/40 p-3 text-base">
                     {question.question_text}
                 </pre>
             </div>
         );
     }
 
-    return <p className="whitespace-pre-wrap text-base">{question.question_text}</p>;
+    return <p className="whitespace-pre-wrap break-words text-base">{question.question_text}</p>;
 }
 
 export default function QuizPage() {
@@ -659,11 +659,11 @@ export default function QuizPage() {
     return (
         <div className="h-full overflow-y-auto px-4 py-4 pb-24" style={{ backgroundColor: theme.bg.page }}>
             <div className="w-full max-w-md mx-auto flex flex-col gap-4">
-                <Card>
-                    <CardHeader className="space-y-3">
-                        <div>
-                            <CardTitle>{quiz.title}</CardTitle>
-                            <CardDescription>
+                <Card className="sticky top-0 z-10">
+                    <CardHeader className="space-y-3 p-4 sm:p-6">
+                        <div className="min-w-0">
+                            <CardTitle className="break-words">{quiz.title}</CardTitle>
+                            <CardDescription className="break-words">
                                 {quiz.subject_name || "Subject"} •{" "}
                                 {questions.length} Questions
                             </CardDescription>
@@ -702,7 +702,7 @@ export default function QuizPage() {
                 {quizState === "active"
                     ? questions.map((question, index) => (
                           <Card key={question.id}>
-                              <CardContent className="space-y-4 pt-6">
+                              <CardContent className="space-y-4 p-4 pt-6 sm:p-6 sm:pt-6">
                                   <div className="space-y-2">
                                       <p className="text-xs uppercase text-muted-foreground">
                                           Question {index + 1}
@@ -725,7 +725,7 @@ export default function QuizPage() {
                                           return (
                                               <div
                                                   key={optionKey}
-                                                  className={`flex w-full cursor-pointer select-none items-center gap-3 rounded-[var(--ds-radius-md)] border p-4 transition-colors ${
+                                                  className={`flex w-full min-w-0 cursor-pointer select-none items-center gap-3 rounded-[var(--ds-radius-md)] border p-4 transition-colors ${
                                                       isSelected
                                                           ? "bg-[var(--ds-bg-card-hover)]"
                                                           : "hover:bg-[var(--ds-bg-content)]"
@@ -744,6 +744,7 @@ export default function QuizPage() {
                                                       id={inputId}
                                                       value={optionKey}
                                                       checked={isSelected}
+                                                      className="shrink-0"
                                                       onChange={() =>
                                                           handleSelectOption(
                                                               question.id,
@@ -753,7 +754,7 @@ export default function QuizPage() {
                                                   />
                                                   <Label
                                                       htmlFor={inputId}
-                                                      className="w-full cursor-pointer text-base select-none"
+                                                      className="w-full min-w-0 cursor-pointer break-words text-base select-none"
                                                   >
                                                       {optionValue}
                                                   </Label>

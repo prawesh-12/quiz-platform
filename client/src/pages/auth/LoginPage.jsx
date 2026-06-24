@@ -191,8 +191,14 @@ export default function LoginPage() {
           </Form>
 
           <div className="mt-6 space-y-3">
-            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+            <div
+              className="rounded-xl border p-3"
+              style={{ borderColor: theme.border.default, backgroundColor: theme.bg.content }}
+            >
+              <p
+                className="mb-2 text-[11px] font-semibold uppercase tracking-wide"
+                style={{ color: theme.text.muted }}
+              >
                 Demo logins — click to autofill
               </p>
               <div className="space-y-2">
@@ -201,10 +207,13 @@ export default function LoginPage() {
                     key={cred.role}
                     type="button"
                     onClick={() => fillDemo(cred)}
-                    className="flex w-full flex-wrap items-center justify-between gap-1 rounded-md border border-amber-200 bg-white px-3 py-2 text-left text-xs transition-colors hover:bg-amber-100"
+                    className="flex w-full flex-wrap items-center justify-between gap-1 rounded-lg border bg-white px-3 py-2 text-left text-xs transition-colors hover:bg-[#F4F4F5]"
+                    style={{ borderColor: theme.border.input }}
                   >
-                    <span className="font-semibold text-amber-900">{cred.label}</span>
-                    <span className="font-mono text-amber-800">
+                    <span className="font-semibold" style={{ color: theme.text.primary }}>
+                      {cred.label}
+                    </span>
+                    <span className="font-mono" style={{ color: theme.text.secondary }}>
                       {cred.email} · {cred.password}
                     </span>
                   </button>
@@ -212,8 +221,8 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <p className="text-center text-[11px] text-muted-foreground">
-              QuizLoom is a SaaS product — available for sale or as a licensed solution.
+            <p className="text-center text-[11px]" style={{ color: theme.text.muted }}>
+              QuizLoom is a SaaS product and can be sold or licensed to institutions.
             </p>
           </div>
         </CardContent>

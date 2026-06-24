@@ -360,7 +360,7 @@ export default function QuestionBankPage() {
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">
+          <h2 className="min-w-0 break-words text-2xl font-bold tracking-tight">
             {selectedSubject?.name} Question Bank
           </h2>
         </div>
@@ -376,9 +376,10 @@ export default function QuestionBankPage() {
           </TabsList>
 
           <TabsContent value="units" className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
+                  className="flex-1 sm:flex-none"
                   onClick={() => {
                     setNewQuestion(createEmptyQuestion());
                     setSelectedUnitId("");
@@ -388,8 +389,8 @@ export default function QuestionBankPage() {
                   <Plus className="mr-2 h-4 w-4" />
                   Add Question
                 </Button>
-                <Label htmlFor="excel-import-bank" className="cursor-pointer">
-                  <div className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground">
+                <Label htmlFor="excel-import-bank" className="flex-1 cursor-pointer sm:flex-none">
+                  <div className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground sm:w-auto">
                     <FileSpreadsheet className="h-4 w-4" />
                     Import Excel
                   </div>
@@ -402,7 +403,7 @@ export default function QuestionBankPage() {
                   onChange={onImportFile}
                 />
               </div>
-              <Button onClick={() => setCreateUnitOpen(true)} variant="outline">
+              <Button onClick={() => setCreateUnitOpen(true)} variant="outline" className="w-full sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Unit
               </Button>
@@ -434,6 +435,7 @@ export default function QuestionBankPage() {
                 />
                 <div className="flex justify-end">
                   <Button
+                    className="w-full sm:w-auto"
                     onClick={handleSaveImportedQuestions}
                     disabled={isSavingImport}
                   >
@@ -451,8 +453,8 @@ export default function QuestionBankPage() {
                   {units.map((unit) => (
                     <AccordionItem key={unit.id} value={String(unit.id)}>
                       <AccordionTrigger className="px-4">
-                        <div className="flex flex-1 items-center justify-between pr-4">
-                          <span>
+                        <div className="flex flex-1 flex-wrap items-center justify-between gap-2 pr-4">
+                          <span className="min-w-0 break-words">
                             {unit.name}{" "}
                             <span className="text-muted-foreground ml-2 text-xs">
                               ({unit.question_count} questions)

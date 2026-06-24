@@ -160,7 +160,7 @@ export default function UnitQuestionsList({ questions, onDelete, onEdit }) {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label>Correct Option</Label>
                   <Select

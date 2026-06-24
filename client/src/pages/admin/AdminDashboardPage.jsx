@@ -341,7 +341,7 @@ export default function AdminDashboardPage() {
             return (
               <article
                 key={card.label}
-                className={cn("h-[102px] min-w-0 flex-1 rounded-[12px] border p-[16px] px-5")}
+                className={cn("min-h-[102px] min-w-0 flex-1 rounded-[12px] border p-[16px] px-5")}
                 style={{
                   borderColor: theme.border.default,
                   backgroundColor: theme.bg.card
@@ -382,10 +382,10 @@ export default function AdminDashboardPage() {
 
         <section className="mb-4 flex min-h-0 flex-1 gap-4">
           <article
-            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-5 px-6"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-4 sm:p-6"
             style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
           >
-            <div className="mb-3 flex flex-wrap items-center gap-3">
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <h2
                 className="shrink-0"
                 style={{ color: "#1C1C1E", fontSize: "15px", fontWeight: 600, whiteSpace: "nowrap" }}
@@ -395,7 +395,7 @@ export default function AdminDashboardPage() {
 
               <div className="min-w-0 flex-1" />
 
-              <div className="shrink-0 flex items-center gap-2">
+              <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
                 <Label
                   htmlFor="trend-start-date-admin"
                   style={{ color: "#999", fontSize: "12px", fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0 }}
@@ -407,11 +407,11 @@ export default function AdminDashboardPage() {
                   type="date"
                   value={startDateInput}
                   onChange={(event) => setStartDateInput(event.target.value)}
-                  className="h-8 w-[120px] px-2 text-[12px]"
+                  className="h-8 w-full px-2 text-[12px] sm:w-[120px]"
                 />
               </div>
 
-              <div className="shrink-0 flex items-center gap-2">
+              <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
                 <Label
                   htmlFor="trend-end-date-admin"
                   style={{ color: "#999", fontSize: "12px", fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0 }}
@@ -423,13 +423,13 @@ export default function AdminDashboardPage() {
                   type="date"
                   value={endDateInput}
                   onChange={(event) => setEndDateInput(event.target.value)}
-                  className="h-8 w-[120px] px-2 text-[12px]"
+                  className="h-8 w-full px-2 text-[12px] sm:w-[120px]"
                 />
               </div>
 
               <Button
                 type="button"
-                className="h-8 shrink-0 whitespace-nowrap text-[13px]"
+                className="h-8 w-full shrink-0 justify-center whitespace-nowrap text-[13px] sm:w-auto"
                 onClick={loadTrendData}
                 disabled={trendQuery.isFetching}
               >
@@ -470,7 +470,7 @@ export default function AdminDashboardPage() {
         </section>
 
         <section
-          className="shrink-0 rounded-[14px] border p-5"
+          className="shrink-0 rounded-[14px] border p-4 sm:p-5"
           style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card, maxHeight: "332px" }}
         >
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -481,7 +481,7 @@ export default function AdminDashboardPage() {
               Last 4 quizzes
             </p>
           </div>
-          <div className="ds-dashboard-table-wrap overflow-hidden">
+          <div className="ds-dashboard-table-wrap overflow-x-auto">
             <table className="ds-dashboard-table w-full border-collapse">
               <thead style={{ backgroundColor: theme.bg.content }}>
                 <tr className="h-10 border-b" style={{ borderBottomColor: theme.border.default }}>

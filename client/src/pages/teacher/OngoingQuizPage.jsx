@@ -340,7 +340,7 @@ export default function OngoingQuizPage() {
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <CardTitle className="text-2xl">{quiz?.title || "Live Quiz View"}</CardTitle>
+                  <CardTitle className="break-words text-xl sm:text-2xl">{quiz?.title || "Live Quiz View"}</CardTitle>
                   <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
                     <p>Subject: {quiz?.subject_name || "-"}</p>
                     <p>Batch: {quiz?.batch || "-"}</p>
@@ -400,7 +400,7 @@ export default function OngoingQuizPage() {
           </CardHeader>
         </Card>
 
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           <Card>
             <CardContent className="px-4 py-3">
               <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total Students Entered</p>
@@ -428,7 +428,7 @@ export default function OngoingQuizPage() {
         </div>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardHeader className="flex flex-col gap-2 space-y-0 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Live Student Table</CardTitle>
             <Button
               type="button"

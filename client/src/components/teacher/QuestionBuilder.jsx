@@ -72,19 +72,20 @@ export default function QuestionBuilder({ question, index, onChange, onRemove, c
                 checked={question.correct_option === option.key}
                 onChange={() => onChange({ ...question, correct_option: option.key })}
                 disabled={disabled}
+                className="shrink-0"
               />
               <Input
                 value={option.value}
                 onChange={(event) => updateOption(optionIndex, "value", event.target.value)}
                 placeholder={`Option ${option.key.toUpperCase()}`}
-                className="h-9 py-1"
+                className="h-9 min-w-0 flex-1 py-1"
                 disabled={disabled}
               />
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-9 px-2"
+                className="h-9 shrink-0 px-2"
                 disabled={disabled}
                 onClick={() => {
                   if (question.options.length <= 2) {

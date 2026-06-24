@@ -77,7 +77,7 @@ export default function AllTeachersPage() {
   return (
     <AdminShell user={user} onLogout={logout} contentScrollable>
       <div className="space-y-5">
-        <div className="rounded-[12px] border p-5" style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}>
+        <div className="rounded-[12px] border p-4 sm:p-5" style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}>
           <h1 className="text-[22px] font-semibold" style={{ color: theme.text.primary }}>
             All Teachers
           </h1>
@@ -85,14 +85,14 @@ export default function AllTeachersPage() {
             Complete list of all teachers across all schools. Remove a teacher permanently from here.
           </p>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Search by name or email"
-              className="w-full max-w-[360px]"
+              className="w-full sm:max-w-[360px]"
             />
-            <Button type="button" variant="outline" onClick={() => setAppliedSearch(searchInput)}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setAppliedSearch(searchInput)}>
               Search
             </Button>
           </div>
@@ -101,12 +101,12 @@ export default function AllTeachersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[60px]">S.No</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>School</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead className="w-[60px] whitespace-nowrap">S.No</TableHead>
+                  <TableHead className="whitespace-nowrap">Name</TableHead>
+                  <TableHead className="whitespace-nowrap">Email</TableHead>
+                  <TableHead className="whitespace-nowrap">School</TableHead>
+                  <TableHead className="whitespace-nowrap">Contact</TableHead>
+                  <TableHead className="w-[100px] whitespace-nowrap">Actions</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -127,24 +127,24 @@ export default function AllTeachersPage() {
 
                 {filteredTeachers.map((teacher, index) => (
                   <TableRow key={teacher.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">{index + 1}</TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <p className="font-medium" style={{ color: theme.text.primary }}>
                         {teacher.name}
                       </p>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <p className="text-[13px]" style={{ color: theme.text.secondary }}>
                         {teacher.email}
                       </p>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <p className="text-[13px]" style={{ color: theme.text.secondary }}>
                         {teacher.school ? `${teacher.school} — ${SCHOOL_LABELS[teacher.school] || teacher.school}` : "—"}
                       </p>
                     </TableCell>
-                    <TableCell>{teacher.contact_no || "—"}</TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">{teacher.contact_no || "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Button
                         type="button"
                         size="sm"
@@ -174,12 +174,13 @@ export default function AllTeachersPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setTeacherToDelete(null)}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setTeacherToDelete(null)}>
               Cancel
             </Button>
             <Button
               type="button"
               variant="destructive"
+              className="w-full sm:w-auto"
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate(teacherToDelete.id)}
             >

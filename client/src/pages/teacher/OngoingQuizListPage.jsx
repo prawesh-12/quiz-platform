@@ -56,12 +56,16 @@ export default function OngoingQuizListPage() {
             ) : null}
 
             {quizzes.map((quiz) => (
-              <div key={quiz.id} className="flex items-center justify-between rounded-md border p-3">
-                <div>
-                  <p className="text-sm font-semibold">{quiz.title}</p>
-                  <p className="text-xs text-muted-foreground">{quiz.subject_name || "-"}</p>
+              <div key={quiz.id} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{quiz.title}</p>
+                  <p className="truncate text-xs text-muted-foreground">{quiz.subject_name || "-"}</p>
                 </div>
-                <Button type="button" onClick={() => navigate(`/teacher/quiz/ongoing/${quiz.id}`)}>
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto sm:shrink-0"
+                  onClick={() => navigate(`/teacher/quiz/ongoing/${quiz.id}`)}
+                >
                   Open Live View
                 </Button>
               </div>

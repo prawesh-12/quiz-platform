@@ -203,7 +203,7 @@ export default function SchoolTeachersPage() {
       contentScrollable
     >
       <div className="space-y-5">
-        <div className="rounded-[12px] border p-4" style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}>
+        <div className="rounded-[12px] border p-4 sm:p-5" style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}>
           <p className="mb-2 text-[11px] uppercase tracking-[0.08em]" style={{ color: theme.text.subtle }}>
             Schools
           </p>
@@ -213,16 +213,16 @@ export default function SchoolTeachersPage() {
           />
         </div>
 
-        <div className="rounded-[12px] border p-5" style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}>
+        <div className="rounded-[12px] border p-4 sm:p-5" style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Search by teacher name"
-              className="w-full max-w-[360px]"
+              className="w-full sm:max-w-[360px]"
             />
-            <Button type="button" variant="outline" onClick={() => setAppliedSearch(searchInput)}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setAppliedSearch(searchInput)}>
               Search
             </Button>
           </div>
@@ -231,13 +231,13 @@ export default function SchoolTeachersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[60px]">S.No</TableHead>
-                  <TableHead>Name of Teacher</TableHead>
-                  <TableHead>Contact No</TableHead>
-                  <TableHead className="w-[160px]">Assign Subjects</TableHead>
-                  <TableHead className="w-[170px]">Assigned Subjects</TableHead>
-                  <TableHead className="w-[170px]">Login Credentials</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead className="w-[60px] whitespace-nowrap">S.No</TableHead>
+                  <TableHead className="whitespace-nowrap">Name of Teacher</TableHead>
+                  <TableHead className="whitespace-nowrap">Contact No</TableHead>
+                  <TableHead className="w-[160px] whitespace-nowrap">Assign Subjects</TableHead>
+                  <TableHead className="w-[170px] whitespace-nowrap">Assigned Subjects</TableHead>
+                  <TableHead className="w-[170px] whitespace-nowrap">Login Credentials</TableHead>
+                  <TableHead className="w-[100px] whitespace-nowrap">Actions</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -259,7 +259,7 @@ export default function SchoolTeachersPage() {
                 {filteredTeachers.map((teacher, index) => (
                   <TableRow key={teacher.id}>
                     <TableCell>{index + 1}</TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <div>
                         <p className="font-medium" style={{ color: theme.text.primary }}>
                           {teacher.name}
@@ -269,18 +269,18 @@ export default function SchoolTeachersPage() {
                         </p>
                       </div>
                     </TableCell>
-                    <TableCell>{teacher.contact_no || "-"}</TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">{teacher.contact_no || "-"}</TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Button type="button" size="sm" variant="outline" onClick={() => openAssignDialog(teacher)}>
                         click here
                       </Button>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Button type="button" size="sm" variant="outline" onClick={() => setAssignedDialogTeacher(teacher)}>
                         click here
                       </Button>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Button
                         type="button"
                         size="sm"
@@ -291,7 +291,7 @@ export default function SchoolTeachersPage() {
                         click here
                       </Button>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Button
                         type="button"
                         size="sm"
@@ -478,12 +478,13 @@ export default function SchoolTeachersPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setTeacherToDelete(null)}>
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setTeacherToDelete(null)}>
               Cancel
             </Button>
             <Button
               type="button"
               variant="destructive"
+              className="w-full sm:w-auto"
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate(teacherToDelete.id)}
             >

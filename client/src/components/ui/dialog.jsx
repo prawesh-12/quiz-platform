@@ -89,7 +89,7 @@ export function DialogContent({ className, children, ...props }) {
       <DialogOverlay onClick={() => context.setOpen(false)} />
       <div
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-[var(--ds-radius-xl)] border border-[var(--ds-border-default)] bg-[var(--ds-bg-card)] p-6 text-[var(--ds-text-secondary)] shadow-[var(--ds-shadow-tooltip)]",
+          "fixed left-[50%] top-[50%] z-50 grid max-h-[90vh] w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-[var(--ds-radius-xl)] border border-[var(--ds-border-default)] bg-[var(--ds-bg-card)] p-4 text-[var(--ds-text-secondary)] shadow-[var(--ds-shadow-tooltip)] sm:p-6",
           className
         )}
         {...props}

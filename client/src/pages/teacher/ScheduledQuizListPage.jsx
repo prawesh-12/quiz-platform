@@ -148,8 +148,8 @@ export default function ScheduledQuizListPage() {
                   style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-2">
-                      <p className="text-[15px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>
+                    <div className="min-w-0 space-y-2">
+                      <p className="break-words text-[15px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.semibold }}>
                         {quiz.title}
                       </p>
                       <div className="grid grid-cols-1 gap-2 text-[13px] md:grid-cols-2" style={{ color: theme.text.secondary }}>
@@ -184,11 +184,11 @@ export default function ScheduledQuizListPage() {
                       </div>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
                       <Button
                         type="button"
                         variant="outline"
-                        className="rounded-[var(--ds-radius-md)]"
+                        className="w-full rounded-[var(--ds-radius-md)] sm:w-auto"
                         onClick={() => copyLink(quiz.access_token)}
                         disabled={!quiz.access_token}
                       >
@@ -197,7 +197,7 @@ export default function ScheduledQuizListPage() {
                       </Button>
                       <Button
                         type="button"
-                        className="rounded-[var(--ds-radius-md)]"
+                        className="w-full rounded-[var(--ds-radius-md)] sm:w-auto"
                         onClick={() => navigate(`/teacher/quiz/manual/${quiz.id}`)}
                       >
                         View / Edit
