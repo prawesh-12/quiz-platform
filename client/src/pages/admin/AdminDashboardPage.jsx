@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAdminSubjects, ADMIN_SUBJECTS_KEY } from "@/hooks/useAdminSubjects";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
@@ -120,10 +121,7 @@ export default function AdminDashboardPage() {
     end: today
   });
 
-  const subjectsQuery = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => subjectService.list()
-  });
+  const { subjects } = useAdminSubjects();
 
   const liveQuizStatusQuery = useQuery({
     queryKey: ["dashboard", "quiz-statuses"],
@@ -154,8 +152,7 @@ export default function AdminDashboardPage() {
   const createSubjectMutation = useMutation({
     mutationFn: (payload) => subjectService.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subjects"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
+      queryClient.invalidateQueries({ queryKey: ADMIN_SUBJECTS_KEY });
       setCreateSubjectOpen(false);
       setSubjectName("");
       toast({
@@ -165,7 +162,6 @@ export default function AdminDashboardPage() {
     }
   });
 
-  const subjects = subjectsQuery.data?.subjects ?? [];
   const summary = summaryQuery.data;
   const counts = summary?.counts ?? {};
   const kpis = summary?.kpis ?? {};

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { HEALTHCHECK_URL } from "@/lib/apiBaseUrl";
+import { READINESS_URLS } from "@/lib/apiBaseUrl";
 
 import LoadingScreen from "./LoadingScreen";
 
@@ -53,19 +53,20 @@ export default function BackendWarmupGate({ children }) {
       const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
       try {
-        const response = await fetch(HEALTHCHECK_URL, {
-          method: "GET",
-          signal: controller.signal,
-          cache: "no-store"
-        });
+        // Every required service must report ready, not just the catch-all (exam) /health.
+        const responses = await Promise.all(
+          READINESS_URLS.map((url) =>
+            fetch(url, { method: "GET", signal: controller.signal, cache: "no-store" })
+          )
+        );
 
-        if (response.ok && !isUnmounted) {
+        if (responses.every((response) => response.ok) && !isUnmounted) {
           isBackendReadyRef.current = true;
           setIsBackendReady(true);
           stopPolling();
         }
       } catch {
-        // Keep polling until Render wakes up the service.
+        // A service is still cold or unreachable; keep polling until all are ready.
       } finally {
         window.clearTimeout(timeoutId);
         if (activeRequestRef.current === controller) {

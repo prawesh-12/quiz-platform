@@ -8,7 +8,8 @@ import ProfileFooter from "@/components/layout/ProfileFooter";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { getAllSubjects, getSubjectQuestions } from "@/services/adminService";
+import { useAdminSubjects } from "@/hooks/useAdminSubjects";
+import { getSubjectQuestions } from "@/services/adminService";
 import { theme } from "@/theme";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "admin-sidebar-collapsed";
@@ -126,15 +127,12 @@ export default function AdminSidebar({
     [selectedSubjectId]
   );
 
-  const subjectsQuery = useQuery({
-    queryKey: ["admin", "subjects"],
-    queryFn: getAllSubjects
-  });
-
-  const subjectItems = useMemo(
-    () => (Array.isArray(subjectsQuery.data?.subjects) ? subjectsQuery.data.subjects : []),
-    [subjectsQuery.data]
-  );
+  const {
+    subjects: subjectItems,
+    isLoading: subjectsLoading,
+    isError: subjectsError,
+    refetch: refetchSubjects
+  } = useAdminSubjects();
 
   const subjectQuestionsQuery = useQuery({
     queryKey: ["admin", "subject-questions", selectedSubject?.id],
@@ -266,27 +264,27 @@ export default function AdminSidebar({
 
             <div className="scrollbar-hidden h-full overflow-y-auto pr-0.5">
               <div className="space-y-1">
-                {subjectItems.length > 0 ? (
-                  subjectItems.map((subject) => (
-                    <SidebarItem
-                      key={subject.id}
-                      isSubject
-                      isActive={
-                        Number(selectedSubjectFromProps) === Number(subject.id) ||
-                        Number(selectedSubject?.id) === Number(subject.id)
+                {subjectItems.map((subject) => (
+                  <SidebarItem
+                    key={subject.id}
+                    isSubject
+                    isActive={
+                      Number(selectedSubjectFromProps) === Number(subject.id) ||
+                      Number(selectedSubject?.id) === Number(subject.id)
+                    }
+                    label={subject.name}
+                    onClick={() => {
+                      setSelectedSubject(subject);
+                      setSubjectQuestionsOpen(true);
+                      onSelectSubject?.(subject.id);
+                      if (isMobileViewport) {
+                        onNavigateMobile?.();
                       }
-                      label={subject.name}
-                      onClick={() => {
-                        setSelectedSubject(subject);
-                        setSubjectQuestionsOpen(true);
-                        onSelectSubject?.(subject.id);
-                        if (isMobileViewport) {
-                          onNavigateMobile?.();
-                        }
-                      }}
-                    />
-                  ))
-                ) : (
+                    }}
+                  />
+                ))}
+
+                {subjectsLoading && subjectItems.length === 0 ? (
                   <p
                     className="p-3 text-center text-[12px]"
                     style={{
@@ -296,11 +294,40 @@ export default function AdminSidebar({
                       color: theme.text.muted
                     }}
                   >
-                    {subjectsQuery.isLoading
-                      ? "Loading subjects..."
-                      : "No subjects yet. Create one to start assigning."}
+                    Loading subjects...
                   </p>
-                )}
+                ) : null}
+
+                {subjectsError ? (
+                  <div
+                    className="space-y-2 p-3 text-center text-[12px]"
+                    style={{
+                      borderRadius: theme.radius.md,
+                      border: `1px dashed ${theme.border.default}`,
+                      backgroundColor: theme.bg.content,
+                      color: theme.text.accent
+                    }}
+                  >
+                    <p>Couldn't load subjects.</p>
+                    <Button type="button" variant="outline" className="h-7 text-[12px]" onClick={() => refetchSubjects()}>
+                      Retry
+                    </Button>
+                  </div>
+                ) : null}
+
+                {!subjectsLoading && !subjectsError && subjectItems.length === 0 ? (
+                  <p
+                    className="p-3 text-center text-[12px]"
+                    style={{
+                      borderRadius: theme.radius.md,
+                      border: `1px dashed ${theme.border.default}`,
+                      backgroundColor: theme.bg.content,
+                      color: theme.text.muted
+                    }}
+                  >
+                    No subjects yet. Create one to start assigning.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

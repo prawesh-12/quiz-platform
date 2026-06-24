@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAdminSubjects, ADMIN_SUBJECTS_KEY } from "@/hooks/useAdminSubjects";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -71,10 +72,7 @@ export default function SchoolTeachersPage() {
   const [copyConfirmed, setCopyConfirmed] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState(null);
 
-  const subjectsQuery = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => subjectService.list()
-  });
+  const { subjects } = useAdminSubjects();
 
   const teachersQuery = useQuery({
     queryKey: ["admin", "teachers", school],
@@ -84,8 +82,7 @@ export default function SchoolTeachersPage() {
   const createSubjectMutation = useMutation({
     mutationFn: (payload) => subjectService.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subjects"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
+      queryClient.invalidateQueries({ queryKey: ADMIN_SUBJECTS_KEY });
       setCreateSubjectOpen(false);
       setSubjectName("");
       toast({
@@ -133,7 +130,6 @@ export default function SchoolTeachersPage() {
     }
   });
 
-  const subjects = subjectsQuery.data?.subjects ?? [];
   const teachers = teachersQuery.data?.teachers ?? [];
 
   const filteredTeachers = useMemo(() => {

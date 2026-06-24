@@ -76,6 +76,38 @@ function persistUser(user) {
   }
 }
 
+const MAX_HYDRATE_ATTEMPTS = 5;
+const BASE_RETRY_MS = 1000;
+const MAX_RETRY_MS = 8000;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryDelay(attempt) {
+  return Math.min(MAX_RETRY_MS, BASE_RETRY_MS * 2 ** attempt);
+}
+
+// Resolve /auth/me, retrying transient failures (network, 5xx, timeout) with backoff.
+// A 401 is the only definite "logged out" signal; everything else is treated as transient.
+async function fetchCurrentUser(shouldStop) {
+  for (let attempt = 0; attempt < MAX_HYDRATE_ATTEMPTS; attempt += 1) {
+    if (shouldStop()) {
+      return { status: "aborted" };
+    }
+    try {
+      const data = await authService.me({ skipErrorToast: true });
+      return { status: "ok", user: normalizeUser(data?.user) };
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        return { status: "unauthorized" };
+      }
+      await sleep(retryDelay(attempt));
+    }
+  }
+  return { status: "transient" };
+}
+
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
@@ -85,32 +117,31 @@ export function AuthProvider({ children }) {
     async function hydrateAuth() {
       dispatch({ type: "HYDRATE_START" });
 
-      if (!loadStoredUser()) {
+      const storedUser = loadStoredUser();
+      if (!storedUser) {
         if (!ignore) {
           dispatch({ type: "HYDRATE_FAIL" });
         }
         return;
       }
 
-      try {
-        const data = await authService.me();
-        const normalizedUser = normalizeUser(data?.user);
-
-        if (!normalizedUser) {
-          throw new Error("User payload missing");
-        }
-
-        persistUser(normalizedUser);
-
-        if (!ignore) {
-          dispatch({ type: "HYDRATE_SUCCESS", payload: { user: normalizedUser } });
-        }
-      } catch {
-        persistUser(null);
-        if (!ignore) {
-          dispatch({ type: "HYDRATE_FAIL" });
-        }
+      const result = await fetchCurrentUser(() => ignore);
+      if (ignore || result.status === "aborted") {
+        return;
       }
+
+      // Definite 401: the session is gone, so clear the stored user.
+      if (result.status === "unauthorized") {
+        persistUser(null);
+        dispatch({ type: "HYDRATE_FAIL" });
+        return;
+      }
+
+      // Fresh confirmation wins; on a transient backend blip keep the stored user (the API
+      // interceptor still forces logout on a real 401 from any later request).
+      const nextUser = result.status === "ok" && result.user ? result.user : storedUser;
+      persistUser(nextUser);
+      dispatch({ type: "HYDRATE_SUCCESS", payload: { user: nextUser } });
     }
 
     hydrateAuth();
