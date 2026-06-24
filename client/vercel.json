@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://REPLACE_WITH_GATEWAY_DOMAIN/api/:path*"
+      "destination": "https://quizloom.duckdns.org/api/:path*"
     },
     {
       "source": "/(.*)",
