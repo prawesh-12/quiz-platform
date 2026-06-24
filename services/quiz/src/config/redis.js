@@ -49,6 +49,20 @@ export function isRedisReady() {
   return Boolean(client) && ready && client.status === "ready";
 }
 
+// Dedicated connection for blocking stream reads (XREADGROUP BLOCK) so they never stall the
+// shared client used by request-path checks. Null when REDIS_URL is unset.
+export function createConnection() {
+  if (!REDIS_URL) {
+    return null;
+  }
+  return new Redis(REDIS_URL, {
+    lazyConnect: true,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: null,
+    retryStrategy: (times) => Math.min(times * RETRY_STEP_MS, RETRY_MAX_MS)
+  });
+}
+
 export async function closeRedis() {
   if (!client) {
     return;

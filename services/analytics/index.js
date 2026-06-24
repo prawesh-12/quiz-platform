@@ -14,7 +14,7 @@ const [
   { runMigrations },
   { registerGracefulShutdown, closeServer, SHUTDOWN_TIMEOUT_MS },
   { default: logger, serializeError },
-  { closeRedis },
+  { closeRedis, isRedisReady },
   { startProjectionConsumer },
   { default: requestLogger },
   { default: errorHandler },
@@ -69,12 +69,15 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.get("/api/ready", async (_req, res) => {
+  const checks = { db: false, redis: isRedisReady() };
   try {
     await query("SELECT 1");
-    res.status(200).json({ status: "ready" });
+    checks.db = true;
   } catch {
-    res.status(503).json({ status: "unavailable" });
+    // db unreachable
   }
+  const ready = checks.db && checks.redis;
+  res.status(ready ? 200 : 503).json({ status: ready ? "ready" : "unavailable", checks });
 });
 
 app.use("/api/admin/dashboard", adminRouter);
@@ -97,6 +100,16 @@ const server = app.listen(PORT, () => {
 
 server.requestTimeout = REQUEST_TIMEOUT_MS;
 server.headersTimeout = HEADERS_TIMEOUT_MS;
+
+const KEEPWARM_ENABLED = process.env.KEEPWARM_ENABLED !== "false";
+const KEEPWARM_INTERVAL_MS = Number(process.env.KEEPWARM_INTERVAL_MS || 240000);
+
+// Ping this service's own Neon endpoint to keep it from cold-starting (free-tier scale-to-zero).
+if (KEEPWARM_ENABLED) {
+  setInterval(() => {
+    query("SELECT 1").catch((error) => logger.warn("keepwarm.failed", serializeError(error)));
+  }, KEEPWARM_INTERVAL_MS).unref();
+}
 
 registerGracefulShutdown(
   [

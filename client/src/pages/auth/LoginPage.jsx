@@ -83,7 +83,7 @@ export default function LoginPage() {
         return;
       }
 
-      login({ token: data.token, user: data.user });
+      login({ user: data.user });
       if (mode === "admin") {
         navigate("/admin", { replace: true });
       } else {

@@ -5,6 +5,8 @@ const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };
 const configuredLevel = (process.env.LOG_LEVEL || "info").toLowerCase();
 const minLevel = LEVELS[configuredLevel] ?? LEVELS.info;
 
+const SERVICE_NAME = process.env.SERVICE_NAME || "auth";
+
 const REDACT_KEYS = new Set([
   "authorization",
   "x-session-token",
@@ -54,6 +56,7 @@ function emit(level, message, meta) {
   const entry = {
     level,
     time: new Date().toISOString(),
+    service: SERVICE_NAME,
     msg: message,
     ...(meta ? redact(meta) : {})
   };

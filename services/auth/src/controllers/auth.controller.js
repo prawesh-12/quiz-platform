@@ -1,4 +1,5 @@
 import * as authService from "../services/auth.service.js";
+import { setSessionCookie, clearSessionCookie } from "../config/cookie.js";
 
 const CREATED = 201;
 const OK = 200;
@@ -17,7 +18,9 @@ export async function register(req, res, next) {
 
 export async function login(req, res, next) {
   try {
-    return res.status(OK).json(await authService.login(req.validatedBody));
+    const { token, user } = await authService.login(req.validatedBody);
+    setSessionCookie(res, token);
+    return res.status(OK).json({ user });
   } catch (error) {
     return next(error);
   }
@@ -31,6 +34,7 @@ export async function logout(req, res, next) {
       role: req.user?.role,
       userId: req.user?.userId ?? req.user?.id,
     });
+    clearSessionCookie(res);
     return res.status(OK).json(result);
   } catch (error) {
     return next(error);

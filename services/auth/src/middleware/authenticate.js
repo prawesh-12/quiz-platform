@@ -4,18 +4,38 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../config/jwt.js";
 import { isTokenRevoked } from "../services/revokedTokens.service.js";
 
+const SESSION_COOKIE = "quiz_session";
+
 function hashToken(token) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export default async function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Missing or invalid authorization header" });
+function readToken(req) {
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    const match = cookieHeader
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${SESSION_COOKIE}=`));
+    if (match) {
+      return decodeURIComponent(match.slice(SESSION_COOKIE.length + 1));
+    }
   }
 
-  const token = authHeader.split(" ")[1];
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.slice(7);
+  }
+
+  return null;
+}
+
+export default async function authenticate(req, res, next) {
+  const token = readToken(req);
+
+  if (!token) {
+    return res.status(401).json({ error: "Missing authentication" });
+  }
 
   try {
     const payload = jwt.verify(token, JWT_SECRET);

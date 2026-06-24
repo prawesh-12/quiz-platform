@@ -33,9 +33,14 @@ export default function errorHandler(err, req, res, next) {
 
   // Only server-side faults are noise-worthy; expected 4xx (validation, not-found) are not.
   if (statusCode >= SERVER_ERROR_STATUS) {
+    const durationMs = req.startedAt
+      ? Math.round((Number(process.hrtime.bigint() - req.startedAt) / 1e6) * 10) / 10
+      : undefined;
     logger.error("unhandled.error", {
       requestId: req.id,
-      route: req.originalUrl?.split("?")[0],
+      endpoint: req.route?.path || req.originalUrl?.split("?")[0],
+      userId: req.user?.id,
+      durationMs,
       ...serializeError(err)
     });
   }

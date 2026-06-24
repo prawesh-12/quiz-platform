@@ -15,7 +15,7 @@ const [
   { initObservability },
   { registerGracefulShutdown, closeServer, SHUTDOWN_TIMEOUT_MS },
   { default: logger, serializeError },
-  { closeRedis },
+  { closeRedis, isRedisReady },
   { default: requestLogger },
   { default: errorHandler },
   { default: quizzesRouter },
@@ -79,12 +79,17 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.get("/api/ready", async (_req, res) => {
+  const checks = { db: false, redis: isRedisReady() };
   try {
     await query("SELECT 1");
-    res.status(OK_STATUS).json({ status: "ready" });
+    checks.db = true;
   } catch {
-    res.status(UNAVAILABLE_STATUS).json({ status: "unavailable" });
+    // db unreachable
   }
+  res.status(checks.db ? OK_STATUS : UNAVAILABLE_STATUS).json({
+    status: checks.db ? "ready" : "unavailable",
+    checks
+  });
 });
 
 app.use("/api/quizzes", quizzesRouter);
@@ -108,6 +113,16 @@ const server = app.listen(PORT, () => {
 
 server.requestTimeout = REQUEST_TIMEOUT_MS;
 server.headersTimeout = HEADERS_TIMEOUT_MS;
+
+const KEEPWARM_ENABLED = process.env.KEEPWARM_ENABLED !== "false";
+const KEEPWARM_INTERVAL_MS = Number(process.env.KEEPWARM_INTERVAL_MS || 240000);
+
+// Ping this service's own Neon endpoint to keep it from cold-starting (free-tier scale-to-zero).
+if (KEEPWARM_ENABLED) {
+  setInterval(() => {
+    query("SELECT 1").catch((error) => logger.warn("keepwarm.failed", serializeError(error)));
+  }, KEEPWARM_INTERVAL_MS).unref();
+}
 
 registerGracefulShutdown(
   [

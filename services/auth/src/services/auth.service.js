@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
 
 import pool from "../config/db.js";
@@ -27,7 +27,9 @@ function signTeacherToken(user) {
       role: user.role,
     },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN },
+    // jwtid makes every token unique so a re-login within the same second can't collide with
+    // an already-revoked token (JWT iat is only second-resolution).
+    { expiresIn: JWT_EXPIRES_IN, jwtid: randomUUID() },
   );
 }
 

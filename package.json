@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "setup": "npm install --prefix services/auth && npm install --prefix services/questionbank && npm install --prefix services/quiz && npm install --prefix services/exam && npm install --prefix services/analytics && npm install --prefix services/scheduler && npm install --prefix client",
+    "dev": "docker compose up -d && npm run dev --prefix client",
     "build": "npm run build --prefix client",
     "up": "docker compose up --build",
     "down": "docker compose down"

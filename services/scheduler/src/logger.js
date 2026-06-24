@@ -1,6 +1,8 @@
 // Minimal structured logger to keep this service dependency-light.
+const SERVICE_NAME = process.env.SERVICE_NAME || "scheduler";
+
 function write(level, event, meta = {}) {
-  const line = JSON.stringify({ level, event, ts: new Date().toISOString(), ...meta });
+  const line = JSON.stringify({ level, service: SERVICE_NAME, event, ts: new Date().toISOString(), ...meta });
   if (level === "error") {
     process.stderr.write(`${line}\n`);
     return;
