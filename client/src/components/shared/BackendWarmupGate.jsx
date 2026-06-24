@@ -93,9 +93,7 @@ export default function BackendWarmupGate({ children }) {
   if (!isBackendReady) {
     return (
       <LoadingScreen
-        slowNotice={
-          isLongWait ? "Server is taking longer than expected. Still trying to wake it up..." : ""
-        }
+        slowNotice={isLongWait ? "This is taking longer than usual. Hang tight..." : ""}
       />
     );
   }

@@ -40,6 +40,9 @@ const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT || "256kb";
 
 const app = express();
 
+// Behind the nginx gateway (one hop), so req.ip reflects the real client for rate limiting.
+app.set("trust proxy", 1);
+
 const configuredOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || "")
   .split(",")
   .map((origin) => origin.trim())

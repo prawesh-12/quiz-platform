@@ -14,6 +14,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";
+import Spinner from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -594,12 +595,10 @@ export default function DashboardPage() {
                             }}
                         >
                             {summaryQuery.isLoading ? (
-                                <p
-                                    className="text-[12px]"
-                                    style={{ color: theme.text.muted }}
-                                >
-                                    Loading dashboard analytics...
-                                </p>
+                                <Spinner
+                                    className="py-2"
+                                    label="Loading dashboard analytics..."
+                                />
                             ) : null}
 
                             {summaryQuery.isError ? (
@@ -618,13 +617,8 @@ export default function DashboardPage() {
                                 <div className="h-[260px] min-h-[260px] w-full">
                                     <Suspense
                                         fallback={
-                                            <div
-                                                className="flex h-full items-center justify-center text-[12px]"
-                                                style={{
-                                                    color: theme.text.muted,
-                                                }}
-                                            >
-                                                Loading chart...
+                                            <div className="flex h-full items-center justify-center">
+                                                <Spinner label="Loading chart..." />
                                             </div>
                                         }
                                     >

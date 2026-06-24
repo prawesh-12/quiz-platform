@@ -1,3 +1,6 @@
+// Docker Compose is the canonical deploy path (the gateway nginx.conf targets the compose
+// service names). This PM2 config is an alternative for a single-host non-Docker run and
+// needs its own gateway upstreams; do not mix the two.
 module.exports = {
   apps: [
     {

@@ -7,6 +7,7 @@ import TeacherShell from "@/components/layout/TeacherShell";
 import QuestionBuilder from "@/components/teacher/QuestionBuilder";
 import QuestionPreviewList from "@/components/teacher/QuestionPreviewList";
 import UnitQuestionsList from "@/components/teacher/UnitQuestionsList";
+import Spinner from "@/components/shared/Spinner";
 import {
   Accordion,
   AccordionContent,
@@ -781,7 +782,7 @@ function UnitSection({ unitId, subjectId }) {
   if (questionsQuery.isLoading) {
     return (
       <div className="p-4 text-sm text-muted-foreground">
-        Loading questions...
+        <Spinner label="Loading questions..." />
       </div>
     );
   }

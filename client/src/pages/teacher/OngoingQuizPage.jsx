@@ -6,6 +6,7 @@ import { Copy, RefreshCw, Trash2 } from "lucide-react";
 import TeacherShell from "@/components/layout/TeacherShell";
 import FlagBadge from "@/components/teacher/FlagBadge";
 import ResponseTable from "@/components/teacher/ResponseTable";
+import Spinner from "@/components/shared/Spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -421,7 +422,7 @@ export default function OngoingQuizPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {responsesQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading responses...</p> : null}
+            {responsesQuery.isLoading ? <Spinner className="py-2" label="Loading responses..." /> : null}
             {responsesQuery.isError ? (
               <p className="text-sm text-destructive">{responsesQuery.error?.response?.data?.error || "Failed to load responses"}</p>
             ) : null}
@@ -499,7 +500,7 @@ export default function OngoingQuizPage() {
             <DialogDescription>Q&A breakdown and violation timeline for this student session.</DialogDescription>
           </DialogHeader>
 
-          {detailsQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading session details...</p> : null}
+          {detailsQuery.isLoading ? <Spinner className="py-2" label="Loading session details..." /> : null}
           {detailsQuery.isError ? (
             <p className="text-sm text-destructive">{detailsQuery.error?.response?.data?.error || "Failed to load session details"}</p>
           ) : null}

@@ -1,24 +1,43 @@
-const SEGMENT_COUNT = 16;
+import { BookOpen } from "lucide-react";
 
-export default function LoadingScreen({ slowNotice = "" }) {
+export default function LoadingScreen({ message = "Loading...", slowNotice = "" }) {
   return (
-    <div className="startup-loading-screen" role="status" aria-live="polite">
-      <div className="startup-loading-inner">
-        <p className="startup-loading-title">Loading...</p>
-
-        <div className="startup-progress-track" aria-hidden="true">
-          {Array.from({ length: SEGMENT_COUNT }).map((_, index) => (
-            <span
-              key={index}
-              className="startup-progress-segment"
-              style={{ animationDelay: `${index * 90}ms` }}
-            />
-          ))}
-        </div>
-
-        <p className="startup-loading-status">Waking up server, please wait...</p>
-        {slowNotice ? <p className="startup-loading-status startup-loading-status-long-wait">{slowNotice}</p> : null}
+    <div
+      className="flex h-screen w-screen flex-col items-center justify-center"
+      style={{ backgroundColor: "#EAEAEC", fontFamily: "'Inter', sans-serif" }}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="flex items-center gap-2.5">
+        <span
+          className="inline-flex h-9 w-9 items-center justify-center rounded-[10px]"
+          style={{ background: "#1C1C1E", color: "#FFFFFF" }}
+        >
+          <BookOpen className="h-[18px] w-[18px]" />
+        </span>
+        <span
+          className="leading-none"
+          style={{ fontSize: "20px", fontWeight: 700, color: "#1C1C1E", letterSpacing: "-0.3px" }}
+        >
+          QuizLoom
+        </span>
       </div>
+
+      <div
+        className="mt-6 h-8 w-8 rounded-full border-[3px] animate-spin"
+        style={{ borderColor: "#F0F0F0", borderTopColor: "#1C1C1E" }}
+        aria-hidden="true"
+      />
+
+      <p className="mt-4 text-[13px]" style={{ color: "#999999", fontWeight: 500 }}>
+        {message}
+      </p>
+
+      {slowNotice ? (
+        <p className="mt-1 text-[12px]" style={{ color: "#AAAAAA" }}>
+          {slowNotice}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 
-import { Card, CardContent } from "@/components/ui/card";
+import LoadingScreen from "@/components/shared/LoadingScreen";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ProtectedRoute({ children, role, requiredRole }) {
@@ -8,13 +8,7 @@ export default function ProtectedRoute({ children, role, requiredRole }) {
   const expectedRole = role ?? requiredRole;
 
   if (isLoading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-        <Card className="w-full max-w-sm">
-          <CardContent className="pt-6 text-center text-sm text-muted-foreground">Checking authentication...</CardContent>
-        </Card>
-      </main>
-    );
+    return <LoadingScreen message="Checking authentication..." />;
   }
 
   if (!isAuthenticated) {

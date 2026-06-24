@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import AddTeacherModal from "@/components/admin/AddTeacherModal";
 import ProfileFooter from "@/components/layout/ProfileFooter";
+import Spinner from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -285,17 +286,7 @@ export default function AdminSidebar({
                 ))}
 
                 {subjectsLoading && subjectItems.length === 0 ? (
-                  <p
-                    className="p-3 text-center text-[12px]"
-                    style={{
-                      borderRadius: theme.radius.md,
-                      border: `1px dashed ${theme.border.default}`,
-                      backgroundColor: theme.bg.content,
-                      color: theme.text.muted
-                    }}
-                  >
-                    Loading subjects...
-                  </p>
+                  <Spinner className="py-4" label="Loading subjects..." />
                 ) : null}
 
                 {subjectsError ? (
@@ -394,11 +385,7 @@ export default function AdminSidebar({
             className="max-h-[58vh] space-y-2 overflow-y-auto rounded-[var(--ds-radius-md)] border p-3"
             style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
           >
-            {subjectQuestionsQuery.isLoading ? (
-              <p className="text-[13px]" style={{ color: theme.text.muted }}>
-                Loading questions...
-              </p>
-            ) : null}
+            {subjectQuestionsQuery.isLoading ? <Spinner className="py-3" label="Loading questions..." /> : null}
 
             {!subjectQuestionsQuery.isLoading &&
               (subjectQuestionsQuery.data?.questions?.length ?? 0) === 0 ? (

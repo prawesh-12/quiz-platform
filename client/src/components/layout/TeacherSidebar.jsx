@@ -3,6 +3,8 @@ import { BookOpen, Home, LibraryBig, PanelLeftClose, PanelRightOpen, Sparkles } 
 import { Link, useLocation } from "react-router-dom";
 
 import ProfileFooter from "@/components/layout/ProfileFooter";
+import Spinner from "@/components/shared/Spinner";
+import { useTeacherSubjects } from "@/hooks/useTeacherSubjects";
 import { cn } from "@/lib/utils";
 import { theme } from "@/theme";
 
@@ -41,7 +43,6 @@ function SidebarItem({ isActive, onClick, to, icon: Icon, label, isSubject = fal
 }
 
 export default function TeacherSidebar({
-  subjects,
   selectedSubjectId,
   onSelectSubject,
   onOpenGenerateQuiz,
@@ -51,6 +52,12 @@ export default function TeacherSidebar({
   onNavigateMobile,
 }) {
   const location = useLocation();
+  const {
+    subjects: subjectItems,
+    isLoading: subjectsLoading,
+    isError: subjectsError,
+    refetch: refetchSubjects
+  } = useTeacherSubjects();
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
     if (typeof window === "undefined") {
       return false;
@@ -224,22 +231,46 @@ export default function TeacherSidebar({
 
           <div className="scrollbar-hidden h-full overflow-y-auto pr-0.5">
             <div className="space-y-1">
-              {subjects.length > 0 ? (
-                subjects.map((subject) => (
-                  <SidebarItem
-                    key={subject.id}
-                    isSubject
-                    isActive={Number(selectedSubjectId) === Number(subject.id)}
-                    label={subject.name}
-                    onClick={() => {
-                      onSelectSubject(subject.id);
-                      if (isMobileViewport) {
-                        onNavigateMobile?.();
-                      }
-                    }}
-                  />
-                ))
-              ) : (
+              {subjectItems.map((subject) => (
+                <SidebarItem
+                  key={subject.id}
+                  isSubject
+                  isActive={Number(selectedSubjectId) === Number(subject.id)}
+                  label={subject.name}
+                  onClick={() => {
+                    onSelectSubject(subject.id);
+                    if (isMobileViewport) {
+                      onNavigateMobile?.();
+                    }
+                  }}
+                />
+              ))}
+
+              {subjectsLoading && subjectItems.length === 0 ? <Spinner className="py-4" label="Loading subjects..." /> : null}
+
+              {subjectsError ? (
+                <div
+                  className="space-y-2 p-3 text-center text-[12px]"
+                  style={{
+                    borderRadius: theme.radius.md,
+                    border: `1px dashed ${theme.border.default}`,
+                    backgroundColor: theme.bg.content,
+                    color: theme.text.accent,
+                  }}
+                >
+                  <p>Couldn&apos;t load subjects.</p>
+                  <button
+                    type="button"
+                    className="rounded-[var(--ds-radius-sm)] border px-3 py-1 text-[12px] transition-colors hover:bg-[var(--ds-bg-input)]"
+                    style={{ borderColor: theme.border.input, color: theme.text.secondary }}
+                    onClick={() => refetchSubjects()}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null}
+
+              {!subjectsLoading && !subjectsError && subjectItems.length === 0 ? (
                 <p
                   className="p-3 text-center text-[12px]"
                   style={{
@@ -251,7 +282,7 @@ export default function TeacherSidebar({
                 >
                   No subjects yet. Create one to start adding questions.
                 </p>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

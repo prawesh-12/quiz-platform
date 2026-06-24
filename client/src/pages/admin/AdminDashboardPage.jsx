@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 
 import SchoolTabs from "@/components/admin/SchoolTabs";
 import AdminShell from "@/components/layout/AdminShell";
+import Spinner from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -442,9 +443,7 @@ export default function AdminDashboardPage() {
               style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
             >
               {summaryQuery.isLoading ? (
-                <p className="text-[12px]" style={{ color: theme.text.muted }}>
-                  Loading dashboard analytics...
-                </p>
+                <Spinner className="py-2" label="Loading dashboard analytics..." />
               ) : null}
 
               {summaryQuery.isError ? (
@@ -457,8 +456,8 @@ export default function AdminDashboardPage() {
                 <div className="h-full min-h-[120px] w-full">
                   <Suspense
                     fallback={
-                      <div className="flex h-full items-center justify-center text-[12px]" style={{ color: theme.text.muted }}>
-                        Loading chart...
+                      <div className="flex h-full items-center justify-center">
+                        <Spinner label="Loading chart..." />
                       </div>
                     }
                   >
