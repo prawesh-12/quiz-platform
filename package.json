@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently --names \"server,client\" --prefix-colors \"blue,green\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "setup": "npm install --prefix services/auth && npm install --prefix services/questionbank && npm install --prefix services/quiz && npm install --prefix services/exam && npm install --prefix services/analytics && npm install --prefix services/scheduler && npm install --prefix client",
+    "dev": "docker compose up -d && npm run dev --prefix client",
     "build": "npm run build --prefix client",
-    "start": "concurrently --names \"server,client\" --prefix-colors \"blue,green\" \"npm run start --prefix server\" \"npm run preview --prefix client\"",
-    "install:all": "npm install --prefix server && npm install --prefix client"
-  },
-  "devDependencies": {
-    "concurrently": "^9.1.2"
+    "up": "docker compose up --build",
+    "down": "docker compose down",
+    "reset": "bash scripts/reset.sh",
+    "test": "node --test tests/integration"
   }
 }

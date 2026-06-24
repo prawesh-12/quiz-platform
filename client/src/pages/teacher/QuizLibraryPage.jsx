@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";
 import QuizListCard from "@/components/teacher/QuizListCard";
+import Spinner from "@/components/shared/Spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { quizService } from "@/services/quizService";
 import { subjectService } from "@/services/subjectService";
+import { withJitter } from "@/utils/jitter";
 import { theme } from "@/theme";
 
 const PAGE_SIZE = 12;
@@ -62,7 +64,7 @@ export default function QuizLibraryPage() {
   const quizzesQuery = useQuery({
     queryKey: ["quizzes", "library"],
     queryFn: fetchAllQuizzes,
-    refetchInterval: 10_000,
+    refetchInterval: () => withJitter(10_000),
     refetchIntervalInBackground: true,
   });
 
@@ -199,12 +201,7 @@ export default function QuizLibraryPage() {
         >
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
             {quizzesQuery.isLoading ? (
-              <p
-                className="col-span-full rounded-[12px] border border-dashed p-6 text-[13px]"
-                style={{ borderColor: theme.border.default, backgroundColor: theme.bg.content, color: theme.text.muted }}
-              >
-                Loading quizzes...
-              </p>
+              <Spinner className="py-6" label="Loading quizzes..." />
             ) : null}
 
             {quizzesQuery.isError ? (

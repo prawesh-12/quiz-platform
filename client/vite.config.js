@@ -9,6 +9,15 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url))
     }
   },
+  // Same-origin /api so the session cookie stays host-only (mirrors the Vercel rewrite in prod).
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true
+      }
+    }
+  },
   build: {
     chunkSizeWarningLimit: 400,
     minify: "esbuild",

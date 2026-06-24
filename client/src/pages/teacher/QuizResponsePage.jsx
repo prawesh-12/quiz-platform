@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import TeacherShell from "@/components/layout/TeacherShell";
 import FlagBadge from "@/components/teacher/FlagBadge";
 import ResponseTable from "@/components/teacher/ResponseTable";
+import Spinner from "@/components/shared/Spinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { responseService } from "@/services/responseService";
 import { subjectService } from "@/services/subjectService";
+import { withJitter } from "@/utils/jitter";
 import { violationService } from "@/services/violationService";
 import { quizService } from "@/services/quizService";
 import Pagination from "@/components/ui/pagination";
@@ -95,7 +97,7 @@ export default function QuizResponsePage() {
     queryKey: ["quiz-responses", quizId, page],
     enabled: Boolean(quizId),
     queryFn: () => responseService.getQuizResponses(quizId, { page, limit: 10 }),
-    refetchInterval: 10000
+    refetchInterval: () => withJitter(10000)
   });
 
   const leaderboardQuery = useQuery({
@@ -173,7 +175,7 @@ export default function QuizResponsePage() {
             </div>
           </CardHeader>
           <CardContent>
-            {responsesQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading responses...</p> : null}
+            {responsesQuery.isLoading ? <Spinner className="py-2" label="Loading responses..." /> : null}
             {responsesQuery.isError ? (
               <p className="text-sm text-destructive">{responsesQuery.error?.response?.data?.error || "Failed to load responses"}</p>
             ) : null}
@@ -215,7 +217,7 @@ export default function QuizResponsePage() {
                       {leaderboardQuery.isLoading ? (
                         <TableRow>
                           <TableCell colSpan={5} className="text-muted-foreground">
-                            Loading leaderboard...
+                            <Spinner label="Loading leaderboard..." />
                           </TableCell>
                         </TableRow>
                       ) : null}
@@ -263,7 +265,7 @@ export default function QuizResponsePage() {
           </DialogHeader>
 
           {quizDetailsQuery.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading quiz details...</p>
+            <Spinner label="Loading quiz details..." />
           ) : null}
           {quizDetailsQuery.isError ? (
             <p className="text-sm text-destructive">
@@ -365,7 +367,7 @@ export default function QuizResponsePage() {
             <DialogDescription>Q&A breakdown and violation timeline for this student session.</DialogDescription>
           </DialogHeader>
 
-          {detailsQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading session details...</p> : null}
+          {detailsQuery.isLoading ? <Spinner className="py-2" label="Loading session details..." /> : null}
           {detailsQuery.isError ? (
             <p className="text-sm text-destructive">{detailsQuery.error?.response?.data?.error || "Failed to load session details"}</p>
           ) : null}

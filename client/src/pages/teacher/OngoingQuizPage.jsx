@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { Copy, Trash2 } from "lucide-react";
+import { Copy, RefreshCw, Trash2 } from "lucide-react";
 
 import TeacherShell from "@/components/layout/TeacherShell";
 import FlagBadge from "@/components/teacher/FlagBadge";
 import ResponseTable from "@/components/teacher/ResponseTable";
+import Spinner from "@/components/shared/Spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +42,7 @@ import { useTimer } from "@/hooks/useTimer";
 import { quizService } from "@/services/quizService";
 import { responseService } from "@/services/responseService";
 import { subjectService } from "@/services/subjectService";
+import { withJitter } from "@/utils/jitter";
 import { violationService } from "@/services/violationService";
 import { formatTime } from "@/utils/formatTime";
 
@@ -99,6 +101,7 @@ export default function OngoingQuizPage() {
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [stopDialogOpen, setStopDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const subjectsQuery = useQuery({
     queryKey: ["subjects"],
@@ -109,14 +112,14 @@ export default function OngoingQuizPage() {
     queryKey: ["live-stats", quizId],
     enabled: Boolean(quizId),
     queryFn: () => quizService.getLiveStats(quizId),
-    refetchInterval: 5000
+    refetchInterval: () => withJitter(5000)
   });
 
   const responsesQuery = useQuery({
     queryKey: ["quiz-responses", quizId, page, "ongoing"],
     enabled: Boolean(quizId),
     queryFn: () => responseService.getQuizResponses(quizId, { page, limit: 10 }),
-    refetchInterval: 5000
+    refetchInterval: () => withJitter(5000)
   });
 
   const detailsQuery = useQuery({
@@ -224,7 +227,8 @@ export default function OngoingQuizPage() {
 
   const { seconds: elapsedSeconds } = useTimer({
     initialSeconds: Math.max(0, Number(stats?.elapsed_seconds || 0)),
-    enabled: Boolean(quiz) && !isScheduled,
+    // Freeze the running time once the quiz has ended — it's no longer running.
+    enabled: Boolean(quiz) && !isScheduled && !isEnded,
     getSeconds: getElapsedSeconds,
   });
 
@@ -264,6 +268,20 @@ export default function OngoingQuizPage() {
   };
 
 
+
+  // Manual refresh of the live table + stats. Min 500ms so the spinner is visible.
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        responsesQuery.refetch(),
+        liveStatsQuery.refetch(),
+        new Promise((resolve) => setTimeout(resolve, 500))
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const downloadExport = async () => {
     try {
@@ -390,11 +408,21 @@ export default function OngoingQuizPage() {
         </div>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
             <CardTitle>Live Student Table</CardTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`mr-1.5 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {responsesQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading responses...</p> : null}
+            {responsesQuery.isLoading ? <Spinner className="py-2" label="Loading responses..." /> : null}
             {responsesQuery.isError ? (
               <p className="text-sm text-destructive">{responsesQuery.error?.response?.data?.error || "Failed to load responses"}</p>
             ) : null}
@@ -472,7 +500,7 @@ export default function OngoingQuizPage() {
             <DialogDescription>Q&A breakdown and violation timeline for this student session.</DialogDescription>
           </DialogHeader>
 
-          {detailsQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading session details...</p> : null}
+          {detailsQuery.isLoading ? <Spinner className="py-2" label="Loading session details..." /> : null}
           {detailsQuery.isError ? (
             <p className="text-sm text-destructive">{detailsQuery.error?.response?.data?.error || "Failed to load session details"}</p>
           ) : null}

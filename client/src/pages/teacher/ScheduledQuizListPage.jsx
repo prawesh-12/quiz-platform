@@ -3,12 +3,14 @@ import { CalendarClock, Copy, KeyRound, Link as LinkIcon, Timer } from "lucide-r
 import { useNavigate } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";
+import Spinner from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { quizService } from "@/services/quizService";
 import { subjectService } from "@/services/subjectService";
+import { withJitter } from "@/utils/jitter";
 import { theme } from "@/theme";
 
 function formatDateTime(value) {
@@ -45,14 +47,14 @@ export default function ScheduledQuizListPage() {
   const scheduledQuery = useQuery({
     queryKey: ["quizzes", "scheduled", "detailed-list"],
     queryFn: () => quizService.list({ status: "scheduled", page: 1, limit: 100 }),
-    refetchInterval: LIVE_REFRESH_MS,
+    refetchInterval: () => withJitter(LIVE_REFRESH_MS),
     refetchIntervalInBackground: true,
   });
 
   const ongoingQuery = useQuery({
     queryKey: ["quizzes", "active", "scheduled-context"],
     queryFn: () => quizService.list({ status: "active", page: 1, limit: 50 }),
-    refetchInterval: LIVE_REFRESH_MS,
+    refetchInterval: () => withJitter(LIVE_REFRESH_MS),
     refetchIntervalInBackground: true,
   });
 
@@ -108,7 +110,7 @@ export default function ScheduledQuizListPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {scheduledQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading scheduled quizzes...</p>
+              <Spinner className="py-2" label="Loading scheduled quizzes..." />
             ) : null}
 
             {scheduledQuery.isError ? (

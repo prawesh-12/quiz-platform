@@ -13,3 +13,12 @@ db_plan.md
 .agents/
 .kombai/
 security.md
+extras/
+
+docs.md
+structure.md
+docs/
+README.md
+
+.claude/
+skills-lock.json

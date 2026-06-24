@@ -1,0 +1,131 @@
+services:
+  redis:
+    build: ./docker/redis
+    image: quizloom-redis
+    container_name: quizloom-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  gateway:
+    image: nginx:1.27-alpine
+    container_name: quizloom-gateway
+    depends_on:
+      - auth
+      - questionbank
+      - quiz
+      - analytics
+      - exam
+    ports:
+      - "8080:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
+  auth:
+    build: ./services/auth
+    image: quizloom-auth
+    container_name: quizloom-auth
+    env_file:
+      - ./services/auth/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    restart: unless-stopped
+
+  questionbank:
+    build: ./services/questionbank
+    image: quizloom-questionbank
+    container_name: quizloom-questionbank
+    env_file:
+      - ./services/questionbank/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    restart: unless-stopped
+
+  quiz:
+    build: ./services/quiz
+    image: quizloom-quiz
+    container_name: quizloom-quiz
+    env_file:
+      - ./services/quiz/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+      QUESTIONBANK_INTERNAL_URL: http://questionbank:5000
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    restart: unless-stopped
+
+  analytics:
+    build: ./services/analytics
+    image: quizloom-analytics
+    container_name: quizloom-analytics
+    env_file:
+      - ./services/analytics/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    restart: unless-stopped
+
+  exam:
+    build: ./services/exam
+    image: quizloom-exam
+    container_name: quizloom-exam
+    env_file:
+      - ./services/exam/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    expose:
+      - "5000"
+    restart: unless-stopped
+
+  exam-worker:
+    build: ./services/exam
+    image: quizloom-exam
+    container_name: quizloom-exam-worker
+    command: ["node", "worker.js"]
+    env_file:
+      - ./services/exam/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  scheduler:
+    build: ./services/scheduler
+    image: quizloom-scheduler
+    container_name: quizloom-scheduler
+    env_file:
+      - ./services/quiz/.env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped

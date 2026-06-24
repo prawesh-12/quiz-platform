@@ -1,11 +1,10 @@
 import { createContext, useEffect, useMemo, useReducer } from "react";
 
 import { authService } from "@/services/authService";
-import { getTokenKey, getUserKey } from "@/services/api";
+import { USER_STORAGE_KEY } from "@/services/api";
 
 const initialState = {
   user: null,
-  token: null,
   isAuthenticated: false,
   isLoading: true
 };
@@ -18,18 +17,10 @@ function authReducer(state, action) {
         isLoading: true
       };
     case "HYDRATE_SUCCESS":
-      return {
-        ...state,
-        user: action.payload.user,
-        token: action.payload.token,
-        isAuthenticated: true,
-        isLoading: false
-      };
     case "LOGIN_SUCCESS":
       return {
         ...state,
         user: action.payload.user,
-        token: action.payload.token,
         isAuthenticated: true,
         isLoading: false
       };
@@ -39,10 +30,6 @@ function authReducer(state, action) {
         user: action.payload
       };
     case "LOGOUT":
-      return {
-        ...initialState,
-        isLoading: false
-      };
     case "HYDRATE_FAIL":
       return {
         ...initialState,
@@ -68,7 +55,7 @@ function normalizeUser(user) {
 }
 
 function loadStoredUser() {
-  const rawUser = localStorage.getItem(getUserKey());
+  const rawUser = localStorage.getItem(USER_STORAGE_KEY);
   if (!rawUser) {
     return null;
   }
@@ -76,26 +63,49 @@ function loadStoredUser() {
   try {
     return normalizeUser(JSON.parse(rawUser));
   } catch {
-    localStorage.removeItem(getUserKey());
+    localStorage.removeItem(USER_STORAGE_KEY);
     return null;
   }
 }
 
-function persistAuth(token, user, role) {
-  const tokenKey = getTokenKey(role);
-  const userKey = getUserKey(role);
-
-  if (token) {
-    localStorage.setItem(tokenKey, token);
-  } else {
-    localStorage.removeItem(tokenKey);
-  }
-
+function persistUser(user) {
   if (user) {
-    localStorage.setItem(userKey, JSON.stringify(user));
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
   } else {
-    localStorage.removeItem(userKey);
+    localStorage.removeItem(USER_STORAGE_KEY);
   }
+}
+
+const MAX_HYDRATE_ATTEMPTS = 5;
+const BASE_RETRY_MS = 1000;
+const MAX_RETRY_MS = 8000;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryDelay(attempt) {
+  return Math.min(MAX_RETRY_MS, BASE_RETRY_MS * 2 ** attempt);
+}
+
+// Resolve /auth/me, retrying transient failures (network, 5xx, timeout) with backoff.
+// A 401 is the only definite "logged out" signal; everything else is treated as transient.
+async function fetchCurrentUser(shouldStop) {
+  for (let attempt = 0; attempt < MAX_HYDRATE_ATTEMPTS; attempt += 1) {
+    if (shouldStop()) {
+      return { status: "aborted" };
+    }
+    try {
+      const data = await authService.me({ skipErrorToast: true });
+      return { status: "ok", user: normalizeUser(data?.user) };
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        return { status: "unauthorized" };
+      }
+      await sleep(retryDelay(attempt));
+    }
+  }
+  return { status: "transient" };
 }
 
 export function AuthProvider({ children }) {
@@ -107,34 +117,31 @@ export function AuthProvider({ children }) {
     async function hydrateAuth() {
       dispatch({ type: "HYDRATE_START" });
 
-      const token = localStorage.getItem(getTokenKey());
       const storedUser = loadStoredUser();
-      if (!token) {
+      if (!storedUser) {
         if (!ignore) {
           dispatch({ type: "HYDRATE_FAIL" });
         }
         return;
       }
 
-      try {
-        const data = await authService.me();
-        const normalizedUser = normalizeUser(data?.user) || storedUser;
-
-        if (!normalizedUser) {
-          throw new Error("User payload missing");
-        }
-
-        persistAuth(token, normalizedUser, normalizedUser.role);
-
-        if (!ignore) {
-          dispatch({ type: "HYDRATE_SUCCESS", payload: { token, user: normalizedUser } });
-        }
-      } catch {
-        persistAuth(null, null);
-        if (!ignore) {
-          dispatch({ type: "HYDRATE_FAIL" });
-        }
+      const result = await fetchCurrentUser(() => ignore);
+      if (ignore || result.status === "aborted") {
+        return;
       }
+
+      // Definite 401: the session is gone, so clear the stored user.
+      if (result.status === "unauthorized") {
+        persistUser(null);
+        dispatch({ type: "HYDRATE_FAIL" });
+        return;
+      }
+
+      // Fresh confirmation wins; on a transient backend blip keep the stored user (the API
+      // interceptor still forces logout on a real 401 from any later request).
+      const nextUser = result.status === "ok" && result.user ? result.user : storedUser;
+      persistUser(nextUser);
+      dispatch({ type: "HYDRATE_SUCCESS", payload: { user: nextUser } });
     }
 
     hydrateAuth();
@@ -147,21 +154,18 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       ...state,
-      login: ({ token, user }) => {
+      login: ({ user }) => {
         const normalizedUser = normalizeUser(user);
-        persistAuth(token, normalizedUser, normalizedUser?.role);
-        dispatch({ type: "LOGIN_SUCCESS", payload: { token, user: normalizedUser } });
+        persistUser(normalizedUser);
+        dispatch({ type: "LOGIN_SUCCESS", payload: { user: normalizedUser } });
       },
       logout: async () => {
-        const role = state.user?.role;
         try {
-          if (state.token) {
-            await authService.logout();
-          }
+          await authService.logout();
         } catch {
           // Best-effort server logout. Always clear local auth state.
         } finally {
-          persistAuth(null, null, role);
+          persistUser(null);
           dispatch({ type: "LOGOUT" });
         }
       },
@@ -170,7 +174,7 @@ export function AuthProvider({ children }) {
           ...(state.user || {}),
           ...(user || {})
         });
-        persistAuth(state.token, normalizedUser, normalizedUser?.role);
+        persistUser(normalizedUser);
         dispatch({ type: "UPDATE_USER", payload: normalizedUser });
       }
     }),

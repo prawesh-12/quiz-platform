@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 
 import SchoolTabs from "@/components/admin/SchoolTabs";
 import AdminShell from "@/components/layout/AdminShell";
+import Spinner from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,16 +24,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAdminSubjects, ADMIN_SUBJECTS_KEY } from "@/hooks/useAdminSubjects";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { cn } from "@/lib/utils";
+import { dashboardService } from "@/services/dashboardService";
 import { quizService } from "@/services/quizService";
-import { responseService } from "@/services/responseService";
 import { subjectService } from "@/services/subjectService";
+import { withJitter } from "@/utils/jitter";
 import { theme } from "@/theme";
 
-const QUIZ_FETCH_LIMIT = 100;
-const RESPONSE_FETCH_LIMIT = 100;
 const ParticipantsTrendChart = lazy(() => import("@/components/teacher/ParticipantsTrendChart"));
 
 function formatDateInput(date) {
@@ -59,46 +60,8 @@ function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function getParticipantKey(session) {
-  const email = session?.email ? String(session.email).trim().toLowerCase() : "";
-  if (email) {
-    return `email:${email}`;
-  }
-
-  const rollNo = session?.roll_no ? String(session.roll_no).trim().toLowerCase() : "";
-  if (rollNo) {
-    return `roll:${rollNo}`;
-  }
-
-  const name = session?.name ? String(session.name).trim().toLowerCase() : "";
-  if (name) {
-    return `name:${name}`;
-  }
-
-  return `session:${session?.session_id || "unknown"}`;
-}
-
-function parseSessionStart(session) {
-  if (!session?.started_at) {
-    return null;
-  }
-
-  const startedAt = new Date(session.started_at);
-  return Number.isNaN(startedAt.getTime()) ? null : startedAt;
-}
-
 function formatNumber(value) {
   return new Intl.NumberFormat("en-IN").format(value || 0);
-}
-
-function getScorePercent(session) {
-  const score = Number(session?.score);
-  const totalPoints = Number(session?.total_points);
-  if (!Number.isFinite(score) || !Number.isFinite(totalPoints) || totalPoints <= 0) {
-    return null;
-  }
-
-  return (score / totalPoints) * 100;
 }
 
 function formatAverageScore(value) {
@@ -124,40 +87,6 @@ function formatDateLabel(value) {
     month: "short",
     year: "numeric"
   });
-}
-
-async function fetchAllQuizzes() {
-  let page = 1;
-  let totalPages = 1;
-  const quizzes = [];
-
-  do {
-    const result = await quizService.list({ page, limit: QUIZ_FETCH_LIMIT });
-    quizzes.push(...(result?.quizzes ?? []));
-    totalPages = result?.totalPages ?? 1;
-    page += 1;
-  } while (page <= totalPages);
-
-  return quizzes;
-}
-
-async function fetchAllQuizResponses(quizId) {
-  let page = 1;
-  let totalPages = 1;
-  const responses = [];
-
-  do {
-    const result = await responseService.getQuizResponses(quizId, {
-      page,
-      limit: RESPONSE_FETCH_LIMIT
-    });
-
-    responses.push(...(result?.responses ?? []));
-    totalPages = result?.totalPages ?? 1;
-    page += 1;
-  } while (page <= totalPages);
-
-  return responses;
 }
 
 async function fetchLiveStatusCounts() {
@@ -193,48 +122,38 @@ export default function AdminDashboardPage() {
     end: today
   });
 
-  const subjectsQuery = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => subjectService.list()
-  });
+  const { subjects } = useAdminSubjects();
 
   const liveQuizStatusQuery = useQuery({
     queryKey: ["dashboard", "quiz-statuses"],
     queryFn: fetchLiveStatusCounts,
-    refetchInterval: 5_000,
+    refetchInterval: () => withJitter(5_000),
     refetchIntervalInBackground: true
   });
 
-  const analyticsQuery = useQuery({
-    queryKey: ["dashboard", "analytics"],
-    queryFn: async () => {
-      const quizzes = await fetchAllQuizzes();
-      const responseEligibleQuizzes = quizzes.filter((quiz) => ["active", "ended"].includes(quiz.status));
+  const summaryQuery = useQuery({
+    queryKey: ["dashboard", "summary"],
+    queryFn: () => dashboardService.getSummary("admin"),
+    staleTime: 30_000
+  });
 
-      const responsePages = await Promise.all(
-        responseEligibleQuizzes.map(async (quiz) => {
-          const responses = await fetchAllQuizResponses(quiz.id);
-          return responses.map((session) => ({
-            ...session,
-            quiz_id: quiz.id,
-            quiz_title: quiz.title
-          }));
-        })
-      );
+  const trendRangeStart = formatDateInput(chartRange.start);
+  const trendRangeEnd = formatDateInput(chartRange.end);
 
-      return {
-        quizzes,
-        sessions: responsePages.flat()
-      };
-    },
+  const trendQuery = useQuery({
+    queryKey: ["dashboard", "trend", trendRangeStart, trendRangeEnd],
+    queryFn: () =>
+      dashboardService.getTrend("admin", {
+        start: trendRangeStart,
+        end: trendRangeEnd
+      }),
     staleTime: 30_000
   });
 
   const createSubjectMutation = useMutation({
     mutationFn: (payload) => subjectService.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subjects"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "subjects"] });
+      queryClient.invalidateQueries({ queryKey: ADMIN_SUBJECTS_KEY });
       setCreateSubjectOpen(false);
       setSubjectName("");
       toast({
@@ -244,139 +163,71 @@ export default function AdminDashboardPage() {
     }
   });
 
-  const subjects = subjectsQuery.data?.subjects ?? [];
-  const quizzes = analyticsQuery.data?.quizzes ?? [];
-  const sessions = analyticsQuery.data?.sessions ?? [];
-  const scheduledQuizCount =
-    liveQuizStatusQuery.data?.scheduled ?? quizzes.filter((quiz) => quiz.status === "scheduled").length;
-  const ongoingQuizCount =
-    liveQuizStatusQuery.data?.active ?? quizzes.filter((quiz) => quiz.status === "active").length;
+  const summary = summaryQuery.data;
+  const counts = summary?.counts ?? {};
+  const kpis = summary?.kpis ?? {};
+  const summaryQuizzes = summary?.quizzes ?? [];
+  const scheduledQuizCount = liveQuizStatusQuery.data?.scheduled ?? counts.scheduled ?? 0;
+  const ongoingQuizCount = liveQuizStatusQuery.data?.active ?? counts.active ?? 0;
 
-  const kpiStats = useMemo(() => {
-    const dayStart = startOfDay(new Date());
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-
-    const participantFirstSeen = new Map();
-    const participants = new Set();
-    let attemptsToday = 0;
-
-    for (const session of sessions) {
-      const participantKey = getParticipantKey(session);
-      participants.add(participantKey);
-
-      const startedAt = parseSessionStart(session);
-      if (!startedAt) {
-        continue;
-      }
-
-      const previous = participantFirstSeen.get(participantKey);
-      if (!previous || startedAt < previous) {
-        participantFirstSeen.set(participantKey, startedAt);
-      }
-
-      if (startedAt >= dayStart && startedAt < dayEnd) {
-        attemptsToday += 1;
-      }
-    }
-
-    let newParticipantsToday = 0;
-    for (const firstSeenDate of participantFirstSeen.values()) {
-      if (firstSeenDate >= dayStart && firstSeenDate < dayEnd) {
-        newParticipantsToday += 1;
-      }
-    }
-
-    return {
-      attemptsToday,
-      newParticipantsToday,
-      totalParticipants: participants.size,
+  const kpiStats = useMemo(
+    () => ({
+      attemptsToday: kpis.attempts_today ?? 0,
+      newParticipantsToday: kpis.new_participants_today ?? 0,
+      totalParticipants: kpis.total_participants ?? 0,
       scheduledQuizzes: scheduledQuizCount,
       ongoingQuizzes: ongoingQuizCount
-    };
-  }, [ongoingQuizCount, scheduledQuizCount, sessions]);
+    }),
+    [
+      kpis.attempts_today,
+      kpis.new_participants_today,
+      kpis.total_participants,
+      ongoingQuizCount,
+      scheduledQuizCount
+    ]
+  );
 
   const trendData = useMemo(() => {
     const start = startOfDay(chartRange.start);
     const end = startOfDay(chartRange.end);
-    const dayEntries = [];
-    const participantMap = new Map();
 
+    const pointsByDay = new Map();
+    for (const point of trendQuery.data?.points ?? []) {
+      pointsByDay.set(point.day, point.participants ?? 0);
+    }
+
+    const entries = [];
     const cursor = new Date(start);
     while (cursor <= end) {
       const key = formatDateInput(cursor);
-      participantMap.set(key, new Set());
-      dayEntries.push({ key, date: new Date(cursor) });
+      entries.push({
+        date: key,
+        label: cursor.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+        value: pointsByDay.get(key) ?? 0
+      });
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    for (const session of sessions) {
-      const startedAt = parseSessionStart(session);
-      if (!startedAt) {
-        continue;
-      }
-
-      const day = startOfDay(startedAt);
-      if (day < start || day > end) {
-        continue;
-      }
-
-      const key = formatDateInput(day);
-      const participantSet = participantMap.get(key);
-      if (participantSet) {
-        participantSet.add(getParticipantKey(session));
-      }
-    }
-
-    return dayEntries.map((entry) => ({
-      date: entry.key,
-      label: entry.date.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
-      value: participantMap.get(entry.key)?.size ?? 0
-    }));
-  }, [chartRange.end, chartRange.start, sessions]);
+    return entries;
+  }, [chartRange.end, chartRange.start, trendQuery.data]);
 
   const recentQuizActivity = useMemo(() => {
-    const quizStatsMap = new Map();
-
-    for (const quiz of quizzes) {
-      quizStatsMap.set(quiz.id, {
-        id: quiz.id,
-        name: quiz.title || "Untitled Quiz",
+    return summaryQuizzes
+      .map((quiz) => ({
+        id: quiz.quiz_id,
+        name: quiz.quiz_title || "Untitled Quiz",
         subject: quiz.subject_name || "Unassigned",
         date: quiz.quiz_date || quiz.created_at || null,
-        participants: new Set(),
-        scorePercents: []
-      });
-    }
-
-    for (const session of sessions) {
-      const aggregate = quizStatsMap.get(session.quiz_id);
-      if (!aggregate) {
-        continue;
-      }
-
-      aggregate.participants.add(getParticipantKey(session));
-      const scorePercent = getScorePercent(session);
-      if (scorePercent != null) {
-        aggregate.scorePercents.push(scorePercent);
-      }
-    }
-
-    return Array.from(quizStatsMap.values())
+        participantCount: quiz.participants,
+        averageScore: quiz.avg_score_percent ?? 0
+      }))
       .sort((left, right) => {
         const leftTime = left.date ? new Date(left.date).getTime() : 0;
         const rightTime = right.date ? new Date(right.date).getTime() : 0;
         return rightTime - leftTime;
       })
-      .slice(0, 4)
-      .map((item) => ({
-        ...item,
-        participantCount: item.participants.size,
-        averageScore: item.scorePercents.length
-          ? item.scorePercents.reduce((sum, value) => sum + value, 0) / item.scorePercents.length
-          : 0
-      }));
-  }, [quizzes, sessions]);
+      .slice(0, 4);
+  }, [summaryQuizzes]);
 
   const loadTrendData = () => {
     const nextStart = parseDateInput(startDateInput);
@@ -580,7 +431,7 @@ export default function AdminDashboardPage() {
                 type="button"
                 className="h-8 shrink-0 whitespace-nowrap text-[13px]"
                 onClick={loadTrendData}
-                disabled={analyticsQuery.isFetching}
+                disabled={trendQuery.isFetching}
               >
                 <TrendingUp className="h-3.5 w-3.5" />
                 Load Data
@@ -591,24 +442,22 @@ export default function AdminDashboardPage() {
               className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border p-4"
               style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
             >
-              {analyticsQuery.isLoading ? (
-                <p className="text-[12px]" style={{ color: theme.text.muted }}>
-                  Loading dashboard analytics...
-                </p>
+              {summaryQuery.isLoading ? (
+                <Spinner className="py-2" label="Loading dashboard analytics..." />
               ) : null}
 
-              {analyticsQuery.isError ? (
+              {summaryQuery.isError ? (
                 <p className="text-[12px]" style={{ color: theme.text.accent }}>
-                  {analyticsQuery.error?.response?.data?.error || "Failed to load dashboard analytics."}
+                  {summaryQuery.error?.response?.data?.error || "Failed to load dashboard analytics."}
                 </p>
               ) : null}
 
-              {!analyticsQuery.isLoading && !analyticsQuery.isError ? (
+              {!summaryQuery.isLoading && !summaryQuery.isError ? (
                 <div className="h-full min-h-[120px] w-full">
                   <Suspense
                     fallback={
-                      <div className="flex h-full items-center justify-center text-[12px]" style={{ color: theme.text.muted }}>
-                        Loading chart...
+                      <div className="flex h-full items-center justify-center">
+                        <Spinner label="Loading chart..." />
                       </div>
                     }
                   >

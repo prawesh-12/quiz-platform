@@ -2,11 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";
+import Spinner from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { quizService } from "@/services/quizService";
 import { subjectService } from "@/services/subjectService";
+import { withJitter } from "@/utils/jitter";
 
 export default function OngoingQuizListPage() {
   const navigate = useNavigate();
@@ -21,7 +23,7 @@ export default function OngoingQuizListPage() {
   const ongoingQuery = useQuery({
     queryKey: ["quizzes", "active", "ongoing-list"],
     queryFn: () => quizService.list({ status: "active", page: 1, limit: 50 }),
-    refetchInterval: LIVE_REFRESH_MS,
+    refetchInterval: () => withJitter(LIVE_REFRESH_MS),
     refetchIntervalInBackground: true
   });
 
@@ -45,7 +47,7 @@ export default function OngoingQuizListPage() {
             <CardDescription>Active quizzes you can monitor in real time.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {ongoingQuery.isLoading ? <p className="text-sm text-muted-foreground">Loading active quizzes...</p> : null}
+            {ongoingQuery.isLoading ? <Spinner className="py-2" label="Loading active quizzes..." /> : null}
             {ongoingQuery.isError ? (
               <p className="text-sm text-destructive">{ongoingQuery.error?.response?.data?.error || "Failed to load active quizzes"}</p>
             ) : null}
