@@ -16,7 +16,7 @@ export function usePrefersReducedMotion() {
 }
 
 // Fires once, then disconnects. Motion on this page never repeats on re-entry.
-export function useInView(threshold = 0.25) {
+export function useInView(threshold = 0.25, rootMargin = "0px") {
   const ref = useRef(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {
@@ -28,11 +28,11 @@ export function useInView(threshold = 0.25) {
         setSeen(true);
         io.disconnect();
       },
-      { threshold }
+      { threshold, rootMargin }
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [seen, threshold]);
+  }, [seen, threshold, rootMargin]);
   return [ref, seen];
 }
 
@@ -50,16 +50,16 @@ export function useOnScreen(threshold = 0.3) {
   return [ref, visible];
 }
 
-export function Reveal({ children, delay = 0, className = "" }) {
+export function Reveal({ children, delay = 0, lift = "translate-y-3", margin = "0px", className = "" }) {
   const reduced = usePrefersReducedMotion();
-  const [ref, seen] = useInView(0.12);
+  const [ref, seen] = useInView(0.12, margin);
   const shown = reduced || seen;
   return (
     <div
       ref={ref}
       style={{ transitionDelay: shown ? `${delay}ms` : "0ms", transitionTimingFunction: EASE }}
-      className={`transition-[opacity,transform] duration-[400ms] ${
-        shown ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
+      className={`transition-[opacity,transform] duration-[450ms] ${
+        shown ? "translate-y-0 scale-100 opacity-100" : `${lift} opacity-0`
       } ${className}`}
     >
       {children}

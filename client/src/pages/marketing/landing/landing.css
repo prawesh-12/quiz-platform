@@ -1,0 +1,56 @@
+/* Layout-critical, so it ships in the stylesheet rather than being injected after mount.
+   Injected late, the hero has no height on first paint and every scroll reveal fires at once. */
+
+@keyframes heroBeatIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes numberIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes logIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes floatChip {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+@keyframes livePulse {
+  0% { transform: scale(1); opacity: 0.7; }
+  70% { transform: scale(2.4); opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* Two layers: the dot grid runs the whole page, the wash covers only the first screen. */
+[data-landing] {
+  background-image: var(--landing-dots), var(--landing-wash);
+  background-repeat: repeat, no-repeat;
+  background-attachment: local, local;
+  background-size: 24px 24px, 100% calc(100vh + 120px);
+}
+
+.landing-hero { min-height: calc(100vh - 80px); }
+.landing-backdrop { height: calc(100vh + 120px); }
+
+/* svh is the viewport with the mobile URL bar showing, so the hero never clips or jumps. */
+@supports (height: 100svh) {
+  [data-landing] { background-size: 24px 24px, 100% calc(100svh + 120px); }
+  .landing-hero { min-height: calc(100svh - 80px); }
+  .landing-backdrop { height: calc(100svh + 120px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-landing] *,
+  [data-landing] *::before,
+  [data-landing] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

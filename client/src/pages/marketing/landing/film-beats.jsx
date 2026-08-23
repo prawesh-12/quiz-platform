@@ -27,9 +27,11 @@ const RECENT_ACTIVITY = [
   { cells: ["Testing in Prod", "Computer Network", "23 Aug 2026", "1", "60.0%"] },
   { cells: ["Copy of Production Test", "Computer Network", "23 Aug 2026", "0", "0%"] },
   { cells: ["Untitled quiz", "Computer Network", "23 Aug 2026", "0", "0%"] },
-  { cells: ["Production Test", "Computer Network", "24 Jun 2026", "1", "40.0%"] }
+  { cells: ["Production Test", "Computer Network", "24 Jun 2026", "1", "40.0%"] },
+  { cells: ["Unit 2 class test", "Operating System", "21 Jun 2026", "186", "72.4%"] },
+  { cells: ["Mensuration retest", "Computer Network", "18 Jun 2026", "22", "68.1%"] },
+  { cells: ["Unit 1 class test", "Operating System", "14 Jun 2026", "194", "77.9%"] }
 ];
-
 const QUIZ_STATS = [
   ["Participants", "1"],
   ["Avg Score", "60.0%"],
@@ -153,9 +155,15 @@ const LIVE_ROWS = [
   { cells: ["Prawesh Mandal", "230000", "7", "G14", "3 / 5", "05:32:41"] },
   { cells: ["Aarav Shah", "230014", "7", "G14", "working", "05:33:02"] },
   { cells: ["Diya Menon", "230021", "7", "G13", "working", "05:33:18"] },
-  { cells: ["Kabir Rao", "230033", "7", "G13", "2 violations", "05:31:55"], tone: "flagged" }
+  { cells: ["Kabir Rao", "230033", "7", "G13", "2 violations", "05:31:55"], tone: "flagged" },
+  { cells: ["Ishita Nair", "230007", "7", "G14", "5 / 5", "05:30:12"] },
+  { cells: ["Rohan Das", "230042", "7", "G13", "working", "05:33:40"] },
+  { cells: ["Meera Iyer", "230018", "7", "G14", "4 / 5", "05:29:57"] },
+  { cells: ["Vihaan Joshi", "230026", "7", "G13", "working", "05:33:51"] },
+  { cells: ["Ananya Bose", "230031", "7", "G14", "1 violation", "05:28:44"], tone: "flagged" },
+  { cells: ["Arjun Pillai", "230009", "7", "G13", "5 / 5", "05:27:20"] },
+  { cells: ["Sara Khan", "230038", "7", "G14", "working", "05:34:02"] }
 ];
-
 export function MonitorBeat() {
   return (
     <div className="flex h-full flex-col gap-3">
@@ -201,9 +209,15 @@ const RESPONSE_ROWS = [
   { cells: ["Prawesh Mandal", "230000", "praweshm45@gmail.com", "3 / 5", "Window Blur (3)"] },
   { cells: ["Aarav Shah", "230014", "aarav@school.edu", "5 / 5", "None"] },
   { cells: ["Diya Menon", "230021", "diya@school.edu", "4 / 5", "None"] },
-  { cells: ["Kabir Rao", "230033", "kabir@school.edu", "2 / 5", "Tab switch (2)"], tone: "flagged" }
+  { cells: ["Kabir Rao", "230033", "kabir@school.edu", "2 / 5", "Tab switch (2)"], tone: "flagged" },
+  { cells: ["Ishita Nair", "230007", "ishita@school.edu", "5 / 5", "None"] },
+  { cells: ["Rohan Das", "230042", "rohan@school.edu", "3 / 5", "None"] },
+  { cells: ["Meera Iyer", "230018", "meera@school.edu", "4 / 5", "None"] },
+  { cells: ["Vihaan Joshi", "230026", "vihaan@school.edu", "4 / 5", "None"] },
+  { cells: ["Ananya Bose", "230031", "ananya@school.edu", "3 / 5", "Copy shortcut (1)"], tone: "flagged" },
+  { cells: ["Arjun Pillai", "230009", "arjun@school.edu", "5 / 5", "None"] },
+  { cells: ["Sara Khan", "230038", "sara@school.edu", "4 / 5", "None"] }
 ];
-
 export function ResponsesBeat() {
   return (
     <div className="flex h-full flex-col gap-3">

@@ -139,7 +139,9 @@ export default function Hero({ onJump }) {
 export function ProductFilm() {
   return (
     <section id="film" className={`${SECTION} scroll-mt-24 pb-14 pt-4 lg:pb-24 lg:pt-8`}>
-      <HeroFilm />
+      <Reveal lift="translate-y-12 scale-[0.96]" margin="0px 0px -20% 0px">
+        <HeroFilm />
+      </Reveal>
     </section>
   );
 }

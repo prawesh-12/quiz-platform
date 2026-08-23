@@ -6,7 +6,11 @@ import LoadingScreen from "./LoadingScreen";
 
 const REQUEST_TIMEOUT_MS = 2500;
 const POLL_INTERVAL_MS = 3000;
-const LONG_WAIT_NOTICE = "This is taking longer than usual. Hang tight...";
+// One short line, nudged along so a long cold start does not look frozen.
+const WARMUP_STAGES = [
+  { after: 0, message: "Starting QuizLoom" },
+  { after: 20000, message: "Almost there" }
+];
 
 // Every required service must report ready, not just the catch-all /health.
 async function requireAllServicesReady(signal) {
@@ -18,7 +22,6 @@ async function requireAllServicesReady(signal) {
   }
 }
 
-const LONG_WAIT_THRESHOLD_MS = 2 * 60 * 1000;
 
 // Module-scoped so a remount of this gate never re-shows the full-screen warmup loader.
 let isBackendWarm = false;
@@ -37,14 +40,13 @@ async function isEveryServiceReady(controller) {
   }
 }
 
-function startWarmupPolling({ onReady, onLongWait }) {
+function startWarmupPolling(onReady) {
   let stopped = false;
   let controller = null;
 
   const stop = () => {
     stopped = true;
     window.clearInterval(intervalId);
-    window.clearTimeout(longWaitId);
     controller?.abort();
     controller = null;
   };
@@ -64,34 +66,42 @@ function startWarmupPolling({ onReady, onLongWait }) {
   };
 
   const intervalId = window.setInterval(pingBackend, POLL_INTERVAL_MS);
-  const longWaitId = window.setTimeout(() => {
-    if (!stopped && !isBackendWarm) onLongWait();
-  }, LONG_WAIT_THRESHOLD_MS);
   pingBackend();
 
   return stop;
 }
 
+// Advances the on-screen wording by elapsed time, independent of the polling itself.
+function useWarmupStage() {
+  const [stageIndex, setStageIndex] = useState(0);
+
+  useEffect(() => {
+    const timers = WARMUP_STAGES.map((stage, index) =>
+      window.setTimeout(() => setStageIndex(index), stage.after)
+    );
+    return () => timers.forEach((id) => window.clearTimeout(id));
+  }, []);
+
+  return WARMUP_STAGES[stageIndex];
+}
+
 function useBackendWarmup() {
   const [isBackendReady, setIsBackendReady] = useState(isBackendWarm);
-  const [isLongWait, setIsLongWait] = useState(false);
 
   useEffect(() => {
     if (isBackendWarm) return undefined;
-    return startWarmupPolling({
-      onReady: () => setIsBackendReady(true),
-      onLongWait: () => setIsLongWait(true)
-    });
+    return startWarmupPolling(() => setIsBackendReady(true));
   }, []);
 
-  return { isBackendReady, isLongWait };
+  return isBackendReady;
 }
 
 export default function BackendWarmupGate({ children }) {
-  const { isBackendReady, isLongWait } = useBackendWarmup();
+  const isBackendReady = useBackendWarmup();
+  const stage = useWarmupStage();
 
   if (!isBackendReady) {
-    return <LoadingScreen slowNotice={isLongWait ? LONG_WAIT_NOTICE : ""} />;
+    return <LoadingScreen message={stage.message} />;
   }
 
   return children;

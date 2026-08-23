@@ -8,7 +8,7 @@ export default function ProtectedRoute({ children, role, requiredRole }) {
   const expectedRole = role ?? requiredRole;
 
   if (isLoading) {
-    return <LoadingScreen message="Checking authentication..." />;
+    return <LoadingScreen message="Signing you in" />;
   }
 
   if (!isAuthenticated) {

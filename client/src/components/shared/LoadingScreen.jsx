@@ -9,7 +9,7 @@ const SPINNER_BORDER_PX = 3;
 // Mirrors the landing page's lavender-to-white wash so the boot screen feels continuous.
 const PAGE_WASH = `linear-gradient(180deg, ${theme.accent.tint} 0%, ${theme.bg.page} 55%, ${theme.bg.app} 100%)`;
 
-export default function LoadingScreen({ message = "Loading...", slowNotice = "" }) {
+export default function LoadingScreen({ message = "Loading" }) {
   return (
     <div
       className="flex h-screen w-screen flex-col items-center justify-center px-6 text-center"
@@ -54,12 +54,6 @@ export default function LoadingScreen({ message = "Loading...", slowNotice = "" 
       <p className="mt-4 text-[13px] font-medium" style={{ color: theme.text.secondary }}>
         {message}
       </p>
-
-      {slowNotice ? (
-        <p className="mt-1 text-[12px]" style={{ color: theme.text.muted }}>
-          {slowNotice}
-        </p>
-      ) : null}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { BuilderBeat, DashboardBeat, MonitorBeat, ResponsesBeat } from "./film-b
 import { useOnScreen, usePrefersReducedMotion } from "./primitives";
 import { EASE, SHADOW_LIFT } from "./tokens";
 
-const BEAT_MS = 4200;
+const BEAT_MS = 2600;
 const RESTING_BEAT = 2;
 const FRAME_FADE = "linear-gradient(to bottom, #000 calc(100% - 72px), transparent 100%)";
 
@@ -91,7 +91,7 @@ export default function HeroFilm() {
             activeNav={current.activeNav}
             activeSubject="Computer Network"
           >
-            <div key={beat} className="h-full" style={{ animation: reduced ? undefined : `heroBeatIn 320ms ${EASE} both` }}>
+            <div key={beat} className="h-full" style={{ animation: reduced ? undefined : `heroBeatIn 220ms ${EASE} both` }}>
               <Current />
             </div>
           </AppShell>
