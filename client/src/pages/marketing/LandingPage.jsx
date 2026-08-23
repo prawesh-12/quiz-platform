@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { HeroBackdrop } from "./landing/hero-decor";
 import Hero, { ProductFilm } from "./landing/hero";
 import LandingNav from "./landing/nav";
 import { usePrefersReducedMotion } from "./landing/primitives";
@@ -29,6 +30,9 @@ const META = [
   ["name", "twitter:image", OG_IMAGE],
 ];
 
+const DOT_GRID = "radial-gradient(circle, rgba(109,59,239,.30) 1px, transparent 1px)";
+const DOT_SIZE = "24px 24px";
+
 const SKIP_LINK =
   "sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-white focus:px-4 focus:py-2 focus:text-[15px] focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--accent)]";
 
@@ -39,14 +43,24 @@ const KEYFRAMES = `
 @keyframes heroBeatIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* svh is the viewport with the mobile URL bar showing, so the hero never clips or jumps. */
-[data-landing] { background-size: 100% calc(100vh + 120px); }
+/* Two layers: the dot grid runs the whole page, the wash covers only the first screen. */
+[data-landing] {
+  background-image: ${DOT_GRID}, ${WASH_HERO};
+  background-repeat: repeat, no-repeat;
+  background-attachment: local, local;
+  background-size: ${DOT_SIZE}, 100% calc(100vh + 120px);
+}
 .landing-hero { min-height: calc(100vh - 80px); }
+.landing-backdrop { height: calc(100vh + 120px); }
 @supports (height: 100svh) {
-  [data-landing] { background-size: 100% calc(100svh + 120px); }
+  [data-landing] { background-size: ${DOT_SIZE}, 100% calc(100svh + 120px); }
   .landing-hero { min-height: calc(100svh - 80px); }
+  .landing-backdrop { height: calc(100svh + 120px); }
 }
 @keyframes numberIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes logIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes floatChip { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes livePulse { 0% { transform: scale(1); opacity: .7; } 70% { transform: scale(2.4); opacity: 0; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   [data-landing] *, [data-landing] *::before, [data-landing] *::after {
     animation-duration: 0.01ms !important;
@@ -129,13 +143,12 @@ export default function LandingPage() {
         fontFamily: FONT_BODY,
         fontSize: "17px",
         lineHeight: 1.65,
-        backgroundImage: WASH_HERO,
-        backgroundRepeat: "no-repeat"
       }}
     >
       <a href="#main" onClick={jump("main")} className={SKIP_LINK}>
         Skip to content
       </a>
+      <HeroBackdrop />
       <LandingNav scrollRef={scrollRef} onJump={jump} />
       <LandingSections onJump={jump} openFaq={openFaq} onOpenFaq={setOpenFaq} />
       <Footer onJump={jump} />

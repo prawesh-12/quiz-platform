@@ -50,23 +50,6 @@ export function useOnScreen(threshold = 0.3) {
   return [ref, visible];
 }
 
-export function useCountUp(to, enabled, duration = 600) {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!enabled) return;
-    let raf;
-    const start = performance.now();
-    const tick = (now) => {
-      const progress = Math.min((now - start) / duration, 1);
-      setValue(Math.round(to * (1 - Math.pow(1 - progress, 3))));
-      if (progress < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [to, enabled, duration]);
-  return value;
-}
-
 export function Reveal({ children, delay = 0, className = "" }) {
   const reduced = usePrefersReducedMotion();
   const [ref, seen] = useInView(0.12);

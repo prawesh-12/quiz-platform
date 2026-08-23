@@ -79,11 +79,10 @@ export const NAV_LINKS = [
   ["faq", "FAQ"],
 ];
 
-export const SPEC_FIGURES = [
-  { value: 0, suffix: "", label: "student accounts required" },
-  { value: 4, suffix: "", label: "states a quiz moves through" },
-  { value: 3, suffix: " sec", label: "live monitor refresh" },
-  { value: 1, suffix: " sec", label: "autosave after a change" },
-  { value: 2, suffix: " min", label: "cache pre-warm before start" },
-  { value: 6, suffix: "", label: "browser events flagged" },
+export const HERO_PROMISES = [
+  { icon: "UserX", tint: "blush", title: "No student accounts", detail: "Just a link and a code" },
+  { icon: "AlarmClock", tint: "amber", title: "Starts and ends itself", detail: "Nobody has to be there" },
+  { icon: "WifiOff", tint: "sky", title: "Survives a dropped wifi", detail: "Answers save every second" },
+  { icon: "Flag", tint: "violet", title: "Tab switches flagged", detail: "Timestamped, per student" },
+  { icon: "FileSpreadsheet", tint: "mint", title: "Results as one xlsx", detail: "In roll-number order" }
 ];
