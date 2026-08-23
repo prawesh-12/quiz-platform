@@ -32,7 +32,7 @@ services:
     image: quizloom-auth
     container_name: quizloom-auth
     env_file:
-      - ./services/auth/.env
+      - ./services/auth/.env.production
     environment:
       REDIS_URL: redis://redis:6379
     depends_on:
@@ -47,7 +47,7 @@ services:
     image: quizloom-questionbank
     container_name: quizloom-questionbank
     env_file:
-      - ./services/questionbank/.env
+      - ./services/questionbank/.env.production
     environment:
       REDIS_URL: redis://redis:6379
     depends_on:
@@ -62,7 +62,7 @@ services:
     image: quizloom-quiz
     container_name: quizloom-quiz
     env_file:
-      - ./services/quiz/.env
+      - ./services/quiz/.env.production
     environment:
       REDIS_URL: redis://redis:6379
       QUESTIONBANK_INTERNAL_URL: http://questionbank:5000
@@ -78,7 +78,7 @@ services:
     image: quizloom-analytics
     container_name: quizloom-analytics
     env_file:
-      - ./services/analytics/.env
+      - ./services/analytics/.env.production
     environment:
       REDIS_URL: redis://redis:6379
     depends_on:
@@ -93,7 +93,7 @@ services:
     image: quizloom-exam
     container_name: quizloom-exam
     env_file:
-      - ./services/exam/.env
+      - ./services/exam/.env.production
     environment:
       REDIS_URL: redis://redis:6379
     depends_on:
@@ -109,7 +109,7 @@ services:
     container_name: quizloom-exam-worker
     command: ["node", "worker.js"]
     env_file:
-      - ./services/exam/.env
+      - ./services/exam/.env.production
     environment:
       REDIS_URL: redis://redis:6379
     depends_on:
@@ -122,7 +122,7 @@ services:
     image: quizloom-scheduler
     container_name: quizloom-scheduler
     env_file:
-      - ./services/quiz/.env
+      - ./services/scheduler/.env.production
     environment:
       REDIS_URL: redis://redis:6379
     depends_on:

@@ -8,14 +8,7 @@ client/dist/
 server/node_modules/
 
 .DS_Store
-plan.md
-db_plan.md
-.agents/
-.kombai/
-security.md
 extras/
-
-docs/
 
 .claude/
 skills-lock.json

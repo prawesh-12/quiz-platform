@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { Copy, RefreshCw, Trash2 } from "lucide-react";
+import Copy from "lucide-react/dist/esm/icons/copy";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 
 import TeacherShell from "@/components/layout/TeacherShell";
 import FlagBadge from "@/components/teacher/FlagBadge";

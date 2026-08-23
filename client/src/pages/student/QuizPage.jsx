@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { CheckCircle2 } from "lucide-react";
+import CheckCircle2 from "lucide-react/dist/esm/icons/check-circle-2";
 import { useLocation } from "react-router-dom";
 
 import CountdownTimer from "@/components/quiz/CountdownTimer";

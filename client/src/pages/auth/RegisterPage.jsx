@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft } from "lucide-react";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";

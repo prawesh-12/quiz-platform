@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 
 import QuestionBuilder from "@/components/teacher/QuestionBuilder";
 import { Button } from "@/components/ui/button";

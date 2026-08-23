@@ -1,0 +1,22 @@
+services:
+  auth:
+    env_file:
+      - ./services/auth/.env.local
+  questionbank:
+    env_file:
+      - ./services/questionbank/.env.local
+  quiz:
+    env_file:
+      - ./services/quiz/.env.local
+  analytics:
+    env_file:
+      - ./services/analytics/.env.local
+  exam:
+    env_file:
+      - ./services/exam/.env.local
+  exam-worker:
+    env_file:
+      - ./services/exam/.env.local
+  scheduler:
+    env_file:
+      - ./services/scheduler/.env.local

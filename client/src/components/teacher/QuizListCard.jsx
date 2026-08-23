@@ -1,4 +1,9 @@
-import { BookOpenText, CalendarDays, Copy, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import BookOpenText from "lucide-react/dist/esm/icons/book-open-text";
+import CalendarDays from "lucide-react/dist/esm/icons/calendar-days";
+import Copy from "lucide-react/dist/esm/icons/copy";
+import MoreVertical from "lucide-react/dist/esm/icons/more-vertical";
+import Pencil from "lucide-react/dist/esm/icons/pencil";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 
 import {
   DropdownMenu,

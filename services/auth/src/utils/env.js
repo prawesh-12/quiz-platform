@@ -20,6 +20,7 @@ export function readPositiveIntegerEnv(name, fallback) {
 }
 
 const requiredEnvSchema = z.object({
+  CLIENT_URLS: z.string().min(1),
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(1)
 });

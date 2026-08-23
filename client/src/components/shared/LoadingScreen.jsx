@@ -1,4 +1,4 @@
-import { BookOpen } from "lucide-react";
+import BookOpen from "lucide-react/dist/esm/icons/book-open";
 
 export default function LoadingScreen({ message = "Loading...", slowNotice = "" }) {
   return (

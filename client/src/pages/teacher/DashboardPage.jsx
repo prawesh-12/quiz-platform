@@ -1,16 +1,14 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-    Activity,
-    BarChart3,
-    BookOpenText,
-    CalendarClock,
-    Clock3,
-    ClipboardCheck,
-    TrendingUp,
-    UserPlus,
-    Users,
-} from "lucide-react";
+import Activity from "lucide-react/dist/esm/icons/activity";
+import BarChart3 from "lucide-react/dist/esm/icons/bar-chart-3";
+import BookOpenText from "lucide-react/dist/esm/icons/book-open-text";
+import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock";
+import ClipboardCheck from "lucide-react/dist/esm/icons/clipboard-check";
+import Clock3 from "lucide-react/dist/esm/icons/clock-3";
+import TrendingUp from "lucide-react/dist/esm/icons/trending-up";
+import UserPlus from "lucide-react/dist/esm/icons/user-plus";
+import Users from "lucide-react/dist/esm/icons/users";
 import { useNavigate } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";

@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Home, PanelLeftClose, PanelRightOpen, Plus, UserPlus } from "lucide-react";
+import BookOpen from "lucide-react/dist/esm/icons/book-open";
+import Home from "lucide-react/dist/esm/icons/home";
+import PanelLeftClose from "lucide-react/dist/esm/icons/panel-left-close";
+import PanelRightOpen from "lucide-react/dist/esm/icons/panel-right-open";
+import Plus from "lucide-react/dist/esm/icons/plus";
+import UserPlus from "lucide-react/dist/esm/icons/user-plus";
 import { Link, useLocation } from "react-router-dom";
 
 import AddTeacherModal from "@/components/admin/AddTeacherModal";

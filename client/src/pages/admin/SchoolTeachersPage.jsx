@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { Check, Copy } from "lucide-react";
+import Check from "lucide-react/dist/esm/icons/check";
+import Copy from "lucide-react/dist/esm/icons/copy";
 
 import AssignSubjectsModal from "@/components/admin/AssignSubjectsModal";
 import AdminShell from "@/components/layout/AdminShell";

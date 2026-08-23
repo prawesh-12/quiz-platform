@@ -3,8 +3,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 
-dotenv.config();
+const envMode = process.env.NODE_ENV === "production" ? "production" : "local";
+dotenv.config({ path: `.env.${envMode}` });
 
+import { buildCorsOptions } from "./src/config/cors.js";
 import { validateRequiredEnv } from "./src/utils/env.js";
 
 validateRequiredEnv();
@@ -45,27 +47,7 @@ const app = express();
 // Behind the nginx gateway (one hop), so req.ip reflects the real client for rate limiting.
 app.set("trust proxy", 1);
 
-const configuredOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-const allowedOrigins =
-  configuredOrigins.length > 0
-    ? configuredOrigins
-    : ["http://localhost:5173", "http://localhost:3000"];
-
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true
-  })
-);
+app.use(cors(buildCorsOptions()));
 
 app.use(compression());
 app.use(requestLogger);
@@ -81,7 +63,7 @@ app.get("/api/ready", async (_req, res) => {
     await query("SELECT 1");
     checks.db = true;
   } catch {
-    // db unreachable
+    // The failed probe is the signal: checks.db stays false and the route answers 503.
   }
   res.status(checks.db ? 200 : 503).json({ status: checks.db ? "ready" : "unavailable", checks });
 });

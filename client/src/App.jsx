@@ -1,11 +1,18 @@
 import { Component, lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 
+import BackendWarmupGate from "@/components/shared/BackendWarmupGate";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/context/AuthContext";
 
 // Auth — small, load eagerly
 import LoginPage from "@/pages/auth/LoginPage";
+
+const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage"));
+
+// Marketing
+const LandingPage = lazy(() => import("@/pages/marketing/LandingPage"));
 
 // Student — lazy
 const EntryPage = lazy(() => import("@/pages/student/EntryPage"));
@@ -59,42 +66,60 @@ function PageLoader() {
   );
 }
 
+// Warmup + auth hydration hang off this layout route, not the app root, so the landing page
+// stays fully static — no service is contacted until a visitor enters the app.
+function AppShell() {
+  return (
+    <BackendWarmupGate>
+      <AuthProvider>
+        <Outlet />
+      </AuthProvider>
+    </BackendWarmupGate>
+  );
+}
+
 export default function App() {
   return (
     <>
       <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Auth — not lazy, fastest possible load */}
-          <Route path="/login" element={<LoginPage />} />
+          {/* Marketing */}
+          <Route path="/" element={<LandingPage />} />
 
-          {/* Student */}
-          <Route path="/quiz/enter/:accessToken" element={<EntryPage />} />
-          <Route path="/quiz/take" element={<QuizPage />} />
+          <Route element={<AppShell />}>
+            {/* Auth — not lazy, fastest possible load */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
 
-          {/* Teacher — protected */}
-          <Route element={<ProtectedRoute role="teacher" />}>
-            <Route path="/teacher" element={<DashboardPage />} />
-            <Route path="/teacher/profile" element={<ProfilePage />} />
-            <Route path="/teacher/questions/:subjectId" element={<QuestionBankPage />} />
-            <Route path="/teacher/quiz/manual" element={<ManualQuizPage />} />
-            <Route path="/teacher/quiz/manual/:quizId" element={<ManualQuizPage />} />
-            <Route path="/teacher/quiz/auto" element={<AutoGeneratePage />} />
-            <Route path="/teacher/quiz/library" element={<QuizLibraryPage />} />
-            <Route path="/teacher/quiz/scheduled" element={<ScheduledQuizListPage />} />
-            <Route path="/teacher/quiz/ongoing" element={<OngoingQuizListPage />} />
-            <Route path="/teacher/quiz/ongoing/:quizId" element={<OngoingQuizPage />} />
-            <Route path="/teacher/quiz/:quizId/responses" element={<QuizResponsePage />} />
+            {/* Student */}
+            <Route path="/quiz/enter/:accessToken" element={<EntryPage />} />
+            <Route path="/quiz/take" element={<QuizPage />} />
+
+            {/* Teacher — protected */}
+            <Route element={<ProtectedRoute role="teacher" />}>
+              <Route path="/teacher" element={<DashboardPage />} />
+              <Route path="/teacher/profile" element={<ProfilePage />} />
+              <Route path="/teacher/questions/:subjectId" element={<QuestionBankPage />} />
+              <Route path="/teacher/quiz/manual" element={<ManualQuizPage />} />
+              <Route path="/teacher/quiz/manual/:quizId" element={<ManualQuizPage />} />
+              <Route path="/teacher/quiz/auto" element={<AutoGeneratePage />} />
+              <Route path="/teacher/quiz/library" element={<QuizLibraryPage />} />
+              <Route path="/teacher/quiz/scheduled" element={<ScheduledQuizListPage />} />
+              <Route path="/teacher/quiz/ongoing" element={<OngoingQuizListPage />} />
+              <Route path="/teacher/quiz/ongoing/:quizId" element={<OngoingQuizPage />} />
+              <Route path="/teacher/quiz/:quizId/responses" element={<QuizResponsePage />} />
+            </Route>
+
+            {/* Admin — protected */}
+            <Route path="/admin" element={<ProtectedRoute role="admin" />}>
+              <Route index element={<AdminDashboardPage />} />
+              <Route path="teachers" element={<AllTeachersPage />} />
+              <Route path="schools/:school" element={<SchoolTeachersPage />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Route>
-
-          {/* Admin — protected */}
-          <Route path="/admin" element={<ProtectedRoute role="admin" />}>
-            <Route index element={<AdminDashboardPage />} />
-            <Route path="teachers" element={<AllTeachersPage />} />
-            <Route path="schools/:school" element={<SchoolTeachersPage />} />
-          </Route>
-
-          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>
       </ErrorBoundary>

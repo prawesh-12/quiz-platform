@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 
-dotenv.config();
+const envMode = process.env.NODE_ENV === "production" ? "production" : "local";
+dotenv.config({ path: `.env.${envMode}` });
 
 import { validateRequiredEnv } from "./src/utils/env.js";
 
@@ -26,12 +27,10 @@ const [
   import("./src/config/redis.js")
 ]);
 
-// Reacts to quiz/questionbank events: keeps read-models in step, flips no status itself —
-// it owns auto-submit on quiz end, snapshot writes, and cleanup on delete.
+// Owns auto-submit on quiz end, snapshot writes and cleanup on delete; it never flips a status itself.
 initObservability();
 
-// Run migrations in case the worker boots first; advisory-locked so it no-ops if the API
-// already ran them. Skip with WORKER_RUN_MIGRATIONS=false.
+// Advisory-locked, so this no-ops when the API already migrated; the worker can boot first.
 if ((process.env.WORKER_RUN_MIGRATIONS ?? "true").toLowerCase() !== "false") {
   try {
     await runMigrations();
@@ -44,8 +43,7 @@ if ((process.env.WORKER_RUN_MIGRATIONS ?? "true").toLowerCase() !== "false") {
 const quizEventsConsumer = startQuizEventsConsumer();
 const questionBankProjectionConsumer = startQuestionBankProjectionConsumer();
 
-// The worker enqueues auto-submit events, so it drains the outbox too (SKIP LOCKED makes
-// running alongside the API's relay safe).
+// The worker enqueues auto-submit events, so it drains the outbox too; SKIP LOCKED keeps that safe.
 const { startOutboxRelay } = await import("./src/config/outbox.js");
 const outboxRelay = startOutboxRelay();
 

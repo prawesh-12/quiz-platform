@@ -1,5 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, Copy, KeyRound, Link as LinkIcon, Timer } from "lucide-react";
+import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock";
+import Copy from "lucide-react/dist/esm/icons/copy";
+import KeyRound from "lucide-react/dist/esm/icons/key-round";
+import LinkIcon from "lucide-react/dist/esm/icons/link";
+import Timer from "lucide-react/dist/esm/icons/timer";
 import { useNavigate } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";

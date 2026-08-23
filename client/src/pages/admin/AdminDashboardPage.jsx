@@ -1,13 +1,11 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Activity,
-  CalendarClock,
-  ClipboardCheck,
-  TrendingUp,
-  UserPlus,
-  Users
-} from "lucide-react";
+import Activity from "lucide-react/dist/esm/icons/activity";
+import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock";
+import ClipboardCheck from "lucide-react/dist/esm/icons/clipboard-check";
+import TrendingUp from "lucide-react/dist/esm/icons/trending-up";
+import UserPlus from "lucide-react/dist/esm/icons/user-plus";
+import Users from "lucide-react/dist/esm/icons/users";
 import { useNavigate } from "react-router-dom";
 
 import SchoolTabs from "@/components/admin/SchoolTabs";

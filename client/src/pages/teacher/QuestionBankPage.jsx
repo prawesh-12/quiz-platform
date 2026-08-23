@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileSpreadsheet, Plus } from "lucide-react";
+import FileSpreadsheet from "lucide-react/dist/esm/icons/file-spreadsheet";
+import Plus from "lucide-react/dist/esm/icons/plus";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 

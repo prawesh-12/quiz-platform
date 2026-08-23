@@ -1,4 +1,14 @@
-import { ArrowLeft, CalendarClock, ChevronRight, Gauge, GraduationCap, LibraryBig, Menu, ShieldCheck, Sparkles, UserRound, Users } from "lucide-react";
+import ArrowLeft from "lucide-react/dist/esm/icons/arrow-left";
+import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock";
+import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
+import Gauge from "lucide-react/dist/esm/icons/gauge";
+import GraduationCap from "lucide-react/dist/esm/icons/graduation-cap";
+import LibraryBig from "lucide-react/dist/esm/icons/library-big";
+import Menu from "lucide-react/dist/esm/icons/menu";
+import ShieldCheck from "lucide-react/dist/esm/icons/shield-check";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles";
+import UserRound from "lucide-react/dist/esm/icons/user-round";
+import Users from "lucide-react/dist/esm/icons/users";
 import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 

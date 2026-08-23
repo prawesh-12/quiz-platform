@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, FileSpreadsheet } from "lucide-react";
+import ArrowDown from "lucide-react/dist/esm/icons/arrow-down";
+import ArrowUp from "lucide-react/dist/esm/icons/arrow-up";
+import FileSpreadsheet from "lucide-react/dist/esm/icons/file-spreadsheet";
 import { useNavigate, useParams } from "react-router-dom";
 
 import TeacherShell from "@/components/layout/TeacherShell";

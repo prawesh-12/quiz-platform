@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays } from "lucide-react";
+import CalendarDays from "lucide-react/dist/esm/icons/calendar-days";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

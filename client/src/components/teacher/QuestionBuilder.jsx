@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 
 import MathEquationInput from "@/components/quiz/MathEquationInput";
 import { Button } from "@/components/ui/button";

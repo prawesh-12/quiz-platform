@@ -1,16 +1,15 @@
-import "dotenv/config";
+import "./load-env.js";
 
 import pool from "./src/db.js";
 import { closeRedis } from "./src/redis.js";
 import { runDetectionTick } from "./src/detect.js";
 import logger, { serializeError } from "./src/logger.js";
+import { readPositiveIntegerEnv, validateRequiredEnv } from "./src/utils/env.js";
 
-if (!process.env.DATABASE_URL) {
-  logger.error("scheduler.config_error", { message: "DATABASE_URL is not set" });
-  process.exit(1);
-}
+validateRequiredEnv();
 
-const TICK_MS = Number(process.env.SCHEDULER_TICK_MS || 1000);
+const DEFAULT_TICK_MS = 1000;
+const TICK_MS = readPositiveIntegerEnv("SCHEDULER_TICK_MS", DEFAULT_TICK_MS);
 
 let inFlight = false;
 const timer = setInterval(async () => {

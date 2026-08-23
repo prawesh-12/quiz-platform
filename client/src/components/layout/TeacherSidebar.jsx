@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Home, LibraryBig, PanelLeftClose, PanelRightOpen, Sparkles } from "lucide-react";
+import BookOpen from "lucide-react/dist/esm/icons/book-open";
+import Home from "lucide-react/dist/esm/icons/home";
+import LibraryBig from "lucide-react/dist/esm/icons/library-big";
+import PanelLeftClose from "lucide-react/dist/esm/icons/panel-left-close";
+import PanelRightOpen from "lucide-react/dist/esm/icons/panel-right-open";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 import { Link, useLocation } from "react-router-dom";
 
 import ProfileFooter from "@/components/layout/ProfileFooter";
