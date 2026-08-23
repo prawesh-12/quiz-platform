@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "setup": "npm install --prefix services/auth && npm install --prefix services/questionbank && npm install --prefix services/quiz && npm install --prefix services/exam && npm install --prefix services/analytics && npm install --prefix services/scheduler && npm install --prefix client",
-    "dev": "docker compose up -d && npm run dev --prefix client",
+    "dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d && npm run dev --prefix client",
     "build": "npm run build --prefix client",
-    "up": "docker compose up --build",
+    "up": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
     "down": "docker compose down",
     "reset": "bash scripts/reset.sh",
-    "test": "node --test tests/integration"
+    "test": "node --test tests/integration",
+    "up:prod": "docker compose up --build"
   }
 }

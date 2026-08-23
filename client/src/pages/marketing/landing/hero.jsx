@@ -35,7 +35,7 @@ function HeroPromises() {
           <p className="mb-6 text-center text-[13.5px] font-medium text-[color:var(--ink-2)]">
             Built for a room of 200, on a link and a code
           </p>
-          <div className="grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-5">
             {HERO_PROMISES.map((promise) => (
               <PromiseRow key={promise.title} promise={promise} />
             ))}
@@ -125,7 +125,7 @@ export default function Hero({ onJump }) {
   return (
     <section id="top" className="landing-hero relative flex flex-col">
       <div className={`${SECTION} relative flex flex-1 items-center py-10 lg:py-12`}>
-        <div className="grid w-full items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+        <div className="grid grid-cols-1 w-full items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           <HeroCopy onJump={onJump} />
           <HeroIllustration />
         </div>

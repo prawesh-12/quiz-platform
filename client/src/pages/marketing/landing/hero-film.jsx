@@ -84,7 +84,7 @@ export default function HeroFilm() {
         className={`relative overflow-hidden rounded-[24px] border border-[color:var(--rule)] bg-[color:var(--panel)] ${SHADOW_LIFT}`}
         style={{ maskImage: FRAME_FADE, WebkitMaskImage: FRAME_FADE }}
       >
-        <div className="aspect-[4/3] w-full sm:aspect-[16/10]">
+        <div className="aspect-[3/4] w-full sm:aspect-[16/10]">
           <AppShell
             crumb={current.crumb}
             crumbIcon={current.crumbIcon}

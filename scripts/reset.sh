@@ -10,6 +10,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# reset is a local action, so it targets the dev overlay and .env.local
+COMPOSE="docker compose -f docker-compose.yml -f docker-compose.dev.yml"
+
 BUILD=1
 HARD=0
 for arg in "$@"; do
@@ -21,7 +24,7 @@ for arg in "$@"; do
 done
 
 echo "==> stopping stack"
-docker compose down
+$COMPOSE down
 
 if [ "$HARD" -eq 1 ]; then
   echo "==> pruning build cache"
@@ -30,11 +33,11 @@ fi
 
 if [ "$BUILD" -eq 1 ]; then
   echo "==> building images"
-  docker compose build
+  $COMPOSE build
 fi
 
 echo "==> starting stack"
-docker compose up -d
+$COMPOSE up -d
 
 echo "==> flushing Redis (resets streams + consumer groups)"
 docker exec quizloom-redis redis-cli FLUSHALL
@@ -49,5 +52,5 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 
-echo "gateway did not become healthy in time; check 'docker compose logs'" >&2
+echo "gateway did not become healthy in time; check '$COMPOSE logs'" >&2
 exit 1

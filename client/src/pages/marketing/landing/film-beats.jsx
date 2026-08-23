@@ -41,7 +41,7 @@ const QUIZ_STATS = [
 
 function TrendAndStats() {
   return (
-    <div className="grid shrink-0 grid-cols-[1fr_190px] gap-3">
+    <div className="grid grid-cols-1 shrink-0 gap-3 sm:grid-cols-[1fr_190px]">
       <div className={`${PANEL} p-3`}>
         <div className="flex items-center justify-between">
           <p className="text-[12px] font-bold text-[color:var(--ink)]">Unique Participants</p>
@@ -69,7 +69,7 @@ function TrendAndStats() {
 export function DashboardBeat() {
   return (
     <div className="flex h-full flex-col gap-3">
-      <div className="grid shrink-0 grid-cols-5 gap-2.5">
+      <div className="grid shrink-0 grid-cols-2 gap-2.5 sm:grid-cols-5">
         {KPIS.map((kpi) => (
           <Kpi key={kpi.label} {...kpi} />
         ))}
@@ -77,6 +77,8 @@ export function DashboardBeat() {
       <TrendAndStats />
       <DataTable
         template="grid-cols-[1fr_130px_92px_64px_58px]"
+        mobileTemplate="grid-cols-[1fr_58px]"
+        mobileHide={[1, 2, 3]}
         columns={["Quiz", "Subject", "Date", "Participants", "Avg Score"]}
         rows={RECENT_ACTIVITY}
       />
@@ -138,7 +140,7 @@ export function BuilderBeat() {
             <span className={DARK_PILL}>Schedule Quiz</span>
           </span>
         </div>
-        <div className="mt-3 grid grid-cols-4 gap-2.5">
+        <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {BUILDER_FIELDS.map(([label, value]) => (
             <Field key={label} label={label}>
               {value}
@@ -198,6 +200,8 @@ export function MonitorBeat() {
 
       <DataTable
         template="grid-cols-[1fr_78px_54px_54px_84px_72px]"
+        mobileTemplate="grid-cols-[1fr_84px]"
+        mobileHide={[1, 2, 3, 5]}
         columns={["Student", "Roll No", "Division", "Group", "Score", "Submitted"]}
         rows={LIVE_ROWS}
       />
@@ -245,6 +249,8 @@ export function ResponsesBeat() {
 
       <DataTable
         template="grid-cols-[1fr_78px_150px_60px_104px]"
+        mobileTemplate="grid-cols-[1fr_60px]"
+        mobileHide={[1, 2, 4]}
         columns={["Student", "Roll No", "Email", "Score", "Flags"]}
         rows={RESPONSE_ROWS}
       />

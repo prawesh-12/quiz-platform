@@ -61,10 +61,10 @@ function FooterColumn({ title, links, onJump }) {
 
 export function Footer({ onJump }) {
   return (
-    <footer className="border-t border-[color:var(--rule)] bg-[color:var(--panel-tint)]">
+    <footer className="border-t border-[color:var(--rule)]">
       <div className={`${SECTION} py-12 lg:py-16`}>
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-9 lg:grid-cols-4">
+          <div className="col-span-2">
             <Wordmark />
             <p className="mt-4 max-w-[320px] text-[14.5px] leading-[1.6] text-[color:var(--ink-2)]">
               Timed online exams for schools, colleges and coaching institutes.
@@ -75,14 +75,14 @@ export function Footer({ onJump }) {
           <FooterColumn title="More" links={COMPANY_LINKS} onJump={onJump} />
         </div>
 
-        <div className="mt-12 flex flex-col gap-3 border-t border-[color:var(--rule)] pt-6 sm:flex-row sm:items-center">
-          <p className={`text-[12.5px] text-[color:var(--muted)]`}>&copy; {YEAR} QuizLoom</p>
+        <div className="mt-10 flex items-center gap-3 border-t border-[color:var(--rule)] pt-6">
+          <p className="text-[12.5px] text-[color:var(--muted)]">&copy; {YEAR} QuizLoom</p>
           <a
             href={REPO_URL}
             target="_blank"
             rel="noreferrer"
             aria-label="QuizLoom on GitHub"
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--rule)] bg-[color:var(--panel)] text-[color:var(--ink-2)] transition-colors duration-150 hover:text-[color:var(--ink)] sm:ml-auto ${FOCUS}`}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--rule)] bg-[color:var(--panel)] text-[color:var(--ink-2)] transition-colors duration-150 hover:text-[color:var(--ink)] ml-auto ${FOCUS}`}
           >
             <Github size={17} strokeWidth={1.75} aria-hidden="true" />
           </a>

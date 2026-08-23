@@ -55,26 +55,35 @@ export function Field({ label, children, placeholder = false }) {
   );
 }
 
-export function DataTable({ template, columns, rows }) {
+function Cell({ children, index, hideOnMobile, isFirst }) {
+  const weight = isFirst ? "font-medium" : "";
+  const visibility = hideOnMobile ? "hidden sm:block" : "";
+  return <span className={`min-w-0 truncate ${weight} ${visibility}`}>{children}</span>;
+}
+
+// Narrow screens keep the name and the number; the middle columns are noise at that width.
+export function DataTable({ template, mobileTemplate, columns, rows, mobileHide = [] }) {
+  const grid = `${mobileTemplate || template} ${template.replace(/grid-cols-/g, "sm:grid-cols-")}`;
+
   return (
     <div className={`${PANEL} flex min-h-0 flex-1 flex-col overflow-hidden`}>
-      <div className={`grid shrink-0 gap-3 border-b border-[color:var(--rule)] px-3 py-2 ${template}`}>
-        {columns.map((label) => (
-          <span key={label} className={LABEL_SM}>
-            {label}
-          </span>
+      <div className={`grid shrink-0 gap-3 border-b border-[color:var(--rule)] px-3 py-2 ${grid}`}>
+        {columns.map((label, index) => (
+          <Cell key={label} index={index} hideOnMobile={mobileHide.includes(index)}>
+            <span className={LABEL_SM}>{label}</span>
+          </Cell>
         ))}
       </div>
       <div className="min-h-0 flex-1">
-        {rows.map(({ cells, tone }, index) => (
+        {rows.map(({ cells, tone }, rowIndex) => (
           <div
             key={cells[0]}
-            className={`grid items-center gap-3 px-3 py-[9px] text-[11.5px] ${template} ${rowTint(tone, index)}`}
+            className={`grid items-center gap-3 px-3 py-[9px] text-[11.5px] ${grid} ${rowTint(tone, rowIndex)}`}
           >
-            {cells.map((cell, cellIndex) => (
-              <span key={cellIndex} className={cellIndex === 0 ? "truncate font-medium" : "truncate"}>
+            {cells.map((cell, index) => (
+              <Cell key={index} index={index} hideOnMobile={mobileHide.includes(index)} isFirst={index === 0}>
                 {cell}
-              </span>
+              </Cell>
             ))}
           </div>
         ))}

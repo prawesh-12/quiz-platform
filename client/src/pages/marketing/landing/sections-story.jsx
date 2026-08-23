@@ -70,7 +70,7 @@ function QuizListComposite() {
 export function Positioning({ onJump }) {
   return (
     <section className={`${SECTION} ${PAD}`}>
-      <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
+      <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-2 lg:gap-16">
         <SectionHead
           align="left"
           eyebrow="Why QuizLoom"
@@ -173,11 +173,11 @@ export function Bento() {
         title="What a test day costs you"
         lede="Four things go wrong with a form and a spreadsheet. QuizLoom answers each one."
       />
-      <div className="mt-12 grid gap-5 lg:grid-cols-12">
+      <div className="mt-12 grid grid-cols-1 gap-5 lg:grid-cols-12">
         <Reveal className="lg:col-span-5">
           <TestDayTile />
         </Reveal>
-        <div className="grid gap-5 sm:grid-cols-2 lg:col-span-7">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:col-span-7">
           {COSTS.map((cost, index) => (
             <Reveal key={cost.label} delay={index * 60}>
               <CostCard cost={cost} />
@@ -241,7 +241,7 @@ export function Steps({ onJump }) {
     <section id="how" className="scroll-mt-24" style={{ backgroundImage: WASH_BAND }}>
       <div className={`${SECTION} ${PAD}`}>
         <div className={`rounded-[32px] border border-[color:var(--rule)] bg-[color:var(--panel)] p-6 sm:p-10 ${SHADOW_SOFT}`}>
-          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <SectionHead
               align="left"
               eyebrow="How it works"

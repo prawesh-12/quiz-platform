@@ -21,7 +21,7 @@ const ENTRY_FIELDS = [
 function ShareRow({ copied, onCopy }) {
   return (
     <div className="flex items-center gap-2 rounded-xl border border-[color:var(--rule)] bg-[color:var(--panel)] px-3 py-2">
-      <span className={`truncate text-[13px] ${MONO}`}>{SHARE_LINK}</span>
+      <span className={`min-w-0 flex-1 truncate text-[13px] ${MONO}`}>{SHARE_LINK}</span>
       <button
         type="button"
         onClick={onCopy}

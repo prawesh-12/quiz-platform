@@ -165,10 +165,10 @@ export default function LandingNav({ scrollRef, onJump }) {
   };
 
   return (
-    <div className="sticky top-0 z-50 px-4 pb-2 pt-4">
+    <div className="sticky top-0 z-50 px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
       <nav
         aria-label="Primary"
-        className={`mx-auto flex h-14 max-w-[1040px] items-center gap-2 rounded-full border border-[color:var(--rule)] bg-white/85 pl-5 pr-2 backdrop-blur-md transition-shadow duration-300 ${
+        className={`mx-auto flex h-14 max-w-[1040px] items-center gap-2 rounded-full border border-[color:var(--rule)] bg-white/90 pl-4 pr-2 backdrop-blur-md transition-shadow duration-300 sm:pl-5 ${
           scrolled ? "shadow-[0_1px_2px_rgba(23,18,33,.04),0_12px_32px_rgba(23,18,33,.08)]" : ""
         }`}
       >

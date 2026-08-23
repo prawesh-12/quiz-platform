@@ -105,7 +105,7 @@ export default function LandingPage() {
     <div
       ref={scrollRef}
       data-landing=""
-      className="fixed inset-0 overflow-y-auto bg-[color:var(--bg)] text-[color:var(--ink-2)] antialiased selection:bg-[color:var(--accent)] selection:text-white"
+      className="fixed inset-0 overflow-y-auto overflow-x-hidden bg-[color:var(--bg)] text-[color:var(--ink-2)] antialiased selection:bg-[color:var(--accent)] selection:text-white"
       style={{
         ...PALETTE,
         fontFamily: FONT_BODY,

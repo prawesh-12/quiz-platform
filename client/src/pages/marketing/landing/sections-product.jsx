@@ -122,7 +122,7 @@ export function Features({ onJump, onOpenFaq }) {
         title="The exam, end to end"
         lede="Six parts of a test day, each one showing the screen a teacher actually uses."
       />
-      <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((feature, index) => (
           <Reveal key={feature.title} delay={(index % 3) * 60}>
             <FeatureCard feature={feature} onFollow={follow(feature)} />
@@ -216,7 +216,7 @@ export function Roles() {
         title="Three roles, one exam"
         lede="Who does what, and who never has to sign up."
       />
-      <div className="mt-12 grid items-start gap-5 md:grid-cols-3">
+      <div className="mt-12 grid grid-cols-1 items-start gap-5 md:grid-cols-3">
         {ROLES.map((role, index) => (
           <Reveal key={role.name} delay={index * 60}>
             <div className={`${CARD} self-start p-6`}>
@@ -252,7 +252,7 @@ export function Limits() {
       <Reveal>
         <div className="rounded-[32px] border border-[color:var(--rule)] bg-[color:var(--panel-tint)] p-6 sm:p-10">
           <h3 className={`${H3} ${DISPLAY}`}>What it doesn&apos;t do</h3>
-          <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+          <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {LIMITS.map((limit) => (
               <li key={limit} className="flex gap-3 text-[15px] leading-[1.6] text-[color:var(--ink-2)]">
                 <Minus size={16} strokeWidth={1.5} aria-hidden="true" className="mt-1 shrink-0 text-[color:var(--muted)]" />

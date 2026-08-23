@@ -30,7 +30,7 @@ export function Reliability() {
           title="For the person who approves the software"
           lede="The specifics an IT review asks for, without the adjectives."
         />
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {RELIABILITY.map(([Icon, tint, label, first, second], index) => (
             <Reveal key={label} delay={(index % 3) * 60}>
               <div className={`${CARD} h-full p-6`}>
@@ -89,7 +89,7 @@ function IncludedList() {
   return (
     <div className="lg:py-1">
       <p className={LABEL}>Everything is on</p>
-      <ul className="mt-5 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+      <ul className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         {INCLUDED.map((item) => (
           <li key={item} className="flex gap-3 text-[15.5px] leading-[1.45] text-[color:var(--ink)]">
             <Check size={18} strokeWidth={2} aria-hidden="true" className="mt-0.5 shrink-0 text-[color:var(--active)]" />
@@ -116,7 +116,7 @@ export function Pricing() {
       />
       <Reveal className="mt-12">
         <div className={`rounded-[32px] border border-[color:var(--rule)] bg-[color:var(--panel)] p-6 sm:p-8 ${SHADOW_SOFT}`}>
-          <div className="grid gap-8 lg:grid-cols-[300px_1fr] lg:gap-12">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[300px_1fr] lg:gap-12">
             <PriceCard />
             <IncludedList />
           </div>
@@ -202,7 +202,7 @@ export function Faq({ open, onOpen }) {
     <section id="faq" className="scroll-mt-24" style={{ backgroundImage: WASH_BAND }}>
       <div className={`${SECTION} ${PAD}`}>
         <SectionHead eyebrow="FAQ" tone="violet" title="Questions teachers ask" />
-        <div className="mt-12 grid gap-x-12 lg:grid-cols-2">
+        <div className="mt-12 grid grid-cols-1 gap-x-12 lg:grid-cols-2">
           {columns.map((column, columnIndex) => (
             <div key={columnIndex}>
               {column.map(([question, answer], rowIndex) => {

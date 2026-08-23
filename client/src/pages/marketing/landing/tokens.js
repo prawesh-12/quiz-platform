@@ -51,7 +51,7 @@ export const SHADOW_LIFT = "shadow-[0_24px_64px_rgba(23,18,33,.14)]";
 
 export const CARD = `rounded-[20px] border border-[color:var(--rule)] bg-[color:var(--panel)] ${SHADOW_SOFT} transition-colors duration-150 hover:border-[color:var(--rule-strong)]`;
 
-export const SECTION = "mx-auto max-w-[1200px] px-5 sm:px-8";
+export const SECTION = "mx-auto w-full max-w-[1200px] px-5 sm:px-8";
 export const PAD = "py-14 md:py-16 lg:py-24";
 
 export const H2 =
