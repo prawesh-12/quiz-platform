@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -14,48 +13,37 @@ import { useToast } from "@/hooks/useToast";
 import { authService } from "@/services/authService";
 import { theme } from "@/theme";
 
+import AuthShell, { FOCUS_RING } from "./auth-shell";
+import { DemoLogins, RoleToggle } from "./login-parts";
+
+const IDLE_PREFETCH_TIMEOUT_MS = 1500;
+const FALLBACK_PREFETCH_DELAY_MS = 600;
+
+// 44px controls with 16px text: comfortable to tap and no iOS focus zoom.
+const FIELD_CLASS = "h-11 text-base";
+
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(1, "Password is required")
 });
 
-const DEMO_CREDENTIALS = [
-  { role: "admin", label: "Admin", email: "admin@example.com", password: "pass@123" },
-  { role: "teacher", label: "Teacher", email: "tom@tom.com", password: "tom@1234" }
-];
+function prefetchTeacherAssets() {
+  Promise.all([
+    import("@/pages/teacher/DashboardPage"),
+    import("@/components/teacher/ParticipantsTrendChart")
+  ]).catch(() => {});
+}
 
-export default function LoginPage() {
-  const [serverError, setServerError] = useState("");
-  const [mode, setMode] = useState("teacher");
-  const navigate = useNavigate();
-  const { login } = useAuth();
-  const { toast } = useToast();
-
-  const form = useForm({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: ""
-    }
-  });
-
+// Warm the teacher bundle while the login form is idle so the first dashboard paint is instant.
+function useTeacherPrefetch() {
   useEffect(() => {
-    const prefetchTeacherAssets = () => {
-      Promise.all([
-        import("@/pages/teacher/DashboardPage"),
-        import("@/components/teacher/ParticipantsTrendChart")
-      ]).catch(() => {
-        // Ignore prefetch failures; normal route loading still works.
-      });
-    };
-
     let idleId = null;
     let timeoutId = null;
 
     if ("requestIdleCallback" in window) {
-      idleId = window.requestIdleCallback(prefetchTeacherAssets, { timeout: 1500 });
+      idleId = window.requestIdleCallback(prefetchTeacherAssets, { timeout: IDLE_PREFETCH_TIMEOUT_MS });
     } else {
-      timeoutId = window.setTimeout(prefetchTeacherAssets, 600);
+      timeoutId = window.setTimeout(prefetchTeacherAssets, FALLBACK_PREFETCH_DELAY_MS);
     }
 
     return () => {
@@ -67,6 +55,36 @@ export default function LoginPage() {
       }
     };
   }, []);
+}
+
+function LoginFooter() {
+  return (
+    <p className="text-center text-[12px]" style={{ color: theme.text.muted }}>
+      New teacher?{" "}
+      <Link
+        to="/register"
+        className={`font-semibold underline-offset-4 hover:underline ${FOCUS_RING}`}
+        style={{ color: theme.accent.DEFAULT, outlineColor: theme.accent.DEFAULT }}
+      >
+        Create an account
+      </Link>
+    </p>
+  );
+}
+
+export default function LoginPage() {
+  const [serverError, setServerError] = useState("");
+  const [mode, setMode] = useState("teacher");
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const { toast } = useToast();
+
+  useTeacherPrefetch();
+
+  const form = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" }
+  });
 
   const fillDemo = (cred) => {
     setMode(cred.role);
@@ -75,15 +93,20 @@ export default function LoginPage() {
     setServerError("");
   };
 
+  const routeAfterLogin = (userRole) => {
+    if (userRole === "admin") {
+      navigate("/admin", { replace: true });
+      return;
+    }
+
+    navigate("/teacher", { replace: true });
+  };
+
   const onSubmit = async (values) => {
     setServerError("");
 
     try {
-      import("@/pages/teacher/DashboardPage").catch(() => {});
-      const data = await authService.login({
-        ...values,
-        role: mode
-      });
+      const data = await authService.login({ ...values, role: mode });
       const userRole = data?.user?.role;
 
       if (userRole !== mode) {
@@ -96,137 +119,76 @@ export default function LoginPage() {
       }
 
       login({ user: data.user });
-      if (mode === "admin") {
-        navigate("/admin", { replace: true });
-      } else {
-        navigate("/teacher", { replace: true });
-      }
+      routeAfterLogin(mode);
     } catch (error) {
-      const message = error?.response?.data?.error || "Login failed. Please try again.";
-      setServerError(message);
+      setServerError(error?.response?.data?.error || "Login failed. Please try again.");
     }
   };
 
+  const isAdminMode = mode === "admin";
+
   return (
-    <div className="ds-shell-page">
-      <Card
-        className="w-full max-w-md"
-        style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
-      >
-        <CardHeader>
-          <div className="mb-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setMode("teacher")}
-              className={`rounded-lg px-4 py-2 text-sm transition-colors ${
-                mode === "teacher"
-                  ? "border-2 border-black font-bold text-black"
-                  : "border border-gray-300 text-gray-500"
-              }`}
+    <AuthShell backTo="/" backLabel="Home" footer={<LoginFooter />}>
+      <RoleToggle mode={mode} onChange={setMode} />
+
+      <h1 className="mt-5 text-[24px] font-bold tracking-[-0.02em]" style={{ color: theme.text.primary }}>
+        {isAdminMode ? "Admin sign in" : "Teacher sign in"}
+      </h1>
+      <p className="mt-1.5 text-[14px] leading-relaxed" style={{ color: theme.text.secondary }}>
+        {isAdminMode
+          ? "Manage schools, teachers and subjects from one place."
+          : "Build question banks, schedule quizzes and watch the room work."}
+      </p>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-5 space-y-4">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input className={FIELD_CLASS} type="email" placeholder="teacher@example.com" autoComplete="email" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <PasswordInput className={FIELD_CLASS} placeholder="Your password" autoComplete="current-password" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {serverError ? (
+            <p
+              role="alert"
+              className="rounded-[10px] px-3 py-2 text-[13px] font-medium"
+              style={{ backgroundColor: theme.status.flaggedTint, color: theme.status.flagged }}
             >
-              Teacher Login
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("admin")}
-              className={`rounded-lg px-4 py-2 text-sm transition-colors ${
-                mode === "admin"
-                  ? "border-2 border-black font-bold text-black"
-                  : "border border-gray-300 text-gray-500"
-              }`}
-            >
-              Admin Login
-            </button>
-          </div>
-          <CardTitle style={{ color: theme.text.primary }}>
-            {mode === "admin" ? "Admin Login" : "Teacher Login"}
-          </CardTitle>
-          <CardDescription>
-            {mode === "admin"
-              ? "Sign in to access the admin dashboard."
-              : "Sign in to access the teacher dashboard."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="teacher@example.com" autoComplete="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <PasswordInput placeholder="password" autoComplete="current-password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {serverError ? <p className="text-sm font-medium text-destructive">{serverError}</p> : null}
-
-              <Button
-                className="w-full"
-                type="submit"
-                disabled={form.formState.isSubmitting}
-              >
-                {form.formState.isSubmitting ? "Signing in..." : "Login"}
-              </Button>
-            </form>
-          </Form>
-
-          <div className="mt-6 space-y-3">
-            <div
-              className="rounded-xl border p-3"
-              style={{ borderColor: theme.border.default, backgroundColor: theme.bg.content }}
-            >
-              <p
-                className="mb-2 text-[11px] font-semibold uppercase tracking-wide"
-                style={{ color: theme.text.muted }}
-              >
-                Demo logins — click to autofill
-              </p>
-              <div className="space-y-2">
-                {DEMO_CREDENTIALS.map((cred) => (
-                  <button
-                    key={cred.role}
-                    type="button"
-                    onClick={() => fillDemo(cred)}
-                    className="flex w-full flex-wrap items-center justify-between gap-1 rounded-lg border bg-white px-3 py-2 text-left text-xs transition-colors hover:bg-[#F4F4F5]"
-                    style={{ borderColor: theme.border.input }}
-                  >
-                    <span className="font-semibold" style={{ color: theme.text.primary }}>
-                      {cred.label}
-                    </span>
-                    <span className="font-mono" style={{ color: theme.text.secondary }}>
-                      {cred.email} · {cred.password}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <p className="text-center text-[11px]" style={{ color: theme.text.muted }}>
-              QuizLoom is a SaaS product and can be sold or licensed to institutions.
+              {serverError}
             </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          ) : null}
+
+          <Button className="h-11 w-full rounded-full text-[15px]" type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Signing in..." : "Sign in"}
+          </Button>
+        </form>
+      </Form>
+
+      <div className="mt-6">
+        <DemoLogins onPick={fillDemo} />
+      </div>
+    </AuthShell>
   );
 }

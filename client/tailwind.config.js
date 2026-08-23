@@ -6,6 +6,10 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
   	extend: {
+  		fontFamily: {
+  			sans: ["'Plus Jakarta Sans'", 'system-ui', 'sans-serif'],
+  			mono: ["'IBM Plex Mono'", 'ui-monospace', 'monospace']
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

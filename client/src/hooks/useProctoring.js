@@ -3,6 +3,67 @@ import { useEffect, useRef } from "react";
 import { violationService } from "@/services/violationService";
 
 const RATE_LIMIT_MS = 3000;
+const SCREENSHOT_META_KEYS = ["3", "4", "5"];
+
+// One report per type per window, so a student holding a key cannot generate hundreds of rows.
+function createReporter(sessionToken, lastSentAt) {
+  return (type, description) => {
+    const now = Date.now();
+    if (now - (lastSentAt.get(type) || 0) < RATE_LIMIT_MS) {
+      return;
+    }
+
+    lastSentAt.set(type, now);
+    violationService.report({ type, description }, sessionToken).catch(() => {
+      // Proctoring runs silently; a failed report must never interrupt the student.
+    });
+  };
+}
+
+function isScreenshotShortcut(event, key) {
+  if (key === "printscreen") {
+    return true;
+  }
+
+  return event.metaKey && event.shiftKey && SCREENSHOT_META_KEYS.includes(key);
+}
+
+function buildKeydownHandler(report) {
+  return (event) => {
+    const key = String(event.key || "").toLowerCase();
+
+    if (isScreenshotShortcut(event, key)) {
+      report("screenshot_attempt", "Screenshot keyboard shortcut detected");
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && key === "c") {
+      event.preventDefault();
+      report("copy_shortcut", "Copy keyboard shortcut detected");
+    }
+  };
+}
+
+function buildBlockingHandler(report, type, description) {
+  return (event) => {
+    event.preventDefault();
+    report(type, description);
+  };
+}
+
+function buildListeners(report) {
+  return [
+    [document, "visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        report("tab_switch", "User switched to another tab or minimized the window");
+      }
+    }],
+    [window, "blur", () => report("window_blur", "Quiz window lost focus")],
+    [document, "keydown", buildKeydownHandler(report)],
+    [document, "contextmenu", buildBlockingHandler(report, "context_menu", "Right click/context menu action detected")],
+    [document, "copy", buildBlockingHandler(report, "copy_event", "Copy event detected")]
+  ];
+}
 
 export function useProctoring({ sessionToken, enabled }) {
   const lastSentAtRef = useRef(new Map());
@@ -13,68 +74,13 @@ export function useProctoring({ sessionToken, enabled }) {
     }
 
     lastSentAtRef.current.clear();
+    const report = createReporter(sessionToken, lastSentAtRef.current);
+    const listeners = buildListeners(report);
 
-    const reportViolation = (type, description) => {
-      const now = Date.now();
-      const previousSentAt = lastSentAtRef.current.get(type) || 0;
-
-      if (now - previousSentAt < RATE_LIMIT_MS) {
-        return;
-      }
-
-      lastSentAtRef.current.set(type, now);
-      violationService.report({ type, description }, sessionToken).catch(() => {
-        // Proctoring runs silently; reporting failures are intentionally ignored client-side.
-      });
-    };
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        reportViolation("tab_switch", "User switched to another tab or minimized the window");
-      }
-    };
-
-    const onBlur = () => {
-      reportViolation("window_blur", "Quiz window lost focus");
-    };
-
-    const onKeydown = (event) => {
-      const key = String(event.key || "").toLowerCase();
-      const hasCtrlOrMeta = event.ctrlKey || event.metaKey;
-
-      if (key === "printscreen" || (event.metaKey && event.shiftKey && ["3", "4", "5"].includes(key))) {
-        reportViolation("screenshot_attempt", "Screenshot keyboard shortcut detected");
-        return;
-      }
-
-      if (hasCtrlOrMeta && key === "c") {
-        event.preventDefault();
-        reportViolation("copy_shortcut", "Copy keyboard shortcut detected");
-      }
-    };
-
-    const onContextMenu = (event) => {
-      event.preventDefault();
-      reportViolation("context_menu", "Right click/context menu action detected");
-    };
-
-    const onCopy = (event) => {
-      event.preventDefault();
-      reportViolation("copy_event", "Copy event detected");
-    };
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("blur", onBlur);
-    document.addEventListener("keydown", onKeydown);
-    document.addEventListener("contextmenu", onContextMenu);
-    document.addEventListener("copy", onCopy);
+    listeners.forEach(([target, event, handler]) => target.addEventListener(event, handler));
 
     return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("blur", onBlur);
-      document.removeEventListener("keydown", onKeydown);
-      document.removeEventListener("contextmenu", onContextMenu);
-      document.removeEventListener("copy", onCopy);
+      listeners.forEach(([target, event, handler]) => target.removeEventListener(event, handler));
     };
   }, [enabled, sessionToken]);
 }

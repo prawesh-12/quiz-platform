@@ -7,6 +7,11 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { theme } from "@/theme";
+
+const MIN_OPTIONS = 2;
+const MAX_OPTIONS = 4;
+const OPTION_KEYS = ["a", "b", "c", "d"];
 
 export default function QuestionBuilder({ question, index, onChange, onRemove, canRemove, disabled = false }) {
   const updateOption = (optionIndex, key, value) => {
@@ -26,11 +31,17 @@ export default function QuestionBuilder({ question, index, onChange, onRemove, c
   };
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="border bg-card p-4" style={{ borderRadius: theme.radius.lg, borderColor: theme.border.default }}>
       <div className="mb-3 flex items-center justify-between">
         <Label>Question {index + 1}</Label>
         {canRemove ? (
-          <Button type="button" variant="destructive" size="sm" onClick={onRemove}>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            aria-label={`Remove question ${index + 1}`}
+            onClick={onRemove}
+          >
             <Trash2 className="h-4 w-4" />
           </Button>
         ) : null}
@@ -86,9 +97,10 @@ export default function QuestionBuilder({ question, index, onChange, onRemove, c
                 variant="outline"
                 size="sm"
                 className="h-9 shrink-0 px-2"
-                disabled={disabled}
+                aria-label={`Remove option ${option.key.toUpperCase()}`}
+                disabled={disabled || question.options.length <= MIN_OPTIONS}
                 onClick={() => {
-                  if (question.options.length <= 2) {
+                  if (question.options.length <= MIN_OPTIONS) {
                     return;
                   }
 
@@ -113,14 +125,9 @@ export default function QuestionBuilder({ question, index, onChange, onRemove, c
         <Button
           type="button"
           variant="outline"
-          disabled={disabled}
+          disabled={disabled || question.options.length >= MAX_OPTIONS}
           onClick={() => {
-            if (question.options.length >= 4) {
-              return;
-            }
-
-            const keyOrder = ["a", "b", "c", "d"];
-            const nextKey = keyOrder[question.options.length];
+            const nextKey = OPTION_KEYS[question.options.length];
 
             onChange({
               ...question,

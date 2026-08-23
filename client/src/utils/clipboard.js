@@ -1,8 +1,4 @@
-// Copy text to the clipboard, returning whether it succeeded.
-//
-// navigator.clipboard only exists in a secure context (HTTPS or localhost), so on a
-// plain-HTTP deployment (e.g. http://<elastic-ip>) it is unavailable. Fall back to the
-// legacy execCommand("copy") path, which works over HTTP in most browsers.
+// navigator.clipboard needs a secure context, so plain-HTTP deploys fall back to execCommand.
 export async function copyToClipboard(text) {
   if (navigator.clipboard?.writeText) {
     try {

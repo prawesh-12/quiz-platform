@@ -3,37 +3,39 @@ import Play from "lucide-react/dist/esm/icons/play";
 
 import HeroFilm from "./hero-film";
 import { Eyebrow, Reveal, useCountUp, useInView, usePrefersReducedMotion } from "./primitives";
-import { BTN_DARK, BTN_LIGHT, DISPLAY, MONO, SECTION, SHADOW_LIFT, SIGNUP_PATH, SPEC_FIGURES, WASH_HERO } from "./tokens";
+import { BTN_DARK, BTN_LIGHT, DISPLAY, MONO, SECTION, SHADOW_LIFT, SIGNUP_PATH, SPEC_FIGURES } from "./tokens";
 
 function SpecFigure({ figure, run, reduced }) {
   const value = useCountUp(figure.value, run);
   return (
     <div className="text-center">
-      <p className={`text-[28px] font-medium leading-none tabular-nums text-[color:var(--ink)] ${MONO}`}>
+      <p className={`text-[24px] font-medium leading-none tabular-nums text-[color:var(--ink)] ${MONO}`}>
         {reduced ? figure.value : value}
         <span className="text-[color:var(--muted)]">{figure.suffix}</span>
       </p>
-      <p className="mt-2 text-[13px] leading-snug text-[color:var(--muted)]">{figure.label}</p>
+      <p className="mt-1.5 text-[12px] leading-snug text-[color:var(--muted)]">{figure.label}</p>
     </div>
   );
 }
 
-export function SpecStrip() {
+// The hero's floor: real numbers instead of empty space, and they mark the fold without a cue.
+function HeroSpecs() {
   const reduced = usePrefersReducedMotion();
   const [ref, seen] = useInView(0.4);
+
   return (
-    <section aria-label="What QuizLoom is built for" className={`${SECTION} pb-14 pt-10 lg:pb-20`}>
-      <div ref={ref} className="rounded-[28px] border border-[color:var(--rule)] bg-[color:var(--panel-tint)] px-6 py-10">
-        <p className="text-center text-[15px] font-medium text-[color:var(--ink-2)]">
+    <div className={`${SECTION} shrink-0 pb-8`}>
+      <div ref={ref} className="border-t border-[color:var(--rule)] pt-6">
+        <p className="mb-6 text-center text-[13.5px] text-[color:var(--muted)]">
           Built for a room of 200, on a link and a code
         </p>
-        <div className="mt-7 grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-3 gap-x-4 gap-y-5 lg:grid-cols-6">
           {SPEC_FIGURES.map((figure) => (
             <SpecFigure key={figure.label} figure={figure} run={seen && !reduced} reduced={reduced} />
           ))}
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -76,9 +78,13 @@ function HeroCopy({ onJump }) {
 
 function HeroIllustration() {
   return (
-    <Reveal delay={120}>
+    <Reveal delay={120} className="relative">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[120%] w-[120%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/45 blur-3xl"
+      />
       <div
-        className={`mx-auto max-w-[300px] overflow-hidden rounded-[28px] border border-[color:var(--rule)] bg-[color:var(--panel)] lg:max-w-[440px] lg:-translate-y-3 ${SHADOW_LIFT}`}
+        className={`relative mx-auto max-w-[220px] overflow-hidden rounded-[28px] border border-[color:var(--rule)] bg-[color:var(--panel)] sm:max-w-[300px] lg:max-w-[440px] lg:-translate-y-3 ${SHADOW_LIFT}`}
       >
         <img
           src="/media/teacher.webp"
@@ -94,16 +100,23 @@ function HeroIllustration() {
 
 export default function Hero({ onJump }) {
   return (
-    <section id="top" className="relative" style={{ backgroundImage: WASH_HERO }}>
-      <div className={`${SECTION} pb-10 pt-10 sm:pt-14`}>
-        <div className="grid items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
+    <section id="top" className="landing-hero relative flex flex-col">
+      <div className={`${SECTION} flex flex-1 items-center py-10 lg:py-12`}>
+        <div className="grid w-full items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           <HeroCopy onJump={onJump} />
           <HeroIllustration />
         </div>
       </div>
-      <div id="film" className={`${SECTION} scroll-mt-24 pb-2`}>
-        <HeroFilm />
-      </div>
+      <HeroSpecs />
+    </section>
+  );
+}
+
+// The product frame gets its own section so the hero reads as one screen, not a crowded stack.
+export function ProductFilm() {
+  return (
+    <section id="film" className={`${SECTION} scroll-mt-24 pb-14 pt-4 lg:pb-24 lg:pt-8`}>
+      <HeroFilm />
     </section>
   );
 }

@@ -2,8 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getAllSubjects } from "@/services/adminService";
 
-// Canonical admin subjects query. Every admin screen reads through this key so the sidebar,
-// dashboard, and modals share one cache and one source of truth (/admin/subjects).
+// Canonical admin subjects key, so sidebar, dashboard and modals share one cache.
 export const ADMIN_SUBJECTS_KEY = ["admin", "subjects"];
 
 export function useAdminSubjects() {

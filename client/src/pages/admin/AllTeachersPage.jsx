@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import AdminShell from "@/components/layout/AdminShell";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,13 +12,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import {
   deleteTeacher as deleteTeacherApi,
   getAllTeachers
 } from "@/services/adminService";
 import { theme } from "@/theme";
+
+const CARD_STYLE = {
+  borderRadius: theme.radius.lg,
+  borderColor: theme.border.default,
+  backgroundColor: theme.bg.card
+};
 
 const SCHOOL_LABELS = {
   SOT: "School of Technology",
@@ -28,7 +32,6 @@ const SCHOOL_LABELS = {
 };
 
 export default function AllTeachersPage() {
-  const { user, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -60,6 +63,11 @@ export default function AllTeachersPage() {
     }
   });
 
+  const onSearch = (event) => {
+    event.preventDefault();
+    setAppliedSearch(searchInput);
+  };
+
   const teachers = teachersQuery.data?.teachers ?? [];
 
   const filteredTeachers = useMemo(() => {
@@ -75,27 +83,28 @@ export default function AllTeachersPage() {
   }, [teachers, appliedSearch]);
 
   return (
-    <AdminShell user={user} onLogout={logout} contentScrollable>
+    <>
       <div className="space-y-5">
-        <div className="rounded-[12px] border p-4 sm:p-5" style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}>
-          <h1 className="text-[22px] font-semibold" style={{ color: theme.text.primary }}>
+        <div className="border p-4 sm:p-5" style={CARD_STYLE}>
+          <h1 className="text-[22px] font-bold tracking-[-0.02em]" style={{ color: theme.text.primary }}>
             All Teachers
           </h1>
           <p className="mt-1 text-[13px]" style={{ color: theme.text.muted }}>
             Complete list of all teachers across all schools. Remove a teacher permanently from here.
           </p>
 
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <form className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center" onSubmit={onSearch}>
             <Input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Search by name or email"
+              aria-label="Search teachers by name or email"
               className="w-full sm:max-w-[360px]"
             />
-            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setAppliedSearch(searchInput)}>
+            <Button type="submit" variant="outline" className="w-full sm:w-auto">
               Search
             </Button>
-          </div>
+          </form>
 
           <div className="mt-4 overflow-x-auto">
             <Table>
@@ -113,13 +122,15 @@ export default function AllTeachersPage() {
               <TableBody>
                 {teachersQuery.isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6}>Loading teachers...</TableCell>
+                    <TableCell colSpan={6} style={{ color: theme.text.muted }}>
+                      Loading teachers...
+                    </TableCell>
                   </TableRow>
                 ) : null}
 
                 {!teachersQuery.isLoading && filteredTeachers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={6} style={{ color: theme.text.muted }}>
                       {appliedSearch ? "No teachers matched your search." : "No teachers found."}
                     </TableCell>
                   </TableRow>
@@ -150,6 +161,7 @@ export default function AllTeachersPage() {
                         size="sm"
                         variant="outline"
                         className="text-destructive hover:bg-destructive/10"
+                        aria-label={`Delete ${teacher.name}`}
                         onClick={() => setTeacherToDelete(teacher)}
                       >
                         Delete
@@ -189,6 +201,6 @@ export default function AllTeachersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminShell>
+    </>
   );
 }

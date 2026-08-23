@@ -15,88 +15,70 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { theme } from "@/theme";
 
-function buildBreadcrumbs(pathname) {
-  if (pathname === "/teacher") {
-    return [{ icon: Gauge, label: "Quiz Dashboard" }];
-  }
+const TEACHER_ROOT = { icon: Gauge, label: "Quiz Dashboard" };
+const ADMIN_ROOT = { icon: ShieldCheck, label: "Admin Dashboard" };
 
-  if (pathname.startsWith("/teacher/quiz/library")) {
-    return [
-      { icon: Gauge, label: "Quiz Dashboard" },
-      { icon: LibraryBig, label: "Quiz Library" },
-    ];
-  }
+const TEACHER_ROUTES = [
+  { prefix: "/teacher/quiz/library", icon: LibraryBig, label: "Quiz Library" },
+  { prefix: "/teacher/quiz/manual", icon: Sparkles, label: "Generate New Quiz" },
+  { prefix: "/teacher/quiz/auto", icon: Sparkles, label: "Generate New Quiz" },
+  { prefix: "/teacher/quiz/scheduled", icon: CalendarClock, label: "Scheduled Quizzes" },
+  { prefix: "/teacher/quiz/ongoing", icon: CalendarClock, label: "Ongoing Quizzes" },
+  { prefix: "/teacher/questions/", icon: GraduationCap, label: "Subject Questions" },
+  { prefix: "/teacher/profile", icon: UserRound, label: "Profile" },
+];
 
-  if (pathname.startsWith("/teacher/quiz/manual")) {
-    return [
-      { icon: Gauge, label: "Quiz Dashboard" },
-      { icon: Sparkles, label: "Generate New Quiz" },
-    ];
-  }
-
-  if (pathname.startsWith("/teacher/quiz/auto")) {
-    return [
-      { icon: Gauge, label: "Quiz Dashboard" },
-      { icon: Sparkles, label: "Generate New Quiz" },
-    ];
-  }
-
-  if (pathname.startsWith("/teacher/quiz/scheduled")) {
-    return [
-      { icon: Gauge, label: "Quiz Dashboard" },
-      { icon: CalendarClock, label: "Scheduled Quizzes" },
-    ];
-  }
-
-  if (pathname.startsWith("/teacher/quiz/ongoing")) {
-    return [
-      { icon: Gauge, label: "Quiz Dashboard" },
-      { icon: CalendarClock, label: "Ongoing Quizzes" },
-    ];
-  }
-
-  if (pathname.startsWith("/teacher/quiz/") && pathname.endsWith("/responses")) {
-    return [
-      { icon: Gauge, label: "Quiz Dashboard" },
-      { icon: GraduationCap, label: "Quiz Responses" },
-    ];
-  }
-
-  if (pathname.startsWith("/teacher/questions/")) {
-    return [
-      { icon: Gauge, label: "Quiz Dashboard" },
-      { icon: GraduationCap, label: "Subject Questions" },
-    ];
-  }
-
-  if (pathname.startsWith("/teacher/profile")) {
-    return [
-      { icon: Gauge, label: "Quiz Dashboard" },
-      { icon: UserRound, label: "Profile" },
-    ];
-  }
-
-  // Admin paths
-  if (pathname === "/admin") {
-    return [{ icon: ShieldCheck, label: "Admin Dashboard" }];
-  }
-
+function buildAdminBreadcrumbs(pathname) {
   if (pathname === "/admin/teachers") {
-    return [
-      { icon: ShieldCheck, label: "Admin Dashboard" },
-      { icon: Users, label: "All Teachers" },
-    ];
+    return [ADMIN_ROOT, { icon: Users, label: "All Teachers" }];
   }
 
   if (pathname.startsWith("/admin/schools/")) {
     const school = pathname.split("/")[3] || "";
-    return [
-      { icon: ShieldCheck, label: "Admin Dashboard" },
-      { icon: Users, label: `${school} Teachers` },
-    ];
+    return [ADMIN_ROOT, { icon: Users, label: `${school} Teachers` }];
   }
 
-  return [{ icon: Gauge, label: "Quiz Dashboard" }];
+  return [ADMIN_ROOT];
+}
+
+function buildBreadcrumbs(pathname) {
+  if (pathname.startsWith("/admin")) {
+    return buildAdminBreadcrumbs(pathname);
+  }
+
+  if (pathname.startsWith("/teacher/quiz/") && pathname.endsWith("/responses")) {
+    return [TEACHER_ROOT, { icon: GraduationCap, label: "Quiz Responses" }];
+  }
+
+  const match = TEACHER_ROUTES.find((route) => pathname.startsWith(route.prefix));
+  if (match) {
+    return [TEACHER_ROOT, { icon: match.icon, label: match.label }];
+  }
+
+  return [TEACHER_ROOT];
+}
+
+function Breadcrumb({ item, isLast, isFirst }) {
+  const Icon = item.icon;
+  const color = isLast ? theme.text.primary : theme.text.muted;
+
+  return (
+    <div className="flex min-w-0 items-center gap-1.5">
+      {!isFirst ? (
+        <ChevronRight className="h-3.5 w-3.5 shrink-0" style={{ color: theme.text.subtle }} />
+      ) : null}
+      <Icon className="h-3.5 w-3.5 shrink-0" style={{ color }} />
+      <span
+        className="truncate"
+        style={{
+          color,
+          fontWeight: isLast ? theme.font.weight.semibold : theme.font.weight.normal,
+        }}
+      >
+        {item.label}
+      </span>
+    </div>
+  );
 }
 
 export default function TeacherTopBar({ onMobileMenuToggle }) {
@@ -107,11 +89,8 @@ export default function TeacherTopBar({ onMobileMenuToggle }) {
 
   return (
     <header
-      className="flex h-12 items-center justify-between border-b px-6"
-      style={{
-        borderBottomColor: theme.border.default,
-        backgroundColor: theme.bg.card,
-      }}
+      className="flex h-12 shrink-0 items-center border-b px-6"
+      style={{ borderBottomColor: theme.border.default, backgroundColor: theme.bg.card }}
     >
       <div className="flex min-w-0 items-center gap-3">
         <Button
@@ -143,32 +122,16 @@ export default function TeacherTopBar({ onMobileMenuToggle }) {
           </>
         ) : null}
 
-        <div className="flex min-w-0 items-center gap-1.5 text-[13px]">
-          {breadcrumbs.map((item, index) => {
-            const Icon = item.icon;
-            const isLast = index === breadcrumbs.length - 1;
-            return (
-              <div key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-1.5">
-                {index > 0 ? (
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0" style={{ color: theme.text.subtle }} />
-                ) : null}
-                <Icon
-                  className="h-3.5 w-3.5 shrink-0"
-                  style={{ color: isLast ? theme.text.primary : theme.text.muted }}
-                />
-                <span
-                  className="truncate"
-                  style={{
-                    color: isLast ? theme.text.primary : theme.text.muted,
-                    fontWeight: isLast ? theme.font.weight.medium : theme.font.weight.normal,
-                  }}
-                >
-                  {item.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[13px]">
+          {breadcrumbs.map((item, index) => (
+            <Breadcrumb
+              key={`${item.label}-${index}`}
+              item={item}
+              isFirst={index === 0}
+              isLast={index === breadcrumbs.length - 1}
+            />
+          ))}
+        </nav>
       </div>
     </header>
   );

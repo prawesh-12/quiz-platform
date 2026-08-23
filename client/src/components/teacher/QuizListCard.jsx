@@ -14,8 +14,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getQuizStatusTone } from "@/components/teacher/quizStatus";
 import { cn } from "@/lib/utils";
 import { theme } from "@/theme";
+
+const ACTION_HEIGHT = "38px";
 
 function formatDate(value) {
   if (!value) {
@@ -30,42 +33,19 @@ function formatDate(value) {
   return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function getStatusConfig(status) {
-  if (status === "active") {
-    return {
-      label: "ONGOING",
-      tone: theme.badge.green,
-    };
-  }
-
-  if (status === "scheduled") {
-    return {
-      label: "SCHEDULED",
-      tone: theme.badge.blue,
-    };
-  }
-
-  if (status === "ended") {
-    return {
-      label: "ENDED",
-      tone: theme.badge.red,
-    };
-  }
-
-  return {
-    label: String(status || "draft").toUpperCase(),
-    tone: theme.badge.gray,
-  };
-}
-
 export default function QuizListCard({ quiz, onViewResponses, onEdit, onDuplicate, onDelete }) {
   const canEdit = quiz.status === "draft" || quiz.status === "active";
-  const statusConfig = getStatusConfig(quiz.status);
+  const statusTone = getQuizStatusTone(quiz.status);
 
   return (
     <Card
-      className="group rounded-[12px] transition-colors hover:bg-[var(--ds-bg-card-hover)]"
-      style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+      className="group flex flex-col transition-colors hover:bg-[var(--ds-bg-card-hover)]"
+      style={{
+        borderRadius: theme.radius.lg,
+        borderColor: theme.border.default,
+        backgroundColor: theme.bg.card,
+        boxShadow: theme.shadow.card,
+      }}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
@@ -83,16 +63,16 @@ export default function QuizListCard({ quiz, onViewResponses, onEdit, onDuplicat
               "border-transparent"
             )}
             style={{
-              backgroundColor: statusConfig.tone.bg,
-              color: statusConfig.tone.color,
+              backgroundColor: statusTone.bg,
+              color: statusTone.color,
               fontWeight: theme.font.weight.semibold,
             }}
           >
-            {statusConfig.label}
+            {statusTone.label}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 pt-0">
+      <CardContent className="flex flex-1 flex-col justify-between gap-4 pt-0">
         <div className="space-y-2 text-[13px]" style={{ color: theme.text.secondary }}>
           <div className="flex items-center gap-2">
             <BookOpenText className="h-4 w-4" style={{ color: theme.text.subtle }} />
@@ -111,7 +91,8 @@ export default function QuizListCard({ quiz, onViewResponses, onEdit, onDuplicat
             type="button"
             variant="outline"
             size="sm"
-            className="h-[38px] flex-1 rounded-[var(--ds-radius-md)]"
+            className="flex-1 rounded-[var(--ds-radius-md)]"
+            style={{ height: ACTION_HEIGHT }}
             onClick={() => onViewResponses?.(quiz)}
           >
             View Responses
@@ -122,7 +103,9 @@ export default function QuizListCard({ quiz, onViewResponses, onEdit, onDuplicat
                 type="button"
                 variant="outline"
                 size="icon"
-                className="h-[38px] w-[38px] rounded-[var(--ds-radius-md)]"
+                className="rounded-[var(--ds-radius-md)]"
+                style={{ height: ACTION_HEIGHT, width: ACTION_HEIGHT }}
+                aria-label={`More actions for ${quiz.title}`}
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>

@@ -1,59 +1,72 @@
 export const theme = {
-  // Colors
   bg: {
-    page: '#EAEAEC',           // outer page background
-    app: '#FFFFFF',            // main app shell card
-    content: '#FAFAFA',        // main content area
-    sidebar: '#FFFFFF',        // sidebar
-    card: '#FFFFFF',           // all white cards
-    cardHover: '#FAFAFA',      // card/row hover
-    input: '#F4F4F5',          // search bar, input fills
-    muted: '#F7F7F7',          // subtle section backgrounds
-    activeNav: '#1C1C1E',      // active sidebar item
-    cta: '#1C1C1E',            // primary action button (blackish)
+    page: '#F7F5FB',
+    app: '#FFFFFF',
+    content: '#FBFAFE',
+    sidebar: '#FFFFFF',
+    card: '#FFFFFF',
+    cardHover: '#F8F6FC',
+    input: '#F4F1FA',
+    muted: '#F8F6FC',
+    activeNav: '#171221',
+    cta: '#171221',
   },
   text: {
-    primary: '#1C1C1E',        // headings, bold values
-    secondary: '#3A3A3A',      // body text
-    muted: '#999999',          // labels, placeholders
-    subtle: '#AAAAAA',         // axis labels, IDs
+    primary: '#171221',
+    secondary: '#453D57',
+    muted: '#6E6680',
+    subtle: '#8C8499',
     white: '#FFFFFF',
-    accent: '#1C1C1E',         // blackish accent text
-    teal: '#1A9E9E',
-    green: '#27A85A',
-    orange: '#D4793A',
+    accent: '#6D3BEF',
+    teal: '#106E6B',
+    green: '#12715A',
+    orange: '#A85B00',
+  },
+  // Violet is decorative only; status hues below carry meaning.
+  accent: {
+    DEFAULT: '#6D3BEF',
+    tint: '#EFE9FE',
+  },
+  status: {
+    active: '#12715A',
+    activeTint: '#E4F1EC',
+    pending: '#A85B00',
+    pendingTint: '#FAF1E4',
+    flagged: '#A32017',
+    flaggedTint: '#FAEAE8',
   },
   border: {
-    default: '#EBEBEB',        // card borders
-    light: '#F4F4F4',          // row dividers
-    input: '#E4E4E4',          // button/input borders
+    default: '#EAE5F2',
+    light: '#F1EDF8',
+    input: '#E0D9EE',
   },
   radius: {
-    sm: '6px',
-    md: '8px',
-    lg: '12px',
-    xl: '14px',
-    xxl: '20px',
+    sm: '8px',
+    md: '10px',
+    lg: '14px',
+    xl: '18px',
+    xxl: '24px',
     full: '9999px',
   },
   shadow: {
-    app: '0 8px 40px rgba(0,0,0,0.10)',   // floating app shell
-    card: '0 1px 4px rgba(0,0,0,0.06)',   // subtle card shadow
-    tooltip: '0 4px 20px rgba(0,0,0,0.12)',
+    app: '0 24px 64px rgba(23,18,33,.14)',
+    card: '0 1px 2px rgba(23,18,33,.04), 0 12px 32px rgba(23,18,33,.06)',
+    tooltip: '0 8px 28px rgba(23,18,33,.12)',
   },
   font: {
-    family: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    family: "'Plus Jakarta Sans', system-ui, sans-serif",
     size: { xs: '11px', sm: '12px', base: '13px', md: '14px', lg: '15px', xl: '24px', stat: '28px' },
     weight: { normal: 400, medium: 500, semibold: 600, bold: 700 },
   },
   sidebar: { width: '240px' },
   spacing: { cardPad: '20px 24px', sectionGap: '16px', rowHeight: '52px' },
   badge: {
-    teal:   { bg: '#E6F7F7', color: '#1A9E9E' },
-    gray:   { bg: '#F2F2F2', color: '#666666' },
-    green:  { bg: '#E8F7EE', color: '#27A85A' },
-    orange: { bg: '#FEF3EC', color: '#D4793A' },
-    blue:   { bg: '#F0F3FF', color: '#4B6BFB' },
-    red:    { bg: '#FFE8E8', color: '#E8442A' },
+    teal:   { bg: '#E3F1F0', color: '#106E6B' },
+    gray:   { bg: '#F1EEF8', color: '#453D57' },
+    green:  { bg: '#E4F1EC', color: '#12715A' },
+    orange: { bg: '#FAF1E4', color: '#A85B00' },
+    blue:   { bg: '#E6EDFC', color: '#2B4FB8' },
+    red:    { bg: '#FAEAE8', color: '#A32017' },
+    violet: { bg: '#EFE9FE', color: '#6D3BEF' },
   },
 }

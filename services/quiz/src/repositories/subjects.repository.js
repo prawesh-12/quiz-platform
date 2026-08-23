@@ -20,14 +20,19 @@ export async function deleteSubject(db, subjectId) {
 
 // Whether the requester may manage the subject: admins always, teachers only the
 // subjects they created.
+// A teacher owns a subject if they created it OR were assigned it, matching Question Bank.
 export async function isSubjectManageable(db, subjectId, requester) {
   const result =
     requester.role === "admin"
       ? await db.query(`SELECT id FROM subjects WHERE id = $1`, [subjectId])
-      : await db.query(`SELECT id FROM subjects WHERE id = $1 AND created_by = $2`, [
-          subjectId,
-          requester.id,
-        ]);
+      : await db.query(
+          `
+          SELECT s.id FROM subjects s
+          LEFT JOIN teacher_subjects ts ON ts.subject_id = s.id AND ts.teacher_id = $2
+          WHERE s.id = $1 AND (s.created_by = $2 OR ts.teacher_id = $2)
+          `,
+          [subjectId, requester.id],
+        );
 
   return result.rowCount > 0;
 }

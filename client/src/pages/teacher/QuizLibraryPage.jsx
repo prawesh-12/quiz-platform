@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Search from "lucide-react/dist/esm/icons/search";
 import { useNavigate } from "react-router-dom";
 
-import TeacherShell from "@/components/layout/TeacherShell";
 import QuizListCard from "@/components/teacher/QuizListCard";
 import Spinner from "@/components/shared/Spinner";
 import {
@@ -19,15 +18,16 @@ import {
 import { Input } from "@/components/ui/input";
 import Pagination from "@/components/ui/pagination";
 import { Select, SelectItem } from "@/components/ui/select";
-import { useAuth } from "@/hooks/useAuth";
+import { useTeacherSubjects } from "@/hooks/useTeacherSubjects";
 import { useToast } from "@/hooks/useToast";
 import { quizService } from "@/services/quizService";
-import { subjectService } from "@/services/subjectService";
 import { withJitter } from "@/utils/jitter";
 import { theme } from "@/theme";
 
 const PAGE_SIZE = 12;
 const FETCH_LIMIT = 100;
+const LIVE_REFRESH_MS = 10_000;
+const SEARCH_MAX_WIDTH = "36rem";
 const MANAGEABLE_STATUSES = new Set(["active", "scheduled", "ended"]);
 
 async function fetchAllQuizzes() {
@@ -47,7 +47,6 @@ async function fetchAllQuizzes() {
 
 export default function QuizLibraryPage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -56,15 +55,10 @@ export default function QuizLibraryPage() {
   const [page, setPage] = useState(1);
   const [quizToDelete, setQuizToDelete] = useState(null);
 
-  const subjectsQuery = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => subjectService.list(),
-  });
-
   const quizzesQuery = useQuery({
     queryKey: ["quizzes", "library"],
     queryFn: fetchAllQuizzes,
-    refetchInterval: () => withJitter(10_000),
+    refetchInterval: () => withJitter(LIVE_REFRESH_MS),
     refetchIntervalInBackground: true,
   });
 
@@ -96,7 +90,7 @@ export default function QuizLibraryPage() {
     },
   });
 
-  const subjects = subjectsQuery.data?.subjects ?? [];
+  const { subjects } = useTeacherSubjects();
   const allQuizzes = quizzesQuery.data ?? [];
 
   const filteredQuizzes = useMemo(() => {
@@ -138,21 +132,17 @@ export default function QuizLibraryPage() {
     setPage(1);
   };
 
+  const panelStyle = {
+    borderRadius: theme.radius.xl,
+    borderColor: theme.border.default,
+    backgroundColor: theme.bg.card,
+    boxShadow: theme.shadow.card,
+  };
+
   return (
-    <TeacherShell
-      subjects={subjects}
-      selectedSubjectId={null}
-      onSelectSubject={(subjectId) => navigate(`/teacher/questions/${subjectId}`)}
-      onOpenCreateSubject={() => navigate("/teacher")}
-      onOpenProfile={() => navigate("/teacher/profile")}
-      user={user}
-      onLogout={logout}
-    >
+    <>
       <div className="flex min-h-0 flex-1 flex-col gap-5">
-        <section
-          className="rounded-[12px] border p-4 sm:p-5"
-          style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
-        >
+        <section className="border p-4 sm:p-5" style={panelStyle}>
           <h1 className="text-[24px]" style={{ color: theme.text.primary, fontWeight: theme.font.weight.bold }}>
             Quiz Library
           </h1>
@@ -162,7 +152,7 @@ export default function QuizLibraryPage() {
 
           <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative w-full max-w-[36rem]">
+              <div className="relative w-full" style={{ maxWidth: SEARCH_MAX_WIDTH }}>
                 <Search
                   className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
                   style={{ color: theme.text.muted }}
@@ -195,19 +185,21 @@ export default function QuizLibraryPage() {
           </div>
         </section>
 
-        <section
-          className="flex min-h-0 flex-1 flex-col rounded-[12px] border p-4 md:p-5"
-          style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
-        >
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <section className="flex min-h-0 flex-1 flex-col border p-4 md:p-5" style={panelStyle}>
+          <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-1 gap-4 overflow-y-auto lg:grid-cols-2 2xl:grid-cols-3">
             {quizzesQuery.isLoading ? (
-              <Spinner className="py-6" label="Loading quizzes..." />
+              <Spinner className="col-span-full py-6" label="Loading quizzes..." />
             ) : null}
 
             {quizzesQuery.isError ? (
               <p
-                className="col-span-full rounded-[12px] border border-dashed p-6 text-[13px]"
-                style={{ borderColor: theme.border.default, backgroundColor: theme.badge.red.bg, color: theme.badge.red.color }}
+                className="col-span-full border border-dashed p-6 text-[13px]"
+                style={{
+                  borderRadius: theme.radius.lg,
+                  borderColor: theme.status.flagged,
+                  backgroundColor: theme.status.flaggedTint,
+                  color: theme.status.flagged,
+                }}
               >
                 {quizzesQuery.error?.response?.data?.error || "Failed to load quizzes"}
               </p>
@@ -215,8 +207,13 @@ export default function QuizLibraryPage() {
 
             {!quizzesQuery.isLoading && !quizzesQuery.isError && pagedQuizzes.length === 0 ? (
               <p
-                className="col-span-full rounded-[12px] border border-dashed p-6 text-[13px]"
-                style={{ borderColor: theme.border.default, backgroundColor: theme.bg.content, color: theme.text.muted }}
+                className="col-span-full border border-dashed p-6 text-[13px]"
+                style={{
+                  borderRadius: theme.radius.lg,
+                  borderColor: theme.border.default,
+                  backgroundColor: theme.bg.content,
+                  color: theme.text.muted,
+                }}
               >
                 No quizzes found for this filter.
               </p>
@@ -234,9 +231,11 @@ export default function QuizLibraryPage() {
             ))}
           </div>
 
-          <div className="shrink-0 pt-4">
-            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
-          </div>
+          {totalPages > 1 ? (
+            <div className="shrink-0 pt-4">
+              <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          ) : null}
         </section>
       </div>
 
@@ -261,6 +260,6 @@ export default function QuizLibraryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </TeacherShell>
+    </>
   );
 }

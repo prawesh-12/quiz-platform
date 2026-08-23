@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { theme } from "@/theme";
 
 export default function GenerateModeModal({ open, onOpenChange }) {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ export default function GenerateModeModal({ open, onOpenChange }) {
         </DialogHeader>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Card>
+          <Card style={{ borderRadius: theme.radius.xl, boxShadow: theme.shadow.card }}>
             <CardHeader>
               <CardTitle>Manual Quiz</CardTitle>
               <CardDescription>Create questions manually and save them to the subject bank.</CardDescription>
@@ -33,7 +34,7 @@ export default function GenerateModeModal({ open, onOpenChange }) {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ borderRadius: theme.radius.xl, boxShadow: theme.shadow.card }}>
             <CardHeader>
               <CardTitle>Generate Quiz</CardTitle>
               <CardDescription>Auto-pick random questions from a selected subject.</CardDescription>

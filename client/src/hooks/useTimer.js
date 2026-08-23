@@ -1,54 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const DEFAULT_INTERVAL_MS = 1000;
+const NO_SECONDS = 0;
 
 function normalizeSeconds(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) {
-    return 0;
+    return NO_SECONDS;
   }
 
-  return Math.max(0, Math.floor(parsed));
+  return Math.max(NO_SECONDS, Math.floor(parsed));
 }
 
-export function useTimer({
-  initialSeconds = 0,
-  enabled = true,
-  getSeconds,
-  intervalMs = 1000,
-  onExpire
-}) {
-  const [secondsLeft, setSecondsLeft] = useState(() =>
-    normalizeSeconds(initialSeconds),
-  );
-  const hasExpiredRef = useRef(false);
+// Refs, so a caller passing fresh closures every render never restarts the interval.
+function useLatestRefs({ onExpire, getSeconds, initialSeconds }) {
   const onExpireRef = useRef(onExpire);
   const getSecondsRef = useRef(getSeconds);
   const initialSecondsRef = useRef(initialSeconds);
-  const previousSecondsRef = useRef(normalizeSeconds(initialSeconds));
-
-  const syncSeconds = useCallback(() => {
-    const previousSeconds = previousSecondsRef.current;
-    const nextSeconds = normalizeSeconds(
-      typeof getSecondsRef.current === "function"
-        ? getSecondsRef.current()
-        : initialSecondsRef.current,
-    );
-
-    setSecondsLeft((prev) => (prev === nextSeconds ? prev : nextSeconds));
-
-    if (nextSeconds > 0) {
-      previousSecondsRef.current = nextSeconds;
-      hasExpiredRef.current = false;
-      return nextSeconds;
-    }
-
-    if (previousSeconds > 0 && !hasExpiredRef.current) {
-      hasExpiredRef.current = true;
-      onExpireRef.current?.();
-    }
-
-    previousSecondsRef.current = nextSeconds;
-    return nextSeconds;
-  }, []);
 
   useEffect(() => {
     onExpireRef.current = onExpire;
@@ -58,13 +26,76 @@ export function useTimer({
     getSecondsRef.current = getSeconds;
   }, [getSeconds]);
 
+  return { onExpireRef, getSecondsRef, initialSecondsRef };
+}
+
+function readSeconds(getSecondsRef, initialSecondsRef) {
+  if (typeof getSecondsRef.current === "function") {
+    return normalizeSeconds(getSecondsRef.current());
+  }
+
+  return normalizeSeconds(initialSecondsRef.current);
+}
+
+function useSyncSeconds(refs, tracker, setSecondsLeft) {
+  return useCallback(() => {
+    const previousSeconds = tracker.previousSecondsRef.current;
+    const nextSeconds = readSeconds(refs.getSecondsRef, refs.initialSecondsRef);
+
+    setSecondsLeft((prev) => (prev === nextSeconds ? prev : nextSeconds));
+    tracker.previousSecondsRef.current = nextSeconds;
+
+    if (nextSeconds > NO_SECONDS) {
+      tracker.hasExpiredRef.current = false;
+      return nextSeconds;
+    }
+
+    // Only the first tick that crosses zero fires onExpire, never every tick after it.
+    if (previousSeconds > NO_SECONDS && !tracker.hasExpiredRef.current) {
+      tracker.hasExpiredRef.current = true;
+      refs.onExpireRef.current?.();
+    }
+
+    return nextSeconds;
+  }, [refs, tracker, setSecondsLeft]);
+}
+
+function useResetTimer(refs, tracker, setSecondsLeft) {
+  return useCallback(
+    (nextInitialSeconds = refs.initialSecondsRef.current) => {
+      const normalized = normalizeSeconds(nextInitialSeconds);
+      tracker.hasExpiredRef.current = false;
+      tracker.previousSecondsRef.current = normalized;
+      refs.initialSecondsRef.current = normalized;
+      setSecondsLeft(normalized);
+      return normalized;
+    },
+    [refs, tracker, setSecondsLeft]
+  );
+}
+
+function useExpiryTracker(initialSeconds) {
+  const hasExpiredRef = useRef(false);
+  const previousSecondsRef = useRef(normalizeSeconds(initialSeconds));
+  return useMemo(() => ({ hasExpiredRef, previousSecondsRef }), []);
+}
+
+export function useTimer({
+  initialSeconds = NO_SECONDS,
+  enabled = true,
+  getSeconds,
+  intervalMs = DEFAULT_INTERVAL_MS,
+  onExpire
+}) {
+  const [secondsLeft, setSecondsLeft] = useState(() => normalizeSeconds(initialSeconds));
+  const refs = useLatestRefs({ onExpire, getSeconds, initialSeconds });
+  const tracker = useExpiryTracker(initialSeconds);
+  const syncSeconds = useSyncSeconds(refs, tracker, setSecondsLeft);
+  const reset = useResetTimer(refs, tracker, setSecondsLeft);
+
   useEffect(() => {
-    initialSecondsRef.current = initialSeconds;
-    const nextInitial = normalizeSeconds(initialSeconds);
-    previousSecondsRef.current = nextInitial;
-    hasExpiredRef.current = false;
-    setSecondsLeft(nextInitial);
-  }, [initialSeconds]);
+    reset(initialSeconds);
+  }, [initialSeconds, reset]);
 
   useEffect(() => {
     if (!enabled) {
@@ -73,25 +104,13 @@ export function useTimer({
 
     syncSeconds();
     const intervalId = window.setInterval(syncSeconds, intervalMs);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
+    return () => window.clearInterval(intervalId);
   }, [enabled, intervalMs, syncSeconds]);
-
-  const reset = useCallback((nextInitialSeconds = initialSecondsRef.current) => {
-    const normalized = normalizeSeconds(nextInitialSeconds);
-    hasExpiredRef.current = false;
-    previousSecondsRef.current = normalized;
-    initialSecondsRef.current = normalized;
-    setSecondsLeft(normalized);
-    return normalized;
-  }, []);
 
   return {
     seconds: secondsLeft,
     secondsLeft,
-    isExpired: secondsLeft <= 0,
+    isExpired: secondsLeft <= NO_SECONDS,
     reset
   };
 }

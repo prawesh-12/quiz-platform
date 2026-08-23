@@ -1,7 +1,6 @@
 import { api } from "@/services/api";
 
-// Server-computed dashboard aggregates. Replaces fetching every quiz + every
-// response page and rolling them up in the browser. `scope` is "teachers" or "admin".
+// Server-side aggregates, so the browser stops fetching every quiz and response page to roll up.
 export const dashboardService = {
   async getSummary(scope = "teachers") {
     const response = await api.get(`/${scope}/dashboard/summary`);

@@ -2,47 +2,50 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import TeacherShell from "@/components/layout/TeacherShell";
+import { useShellSubject } from "@/components/layout/shellOutletContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@/hooks/useAuth";
+import { useTeacherSubjects } from "@/hooks/useTeacherSubjects";
 import { useToast } from "@/hooks/useToast";
 import { quizService } from "@/services/quizService";
-import { subjectService } from "@/services/subjectService";
 import { unitService } from "@/services/unitService";
+import { theme } from "@/theme";
+
+const DEFAULT_DURATION_MINS = 15;
+const MIN_QUESTIONS = 1;
+
+function UnitSelectionState({ isLoading, units, children }) {
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Loading units...</p>;
+  }
+
+  if (units.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No units found for this subject. Add units and questions in the Question Bank first.
+      </p>
+    );
+  }
+
+  return children;
+}
 
 export default function AutoGeneratePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, logout } = useAuth();
   const { toast } = useToast();
 
   const [subjectId, setSubjectId] = useState("");
   const [title, setTitle] = useState("Untitled quiz");
-  const [durationMins, setDurationMins] = useState(15);
+  const [durationMins, setDurationMins] = useState(DEFAULT_DURATION_MINS);
 
   const [unitCounts, setUnitCounts] = useState({});
-  const [subjectDialogOpen, setSubjectDialogOpen] = useState(false);
-  const [subjectName, setSubjectName] = useState("");
   const [pageError, setPageError] = useState("");
-
-  const subjectsQuery = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => subjectService.list()
-  });
 
   const unitsQuery = useQuery({
     queryKey: ["units", subjectId],
@@ -50,7 +53,7 @@ export default function AutoGeneratePage() {
     queryFn: () => unitService.listBySubject(subjectId)
   });
 
-  const subjects = subjectsQuery.data?.subjects ?? [];
+  const { subjects } = useTeacherSubjects();
   const units = unitsQuery.data?.units ?? [];
 
   useEffect(() => {
@@ -61,22 +64,11 @@ export default function AutoGeneratePage() {
     setSubjectId(String(subjects[0].id));
   }, [subjectId, subjects]);
 
-  // Reset unit counts when subject changes
   useEffect(() => {
     setUnitCounts({});
   }, [subjectId]);
 
-  const createSubjectMutation = useMutation({
-    mutationFn: (payload) => subjectService.create(payload),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["subjects"] });
-      setSubjectName("");
-      setSubjectDialogOpen(false);
-      if (data?.subject?.id) {
-        setSubjectId(String(data.subject.id));
-      }
-    }
-  });
+  useShellSubject(Number(subjectId) || null);
 
   const autoGenerateMutation = useMutation({
     mutationFn: (payload) => quizService.autoGenerate(payload),
@@ -115,7 +107,7 @@ export default function AutoGeneratePage() {
       return;
     }
 
-    if (totalSelected <= 0) {
+    if (totalSelected < MIN_QUESTIONS) {
       setPageError("Select at least 1 question to continue");
       return;
     }
@@ -134,7 +126,7 @@ export default function AutoGeneratePage() {
         title: title.trim() || "Untitled quiz",
         subject_id: Number(subjectId),
         unit_selections: unitSelections,
-        duration_mins: Number(durationMins || 15),
+        duration_mins: Number(durationMins || DEFAULT_DURATION_MINS),
         status: "draft"
       });
     } catch (error) {
@@ -143,17 +135,9 @@ export default function AutoGeneratePage() {
   };
 
   return (
-    <TeacherShell
-      subjects={subjects}
-      selectedSubjectId={Number(subjectId) || null}
-      onSelectSubject={(id) => navigate(`/teacher/questions/${id}`)}
-      onOpenCreateSubject={() => setSubjectDialogOpen(true)}
-      onOpenProfile={() => navigate("/teacher/profile")}
-      user={user}
-      onLogout={logout}
-    >
+    <>
       <div className="mx-auto w-full max-w-2xl">
-        <Card>
+        <Card style={{ borderRadius: theme.radius.xl, boxShadow: theme.shadow.card }}>
           <CardHeader>
             <CardTitle>Generate Quiz Page</CardTitle>
             <CardDescription>Select subject, pick questions per unit, and auto-generate.</CardDescription>
@@ -174,18 +158,11 @@ export default function AutoGeneratePage() {
               </Select>
             </div>
 
-            {/* Unit-wise question selection */}
             {subjectId && (
               <div className="space-y-3">
                 <Label>Select Questions per Unit</Label>
-                {unitsQuery.isLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading units...</p>
-                ) : units.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No units found for this subject. Add units and questions in the Question Bank first.
-                  </p>
-                ) : (
-                  <Card className="border shadow-none">
+                <UnitSelectionState isLoading={unitsQuery.isLoading} units={units}>
+                  <Card className="border shadow-none" style={{ borderRadius: theme.radius.lg }}>
                     <div className="divide-y">
                       {units.map((unit) => (
                         <div key={unit.id} className="flex items-center justify-between gap-3 px-4 py-3">
@@ -201,7 +178,8 @@ export default function AutoGeneratePage() {
                               min={0}
                               max={unit.question_count || 0}
                               value={unitCounts[unit.id] || ""}
-                              onChange={(e) => handleUnitCountChange(unit.id, e.target.value)}
+                              aria-label={`Questions from ${unit.name}`}
+                              onChange={(event) => handleUnitCountChange(unit.id, event.target.value)}
                               placeholder="0"
                               className="w-20 text-center"
                             />
@@ -215,12 +193,15 @@ export default function AutoGeneratePage() {
                     <Separator />
                     <div className="flex items-center justify-between px-4 py-3">
                       <p className="text-sm font-semibold">Total</p>
-                      <p className={`text-sm font-semibold ${totalSelected === 0 ? "text-muted-foreground" : ""}`}>
-                        {totalSelected} question{totalSelected !== 1 ? "s" : ""} selected
+                      <p
+                        className="text-sm font-semibold"
+                        style={{ color: totalSelected === 0 ? theme.text.muted : theme.text.primary }}
+                      >
+                        {totalSelected} question{totalSelected === 1 ? "" : "s"} selected
                       </p>
                     </div>
                   </Card>
-                )}
+                </UnitSelectionState>
                 {totalSelected === 0 && units.length > 0 ? (
                   <p className="text-xs text-muted-foreground">Select at least 1 question to continue.</p>
                 ) : null}
@@ -231,12 +212,12 @@ export default function AutoGeneratePage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Quiz Title</Label>
-                <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Untitled quiz" />
+                <Label htmlFor="auto-title">Quiz Title</Label>
+                <Input id="auto-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Untitled quiz" />
               </div>
               <div className="space-y-2">
-                <Label>Duration (mins)</Label>
-                <Input type="number" min={1} value={durationMins} onChange={(event) => setDurationMins(Number(event.target.value || 15))} />
+                <Label htmlFor="auto-duration">Duration (mins)</Label>
+                <Input id="auto-duration" type="number" min={1} value={durationMins} onChange={(event) => setDurationMins(Number(event.target.value || DEFAULT_DURATION_MINS))} />
               </div>
             </div>
 
@@ -253,38 +234,6 @@ export default function AutoGeneratePage() {
           </CardContent>
         </Card>
       </div>
-
-      <Dialog open={subjectDialogOpen} onOpenChange={setSubjectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Subject</DialogTitle>
-            <DialogDescription>Create a new subject to use in auto-generation.</DialogDescription>
-          </DialogHeader>
-
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              createSubjectMutation.mutate({ name: subjectName });
-            }}
-          >
-            <div className="space-y-2">
-              <Label>Subject Name</Label>
-              <Input value={subjectName} onChange={(event) => setSubjectName(event.target.value)} required />
-            </div>
-
-            {createSubjectMutation.isError ? (
-              <p className="text-sm text-destructive">{createSubjectMutation.error?.response?.data?.error || "Failed"}</p>
-            ) : null}
-
-            <DialogFooter>
-              <Button type="submit" disabled={createSubjectMutation.isPending}>
-                {createSubjectMutation.isPending ? "Creating..." : "Create Subject"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </TeacherShell>
+    </>
   );
 }

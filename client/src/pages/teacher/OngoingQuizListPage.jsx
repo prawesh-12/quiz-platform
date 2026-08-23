@@ -1,24 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import TeacherShell from "@/components/layout/TeacherShell";
 import Spinner from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/hooks/useAuth";
 import { quizService } from "@/services/quizService";
-import { subjectService } from "@/services/subjectService";
 import { withJitter } from "@/utils/jitter";
+import { theme } from "@/theme";
+
+const LIVE_REFRESH_MS = 2000;
 
 export default function OngoingQuizListPage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const LIVE_REFRESH_MS = 2000;
-
-  const subjectsQuery = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => subjectService.list()
-  });
 
   const ongoingQuery = useQuery({
     queryKey: ["quizzes", "active", "ongoing-list"],
@@ -27,21 +20,12 @@ export default function OngoingQuizListPage() {
     refetchIntervalInBackground: true
   });
 
-  const subjects = subjectsQuery.data?.subjects ?? [];
   const quizzes = ongoingQuery.data?.quizzes ?? [];
 
   return (
-    <TeacherShell
-      subjects={subjects}
-      selectedSubjectId={null}
-      onSelectSubject={(subjectId) => navigate(`/teacher/questions/${subjectId}`)}
-      onOpenCreateSubject={() => navigate("/teacher")}
-      onOpenProfile={() => navigate("/teacher/profile")}
-      user={user}
-      onLogout={logout}
-    >
+    <>
       <div className="min-h-0 flex-1 space-y-4">
-        <Card>
+        <Card style={{ borderRadius: theme.radius.xl, boxShadow: theme.shadow.card }}>
           <CardHeader>
             <CardTitle>Ongoing Quizzes</CardTitle>
             <CardDescription>Active quizzes you can monitor in real time.</CardDescription>
@@ -56,10 +40,18 @@ export default function OngoingQuizListPage() {
             ) : null}
 
             {quizzes.map((quiz) => (
-              <div key={quiz.id} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div
+                key={quiz.id}
+                className="flex flex-col gap-3 border p-3 transition-colors hover:border-[var(--ds-accent)] sm:flex-row sm:items-center sm:justify-between"
+                style={{ borderRadius: theme.radius.lg, borderColor: theme.border.default }}
+              >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{quiz.title}</p>
-                  <p className="truncate text-xs text-muted-foreground">{quiz.subject_name || "-"}</p>
+                  <p className="truncate text-sm font-semibold" style={{ color: theme.text.primary }}>
+                    {quiz.title}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: theme.text.muted }}>
+                    {quiz.subject_name || "-"}
+                  </p>
                 </div>
                 <Button
                   type="button"
@@ -73,6 +65,6 @@ export default function OngoingQuizListPage() {
           </CardContent>
         </Card>
       </div>
-    </TeacherShell>
+    </>
   );
 }

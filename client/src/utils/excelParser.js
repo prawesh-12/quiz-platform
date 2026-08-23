@@ -28,56 +28,67 @@ function normalizeOption(value) {
   return ["a", "b", "c", "d"].includes(normalized) ? normalized : null;
 }
 
-export async function parseQuestionsExcel(file) {
-  const workbookBuffer = await file.arrayBuffer();
-  const workbook = XLSX.read(workbookBuffer, { type: "array" });
-  const sheetName = workbook.SheetNames[0];
+const HEADER_ROW_OFFSET = 2;
+const DEFAULT_POINTS = 1;
 
+function readFirstSheetRows(workbook) {
+  const sheetName = workbook.SheetNames[0];
   if (!sheetName) {
     throw new Error("No worksheet found in the uploaded file");
   }
 
-  const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, {
-    defval: ""
-  });
+  return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+}
 
-  const warnings = [];
-  const mapped = [];
+// Header casing and stray spaces vary between teachers' spreadsheets, so keys are normalised.
+function normalizeRow(rawRow) {
+  return Object.fromEntries(
+    Object.entries(rawRow).map(([key, value]) => [String(key).trim().toLowerCase(), value])
+  );
+}
 
-  rows.forEach((rawRow, index) => {
-    const row = Object.fromEntries(
-      Object.entries(rawRow).map(([key, value]) => [String(key).trim().toLowerCase(), value])
-    );
-
-    const missing = REQUIRED_COLUMNS.filter((column) => !String(row[column] ?? "").trim());
-    if (missing.length > 0) {
-      warnings.push(`Row ${index + 2}: missing ${missing.join(", ")}`);
-      return;
-    }
-
-    const correctOption = normalizeOption(String(row.correct_option));
-    if (!correctOption) {
-      warnings.push(`Row ${index + 2}: invalid correct_option '${row.correct_option}'`);
-      return;
-    }
-
-    mapped.push({
-      question_text: String(row.question_text).trim(),
-      option_a: String(row.option_a).trim(),
-      option_b: String(row.option_b).trim(),
-      option_c: String(row.option_c || "").trim() || null,
-      option_d: String(row.option_d || "").trim() || null,
-      correct_option: correctOption,
-      points: Number(row.points) > 0 ? Number(row.points) : 1,
-      has_equation: normalizeBoolean(row.has_equation),
-      allow_multiple_answers: false,
-      is_required: true
-    });
-  });
-
+function toQuestion(row, correctOption) {
   return {
-    questions: mapped,
-    warnings
+    question_text: String(row.question_text).trim(),
+    option_a: String(row.option_a).trim(),
+    option_b: String(row.option_b).trim(),
+    option_c: String(row.option_c || "").trim() || null,
+    option_d: String(row.option_d || "").trim() || null,
+    correct_option: correctOption,
+    points: Number(row.points) > 0 ? Number(row.points) : DEFAULT_POINTS,
+    has_equation: normalizeBoolean(row.has_equation),
+    allow_multiple_answers: false,
+    is_required: true
   };
+}
+
+function readRow(rawRow, index, warnings) {
+  const row = normalizeRow(rawRow);
+  const rowLabel = `Row ${index + HEADER_ROW_OFFSET}`;
+
+  const missing = REQUIRED_COLUMNS.filter((column) => !String(row[column] ?? "").trim());
+  if (missing.length > 0) {
+    warnings.push(`${rowLabel}: missing ${missing.join(", ")}`);
+    return null;
+  }
+
+  const correctOption = normalizeOption(String(row.correct_option));
+  if (!correctOption) {
+    warnings.push(`${rowLabel}: invalid correct_option '${row.correct_option}'`);
+    return null;
+  }
+
+  return toQuestion(row, correctOption);
+}
+
+export async function parseQuestionsExcel(file) {
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+  const rows = readFirstSheetRows(workbook);
+  const warnings = [];
+
+  const questions = rows
+    .map((rawRow, index) => readRow(rawRow, index, warnings))
+    .filter(Boolean);
+
+  return { questions, warnings };
 }

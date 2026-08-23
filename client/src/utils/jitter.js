@@ -1,5 +1,4 @@
-// Spread repeated requests so browsers don't align on the same tick.
-// Use as refetchInterval: () => withJitter(5000).
+// Spreads repeated requests so browsers don't align on the same tick.
 export function withJitter(baseMs, ratio = 0.2) {
   const safeBase = Number(baseMs) || 0;
   const spread = safeBase * ratio;

@@ -52,7 +52,7 @@ export default function ResponseTable({ rows, onOpenDetails }) {
           <TableHead className="whitespace-nowrap">Score</TableHead>
           <TableHead className="whitespace-nowrap">Submitted At</TableHead>
           <TableHead className="whitespace-nowrap">Flags</TableHead>
-          <TableHead className="w-28 whitespace-nowrap">Details</TableHead>
+          <TableHead className="w-24 whitespace-nowrap">Details</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -85,9 +85,10 @@ export default function ResponseTable({ rows, onOpenDetails }) {
                   type="button"
                   size="sm"
                   variant="outline"
+                  aria-label={`View session details for ${row.name}`}
                   onClick={() => onOpenDetails?.(row.session_id)}
                 >
-                  Click Here
+                  View
                 </Button>
               </TableCell>
             </TableRow>

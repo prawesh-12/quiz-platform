@@ -26,9 +26,19 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-function truncate(value, maxLength = 60) {
-  if (!value) return "";
-  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+const DEFAULT_TRUNCATE = 60;
+const OPTION_TRUNCATE = 15;
+
+function truncate(value, maxLength = DEFAULT_TRUNCATE) {
+  if (!value) {
+    return "";
+  }
+
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength)}...`;
 }
 
 const emptyQuestion = {
@@ -87,7 +97,7 @@ export default function UnitQuestionsList({ questions, onDelete, onEdit }) {
             <TableRow key={question.id}>
               <TableCell>{truncate(question.question_text)}</TableCell>
               <TableCell className="text-xs text-muted-foreground">
-                A: {truncate(question.option_a, 15)} | B: {truncate(question.option_b, 15)}
+                A: {truncate(question.option_a, OPTION_TRUNCATE)} | B: {truncate(question.option_b, OPTION_TRUNCATE)}
               </TableCell>
               <TableCell className="uppercase">{question.correct_option}</TableCell>
               <TableCell>{question.points}</TableCell>
@@ -96,7 +106,9 @@ export default function UnitQuestionsList({ questions, onDelete, onEdit }) {
                   <Button
                     variant="ghost"
                     size="sm"
+                    type="button"
                     className="h-8 w-8 p-0"
+                    aria-label="Edit question"
                     onClick={() => openEdit(question)}
                   >
                     <Pencil className="h-4 w-4" />
@@ -104,7 +116,9 @@ export default function UnitQuestionsList({ questions, onDelete, onEdit }) {
                   <Button
                     variant="ghost"
                     size="sm"
+                    type="button"
                     className="h-8 w-8 p-0 text-destructive"
+                    aria-label="Delete question"
                     onClick={() => setDeleteItem(question)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -116,7 +130,6 @@ export default function UnitQuestionsList({ questions, onDelete, onEdit }) {
         </TableBody>
       </Table>
 
-      {/* Edit Question Dialog */}
       <Dialog open={Boolean(editItem)} onOpenChange={(open) => !open && setEditItem(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
@@ -125,8 +138,9 @@ export default function UnitQuestionsList({ questions, onDelete, onEdit }) {
           <ScrollArea className="max-h-[60vh] pl-2 pr-4">
             <div className="space-y-3 py-2">
               <div className="space-y-1">
-                <Label>Question Text</Label>
+                <Label htmlFor="edit-question-text">Question Text</Label>
                 <Input
+                  id="edit-question-text"
                   value={editForm.question_text}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, question_text: e.target.value }))}
                 />
@@ -196,7 +210,6 @@ export default function UnitQuestionsList({ questions, onDelete, onEdit }) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirm Dialog */}
       <AlertDialog open={Boolean(deleteItem)} onOpenChange={(open) => !open && setDeleteItem(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -1,30 +1,53 @@
 import { useEffect, useState } from "react";
+import CalendarClock from "lucide-react/dist/esm/icons/calendar-clock";
+import GraduationCap from "lucide-react/dist/esm/icons/graduation-cap";
+import Sparkles from "lucide-react/dist/esm/icons/sparkles";
 
 import AppShell from "./app-shell";
-import { BuildBeat, MonitorBeat, ResultsBeat, ScheduleBeat, ShareBeat } from "./film-beats";
+import { BuilderBeat, DashboardBeat, MonitorBeat, ResponsesBeat } from "./film-beats";
 import { useOnScreen, usePrefersReducedMotion } from "./primitives";
 import { EASE, SHADOW_LIFT } from "./tokens";
 
-const BEAT_MS = 3200;
+const BEAT_MS = 4200;
+const RESTING_BEAT = 2;
+const FRAME_FADE = "linear-gradient(to bottom, #000 calc(100% - 72px), transparent 100%)";
 
 const BEATS = [
-  { render: BuildBeat, title: "Generate New Quiz", caption: "Pick how many questions each unit gives" },
-  { render: ScheduleBeat, title: "Schedule Quiz", caption: "Set the window on IST and an access code" },
-  { render: ShareBeat, title: "Share Quiz", caption: "One link and a code, no student accounts" },
-  { render: MonitorBeat, title: "Ongoing Quiz", caption: "Counts refresh every three seconds" },
-  { render: ResultsBeat, title: "Quiz Responses", caption: "Open papers scored, spreadsheet ready" },
+  {
+    render: DashboardBeat,
+    activeNav: "Home",
+    caption: "Every quiz, every attempt, on one dashboard"
+  },
+  {
+    render: BuilderBeat,
+    crumb: "Generate New Quiz",
+    crumbIcon: Sparkles,
+    activeNav: "Generate New Quiz",
+    caption: "Write the paper or import it from a spreadsheet"
+  },
+  {
+    render: MonitorBeat,
+    crumb: "Ongoing Quizzes",
+    crumbIcon: CalendarClock,
+    activeNav: "Home",
+    caption: "Counts refresh every three seconds while the room writes"
+  },
+  {
+    render: ResponsesBeat,
+    crumb: "Quiz Responses",
+    crumbIcon: GraduationCap,
+    activeNav: "Home",
+    caption: "Open papers scored, flags listed, spreadsheet ready"
+  }
 ];
-
-const RESTING_BEAT = 3;
-const FRAME_FADE = "linear-gradient(to bottom, #000 calc(100% - 84px), transparent 100%)";
 
 function BeatRail({ beat }) {
   return (
-    <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+    <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
       <div className="flex items-center gap-1.5" role="presentation">
         {BEATS.map((item, index) => (
           <span
-            key={item.title}
+            key={item.caption}
             style={{ transitionTimingFunction: EASE }}
             className={`h-1 rounded-full transition-all duration-300 ${
               index === beat ? "w-7 bg-[color:var(--accent)]" : "w-3 bg-[color:var(--rule-strong)]"
@@ -52,16 +75,22 @@ export default function HeroFilm() {
     return () => clearInterval(id);
   }, [running]);
 
-  const Current = BEATS[beat].render;
+  const current = BEATS[beat];
+  const Current = current.render;
 
   return (
-    <figure ref={ref} className="m-0 mx-auto w-full max-w-[1060px]">
+    <figure ref={ref} className="m-0 mx-auto w-full max-w-[1100px]">
       <div
         className={`relative overflow-hidden rounded-[24px] border border-[color:var(--rule)] bg-[color:var(--panel)] ${SHADOW_LIFT}`}
         style={{ maskImage: FRAME_FADE, WebkitMaskImage: FRAME_FADE }}
       >
         <div className="aspect-[4/3] w-full sm:aspect-[16/10]">
-          <AppShell title={BEATS[beat].title}>
+          <AppShell
+            crumb={current.crumb}
+            crumbIcon={current.crumbIcon}
+            activeNav={current.activeNav}
+            activeSubject="Computer Network"
+          >
             <div key={beat} className="h-full" style={{ animation: reduced ? undefined : `heroBeatIn 320ms ${EASE} both` }}>
               <Current />
             </div>

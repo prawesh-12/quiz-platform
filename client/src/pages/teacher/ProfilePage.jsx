@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 
-import TeacherShell from "@/components/layout/TeacherShell";
 import Avatar from "@/components/shared/Avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +10,11 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { authService } from "@/services/authService";
+import { theme } from "@/theme";
 
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const BYTES_PER_KB = 1024;
+const MAX_AVATAR_MB = 2;
+const MAX_AVATAR_BYTES = MAX_AVATAR_MB * BYTES_PER_KB * BYTES_PER_KB;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function formatFileSize(bytes) {
@@ -21,16 +22,15 @@ function formatFileSize(bytes) {
     return "0 KB";
   }
 
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < BYTES_PER_KB * BYTES_PER_KB) {
+    return `${(bytes / BYTES_PER_KB).toFixed(0)} KB`;
   }
 
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return `${(bytes / (BYTES_PER_KB * BYTES_PER_KB)).toFixed(2)} MB`;
 }
 
 export default function ProfilePage() {
-  const navigate = useNavigate();
-  const { user, logout, setUser } = useAuth();
+  const { user, setUser } = useAuth();
   const { toast } = useToast();
 
   const avatarInputRef = useRef(null);
@@ -119,7 +119,7 @@ export default function ProfilePage() {
     if (file.size > MAX_AVATAR_BYTES) {
       toast({
         title: "File too large",
-        description: "Avatar file must be 2MB or smaller.",
+        description: `Avatar file must be ${MAX_AVATAR_MB}MB or smaller.`,
         variant: "destructive"
       });
       clearAvatarSelection();
@@ -135,22 +135,14 @@ export default function ProfilePage() {
   };
 
   return (
-    <TeacherShell
-      subjects={[]}
-      selectedSubjectId={null}
-      onSelectSubject={(subjectId) => navigate(`/teacher/questions/${subjectId}`)}
-      onOpenCreateSubject={() => navigate("/teacher")}
-      user={user}
-      onLogout={logout}
-      onOpenProfile={() => navigate("/teacher/profile")}
-    >
+    <>
       <div className="mx-auto max-w-3xl space-y-6">
-        <Card>
+        <Card style={{ borderRadius: theme.radius.xl, boxShadow: theme.shadow.card }}>
           <CardHeader>
             <CardTitle>Teacher Profile</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
               {avatarPreviewUrl ? (
                 <img
                   src={avatarPreviewUrl}
@@ -166,7 +158,7 @@ export default function ProfilePage() {
                 />
               )}
 
-              <div className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:w-auto sm:min-w-[220px] sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
                 <input
                   ref={avatarInputRef}
                   type="file"
@@ -209,9 +201,9 @@ export default function ProfilePage() {
                 ) : null}
               </div>
 
-              <div className="w-full">
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">
-                  JPEG, PNG, or WebP only. Max 2MB.
+                  JPEG, PNG, or WebP only. Max {MAX_AVATAR_MB}MB.
                 </p>
                 {selectedAvatarFile ? (
                   <p className="text-xs text-muted-foreground">
@@ -222,13 +214,13 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Name</Label>
-              <Input value={name} onChange={(event) => setName(event.target.value)} />
+              <Label htmlFor="profile-name">Name</Label>
+              <Input id="profile-name" value={name} onChange={(event) => setName(event.target.value)} />
             </div>
 
             <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={user?.email || ""} readOnly />
+              <Label htmlFor="profile-email">Email</Label>
+              <Input id="profile-email" value={user?.email || ""} readOnly />
             </div>
 
             <Button
@@ -246,22 +238,22 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card style={{ borderRadius: theme.radius.xl, boxShadow: theme.shadow.card }}>
           <CardHeader>
             <CardTitle>Change Password</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-2">
-              <Label>Current Password</Label>
-              <PasswordInput value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+              <Label htmlFor="current-password">Current Password</Label>
+              <PasswordInput id="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>New Password</Label>
-              <PasswordInput value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+              <Label htmlFor="new-password">New Password</Label>
+              <PasswordInput id="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Confirm New Password</Label>
-              <PasswordInput value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+              <Label htmlFor="confirm-password">Confirm New Password</Label>
+              <PasswordInput id="confirm-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
             </div>
             <Button
               type="button"
@@ -281,6 +273,6 @@ export default function ProfilePage() {
         </Card>
 
       </div>
-    </TeacherShell>
+    </>
   );
 }

@@ -6,16 +6,15 @@ import LinkIcon from "lucide-react/dist/esm/icons/link";
 import Timer from "lucide-react/dist/esm/icons/timer";
 import { useNavigate } from "react-router-dom";
 
-import TeacherShell from "@/components/layout/TeacherShell";
 import Spinner from "@/components/shared/Spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import { quizService } from "@/services/quizService";
-import { subjectService } from "@/services/subjectService";
 import { withJitter } from "@/utils/jitter";
 import { theme } from "@/theme";
+
+const LIVE_REFRESH_MS = 3000;
 
 function formatDateTime(value) {
   if (!value) {
@@ -39,14 +38,7 @@ function formatDateTime(value) {
 
 export default function ScheduledQuizListPage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
   const { toast } = useToast();
-  const LIVE_REFRESH_MS = 3000;
-
-  const subjectsQuery = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => subjectService.list(),
-  });
 
   const scheduledQuery = useQuery({
     queryKey: ["quizzes", "scheduled", "detailed-list"],
@@ -62,7 +54,6 @@ export default function ScheduledQuizListPage() {
     refetchIntervalInBackground: true,
   });
 
-  const subjects = subjectsQuery.data?.subjects ?? [];
   const scheduledQuizzes = scheduledQuery.data?.quizzes ?? [];
   const ongoingQuizzes = ongoingQuery.data?.quizzes ?? [];
 
@@ -93,17 +84,16 @@ export default function ScheduledQuizListPage() {
   };
 
   return (
-    <TeacherShell
-      subjects={subjects}
-      selectedSubjectId={null}
-      onSelectSubject={(subjectId) => navigate(`/teacher/questions/${subjectId}`)}
-      onOpenCreateSubject={() => navigate("/teacher")}
-      onOpenProfile={() => navigate("/teacher/profile")}
-      user={user}
-      onLogout={logout}
-    >
+    <>
       <div className="min-h-0 flex-1 space-y-4">
-        <Card className="rounded-[12px]" style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}>
+        <Card
+          style={{
+            borderRadius: theme.radius.xl,
+            borderColor: theme.border.default,
+            backgroundColor: theme.bg.card,
+            boxShadow: theme.shadow.card,
+          }}
+        >
           <CardHeader className="space-y-2 pb-4">
             <CardTitle className="text-[24px]" style={{ color: theme.text.primary }}>
               Scheduled Quizzes
@@ -125,8 +115,12 @@ export default function ScheduledQuizListPage() {
 
             {!scheduledQuery.isLoading && !scheduledQuery.isError && scheduledQuizzes.length === 0 ? (
               <div
-                className="space-y-3 rounded-[12px] border border-dashed p-4"
-                style={{ borderColor: theme.border.default, backgroundColor: theme.bg.content }}
+                className="space-y-3 border border-dashed p-4"
+                style={{
+                  borderRadius: theme.radius.lg,
+                  borderColor: theme.border.default,
+                  backgroundColor: theme.bg.content,
+                }}
               >
                 <p className="text-[13px]" style={{ color: theme.text.secondary }}>
                   No scheduled quizzes found.
@@ -148,8 +142,12 @@ export default function ScheduledQuizListPage() {
               return (
                 <article
                   key={quiz.id}
-                  className="rounded-[12px] border p-4"
-                  style={{ borderColor: theme.border.default, backgroundColor: theme.bg.card }}
+                  className="border p-4 transition-colors hover:border-[var(--ds-accent)]"
+                  style={{
+                    borderRadius: theme.radius.lg,
+                    borderColor: theme.border.default,
+                    backgroundColor: theme.bg.card,
+                  }}
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 space-y-2">
@@ -180,7 +178,7 @@ export default function ScheduledQuizListPage() {
                         </p>
                         <p className="inline-flex items-center gap-1 md:col-span-2">
                           <LinkIcon className="h-4 w-4" style={{ color: theme.text.subtle }} />
-                          <span className="truncate">
+                          <span className="min-w-0 truncate" title={quizLink}>
                             <span style={{ fontWeight: theme.font.weight.semibold, color: theme.text.primary }}>Quiz Link:</span>{" "}
                             {quizLink}
                           </span>
@@ -214,6 +212,6 @@ export default function ScheduledQuizListPage() {
           </CardContent>
         </Card>
       </div>
-    </TeacherShell>
+    </>
   );
 }

@@ -4,6 +4,7 @@ import { pushToast } from "@/hooks/useToast";
 import { API_BASE_URL } from "@/lib/apiBaseUrl";
 
 export const USER_STORAGE_KEY = "quiz_user";
+export const SESSION_EXPIRED_EVENT = "quiz:session-expired";
 
 // withCredentials sends the httpOnly session cookie; the SPA never holds the token itself.
 export const api = axios.create({
@@ -11,7 +12,7 @@ export const api = axios.create({
   withCredentials: true
 });
 
-let loggingOut = false;
+let isLoggingOut = false;
 let revalidating = null;
 
 function isAuthMeRequest(config) {
@@ -19,8 +20,9 @@ function isAuthMeRequest(config) {
   return url === "/auth/me" || url.endsWith("/auth/me");
 }
 
+// Announced, not reloaded: a document reload re-runs the warmup gate and refetches the whole app.
 function forceLogout() {
-  if (loggingOut) {
+  if (isLoggingOut) {
     return;
   }
 
@@ -31,12 +33,16 @@ function forceLogout() {
     return;
   }
 
-  loggingOut = true;
-  window.location.replace("/login");
+  isLoggingOut = true;
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 }
 
-// One shared /auth/me probe for a burst of 401s: 2xx keeps the session, 401 logs out, any
-// other failure (e.g. 503 during a DB cold-start) is treated as transient and kept.
+// Re-armed by the app once it has handled the expiry, so a later session can expire too.
+export function clearSessionExpiredGuard() {
+  isLoggingOut = false;
+}
+
+// One shared /auth/me probe per burst of 401s; only a 401 back logs out, 5xx is transient.
 function revalidateSession() {
   if (!revalidating) {
     revalidating = api

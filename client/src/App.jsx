@@ -1,37 +1,88 @@
-import { Component, lazy, Suspense } from "react";
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { Component, Suspense, useEffect, useState } from "react";
+import { Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
 import BackendWarmupGate from "@/components/shared/BackendWarmupGate";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  lazyWithPreload,
+  registerRoutePreloads,
+  useChunkPending,
+  usePrefetchOnIdle
+} from "@/hooks/useRoutePrefetch";
 
 // Auth — small, load eagerly
 import LoginPage from "@/pages/auth/LoginPage";
+import { clearSessionExpiredGuard, SESSION_EXPIRED_EVENT } from "@/services/api";
 
-const RegisterPage = lazy(() => import("@/pages/auth/RegisterPage"));
+const TeacherLayout = lazyWithPreload(() => import("@/components/layout/TeacherLayout"));
+const AdminLayout = lazyWithPreload(() => import("@/components/layout/AdminLayout"));
 
-// Marketing
-const LandingPage = lazy(() => import("@/pages/marketing/LandingPage"));
+const RegisterPage = lazyWithPreload(() => import("@/pages/auth/RegisterPage"));
+const LandingPage = lazyWithPreload(() => import("@/pages/marketing/LandingPage"));
+const EntryPage = lazyWithPreload(() => import("@/pages/student/EntryPage"));
+const QuizPage = lazyWithPreload(() => import("@/pages/student/QuizPage"));
+const DashboardPage = lazyWithPreload(() => import("@/pages/teacher/DashboardPage"));
+const ProfilePage = lazyWithPreload(() => import("@/pages/teacher/ProfilePage"));
+const QuestionBankPage = lazyWithPreload(() => import("@/pages/teacher/QuestionBankPage"));
+const ManualQuizPage = lazyWithPreload(() => import("@/pages/teacher/ManualQuizPage"));
+const AutoGeneratePage = lazyWithPreload(() => import("@/pages/teacher/AutoGeneratePage"));
+const QuizLibraryPage = lazyWithPreload(() => import("@/pages/teacher/QuizLibraryPage"));
+const ScheduledQuizListPage = lazyWithPreload(() => import("@/pages/teacher/ScheduledQuizListPage"));
+const OngoingQuizListPage = lazyWithPreload(() => import("@/pages/teacher/OngoingQuizListPage"));
+const OngoingQuizPage = lazyWithPreload(() => import("@/pages/teacher/OngoingQuizPage"));
+const QuizResponsePage = lazyWithPreload(() => import("@/pages/teacher/QuizResponsePage"));
+const AdminDashboardPage = lazyWithPreload(() => import("@/pages/admin/AdminDashboardPage"));
+const SchoolTeachersPage = lazyWithPreload(() => import("@/pages/admin/SchoolTeachersPage"));
+const AllTeachersPage = lazyWithPreload(() => import("@/pages/admin/AllTeachersPage"));
 
-// Student — lazy
-const EntryPage = lazy(() => import("@/pages/student/EntryPage"));
-const QuizPage = lazy(() => import("@/pages/student/QuizPage"));
+const PUBLIC_APP_ROUTES = [
+  { path: "/register", Component: RegisterPage },
+  { path: "/quiz/enter/:accessToken", Component: EntryPage },
+  { path: "/quiz/take", Component: QuizPage }
+];
 
-// Teacher — all lazy (these are the heavy ones)
-const DashboardPage = lazy(() => import("@/pages/teacher/DashboardPage"));
-const ProfilePage = lazy(() => import("@/pages/teacher/ProfilePage"));
-const QuestionBankPage = lazy(() => import("@/pages/teacher/QuestionBankPage"));
-const ManualQuizPage = lazy(() => import("@/pages/teacher/ManualQuizPage"));
-const AutoGeneratePage = lazy(() => import("@/pages/teacher/AutoGeneratePage"));
-const QuizLibraryPage = lazy(() => import("@/pages/teacher/QuizLibraryPage"));
-const ScheduledQuizListPage = lazy(() => import("@/pages/teacher/ScheduledQuizListPage"));
-const OngoingQuizListPage = lazy(() => import("@/pages/teacher/OngoingQuizListPage"));
-const OngoingQuizPage = lazy(() => import("@/pages/teacher/OngoingQuizPage"));
-const QuizResponsePage = lazy(() => import("@/pages/teacher/QuizResponsePage"));
-const AdminDashboardPage = lazy(() => import("@/pages/admin/AdminDashboardPage"));
-const SchoolTeachersPage = lazy(() => import("@/pages/admin/SchoolTeachersPage"));
-const AllTeachersPage = lazy(() => import("@/pages/admin/AllTeachersPage"));
+const TEACHER_ROUTES = [
+  { path: "/teacher", Component: DashboardPage },
+  { path: "/teacher/profile", Component: ProfilePage },
+  { path: "/teacher/questions/:subjectId", Component: QuestionBankPage },
+  { path: "/teacher/quiz/manual", Component: ManualQuizPage },
+  { path: "/teacher/quiz/manual/:quizId", Component: ManualQuizPage },
+  { path: "/teacher/quiz/auto", Component: AutoGeneratePage },
+  { path: "/teacher/quiz/library", Component: QuizLibraryPage },
+  { path: "/teacher/quiz/scheduled", Component: ScheduledQuizListPage },
+  { path: "/teacher/quiz/ongoing", Component: OngoingQuizListPage },
+  { path: "/teacher/quiz/ongoing/:quizId", Component: OngoingQuizPage },
+  { path: "/teacher/quiz/:quizId/responses", Component: QuizResponsePage }
+];
+
+const ADMIN_CHILD_ROUTES = [
+  { path: "teachers", Component: AllTeachersPage },
+  { path: "schools/:school", Component: SchoolTeachersPage }
+];
+
+function toPreloadEntry({ path, Component: RouteComponent }) {
+  return { path, preload: RouteComponent.preload };
+}
+
+// Page entries come first: a tie on prefix length keeps the page, and the shell is already loaded.
+registerRoutePreloads([
+  ...PUBLIC_APP_ROUTES.map(toPreloadEntry),
+  ...TEACHER_ROUTES.map(toPreloadEntry),
+  { path: "/admin", preload: AdminDashboardPage.preload },
+  { path: "/admin/teachers", preload: AllTeachersPage.preload },
+  { path: "/admin/schools", preload: SchoolTeachersPage.preload },
+  { path: "/teacher", preload: TeacherLayout.preload },
+  { path: "/admin", preload: AdminLayout.preload }
+]);
+
+function renderRoutes(routes) {
+  return routes.map(({ path, Component: RouteComponent }) => (
+    <Route key={path} path={path} element={<RouteComponent />} />
+  ));
+}
 
 // Catches any render/lazy-load errors so a blank screen doesn't hide the real problem
 class ErrorBoundary extends Component {
@@ -66,13 +117,86 @@ function PageLoader() {
   );
 }
 
-// Warmup + auth hydration hang off this layout route, not the app root, so the landing page
-// stays fully static — no service is contacted until a visitor enters the app.
+const FALLBACK_DELAY_MS = 400;
+
+// Stays blank for a beat so a fast chunk load never flashes a full-screen spinner.
+function DelayedPageLoader() {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setIsVisible(true), FALLBACK_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  if (!isVisible) {
+    return null;
+  }
+
+  return <PageLoader />;
+}
+
+const PROGRESS_BAR_HEIGHT_PX = 3;
+const PROGRESS_BAR_COLOR = "#1C1C1E";
+const PROGRESS_BAR_Z_INDEX = 60;
+
+// Rendered outside every Suspense boundary so it survives a pending route transition.
+function RouteProgressBar() {
+  const isPending = useChunkPending();
+
+  if (!isPending) {
+    return null;
+  }
+
+  return (
+    <div
+      aria-hidden="true"
+      className="animate-pulse"
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: PROGRESS_BAR_HEIGHT_PX,
+        backgroundColor: PROGRESS_BAR_COLOR,
+        zIndex: PROGRESS_BAR_Z_INDEX
+      }}
+    />
+  );
+}
+
+// Sends an expired session to /login through the router instead of reloading the document.
+function useSessionExpiredRedirect() {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  useEffect(() => {
+    const onSessionExpired = () => {
+      logout();
+      navigate("/login", { replace: true });
+      clearSessionExpiredGuard();
+    };
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+  }, [logout, navigate]);
+}
+
+function SessionExpiryWatcher() {
+  useSessionExpiredRedirect();
+  return null;
+}
+
+// Warmup and auth hang off this layout, not the root, so the landing page contacts no service.
 function AppShell() {
+  usePrefetchOnIdle();
+
   return (
     <BackendWarmupGate>
       <AuthProvider>
-        <Outlet />
+        <SessionExpiryWatcher />
+        <Suspense fallback={<DelayedPageLoader />}>
+          <Outlet />
+        </Suspense>
       </AuthProvider>
     </BackendWarmupGate>
   );
@@ -82,46 +206,30 @@ export default function App() {
   return (
     <>
       <ErrorBoundary>
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          {/* Marketing */}
-          <Route path="/" element={<LandingPage />} />
+        <RouteProgressBar />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
 
-          <Route element={<AppShell />}>
-            {/* Auth — not lazy, fastest possible load */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route element={<AppShell />}>
+              <Route path="/login" element={<LoginPage />} />
+              {renderRoutes(PUBLIC_APP_ROUTES)}
 
-            {/* Student */}
-            <Route path="/quiz/enter/:accessToken" element={<EntryPage />} />
-            <Route path="/quiz/take" element={<QuizPage />} />
+              <Route element={<ProtectedRoute role="teacher" />}>
+                <Route element={<TeacherLayout />}>{renderRoutes(TEACHER_ROUTES)}</Route>
+              </Route>
 
-            {/* Teacher — protected */}
-            <Route element={<ProtectedRoute role="teacher" />}>
-              <Route path="/teacher" element={<DashboardPage />} />
-              <Route path="/teacher/profile" element={<ProfilePage />} />
-              <Route path="/teacher/questions/:subjectId" element={<QuestionBankPage />} />
-              <Route path="/teacher/quiz/manual" element={<ManualQuizPage />} />
-              <Route path="/teacher/quiz/manual/:quizId" element={<ManualQuizPage />} />
-              <Route path="/teacher/quiz/auto" element={<AutoGeneratePage />} />
-              <Route path="/teacher/quiz/library" element={<QuizLibraryPage />} />
-              <Route path="/teacher/quiz/scheduled" element={<ScheduledQuizListPage />} />
-              <Route path="/teacher/quiz/ongoing" element={<OngoingQuizListPage />} />
-              <Route path="/teacher/quiz/ongoing/:quizId" element={<OngoingQuizPage />} />
-              <Route path="/teacher/quiz/:quizId/responses" element={<QuizResponsePage />} />
+              <Route path="/admin" element={<ProtectedRoute role="admin" />}>
+                <Route element={<AdminLayout />}>
+                  <Route index element={<AdminDashboardPage />} />
+                  {renderRoutes(ADMIN_CHILD_ROUTES)}
+                </Route>
+              </Route>
+
+              <Route path="*" element={<Navigate to="/login" replace />} />
             </Route>
-
-            {/* Admin — protected */}
-            <Route path="/admin" element={<ProtectedRoute role="admin" />}>
-              <Route index element={<AdminDashboardPage />} />
-              <Route path="teachers" element={<AllTeachersPage />} />
-              <Route path="schools/:school" element={<SchoolTeachersPage />} />
-            </Route>
-
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Route>
-        </Routes>
-      </Suspense>
+          </Routes>
+        </Suspense>
       </ErrorBoundary>
       <Toaster />
     </>

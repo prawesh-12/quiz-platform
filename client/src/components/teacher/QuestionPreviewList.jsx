@@ -1,14 +1,12 @@
-import { useState } from "react";
-import Plus from "lucide-react/dist/esm/icons/plus";
 import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 
 import QuestionBuilder from "@/components/teacher/QuestionBuilder";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { theme } from "@/theme";
 
 export default function QuestionPreviewList({
   questions,
@@ -22,36 +20,56 @@ export default function QuestionPreviewList({
   }
 
   return (
-    <div className="space-y-6 rounded-lg border border-dashed p-6">
+    <div
+      className="space-y-6 border border-dashed p-6"
+      style={{ borderRadius: theme.radius.xl, borderColor: theme.border.default }}
+    >
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Imported Questions Preview ({questions.length})</h3>
-        <Button variant="destructive" size="sm" onClick={onClearAll}>
+        <Button type="button" variant="destructive" size="sm" onClick={onClearAll}>
           Clear All Imported
         </Button>
       </div>
 
       <div className="space-y-6">
         {questions.map((question, index) => (
-          <div key={question.id} className="relative space-y-4 rounded-lg border bg-muted/30 p-4">
-             <div className="absolute right-4 top-4 z-10">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-destructive"
-                  onClick={() => onRemoveQuestion(question.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-             </div>
+          <div
+            key={question.id}
+            className="relative space-y-4 border p-4"
+            style={{
+              borderRadius: theme.radius.lg,
+              borderColor: theme.border.default,
+              backgroundColor: theme.bg.content,
+            }}
+          >
+            <div className="absolute right-4 top-4 z-10">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-destructive"
+                aria-label={`Remove imported question ${index + 1}`}
+                onClick={() => onRemoveQuestion(question.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
 
             <QuestionBuilder
               question={question}
-              index={index} // Note: This index is relative to imported list
+              index={index}
               onChange={(updated) => onUpdateQuestion(question.id, updated)}
-              canRemove={false} // We handle remove externally
+              canRemove={false}
             />
 
-            <div className="grid grid-cols-1 gap-4 rounded-md border bg-background p-4 md:grid-cols-2 lg:grid-cols-3">
+            <div
+              className="grid grid-cols-1 gap-4 border p-4 md:grid-cols-2 lg:grid-cols-3"
+              style={{
+                borderRadius: theme.radius.md,
+                borderColor: theme.border.default,
+                backgroundColor: theme.bg.card,
+              }}
+            >
               <div className="flex items-center gap-2">
                 <Switch
                   id={`bank-${question.id}`}

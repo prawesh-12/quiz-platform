@@ -3,19 +3,14 @@ import { createContext, useEffect, useMemo, useReducer } from "react";
 import { authService } from "@/services/authService";
 import { USER_STORAGE_KEY } from "@/services/api";
 
-const initialState = {
+const LOGGED_OUT_STATE = {
   user: null,
   isAuthenticated: false,
-  isLoading: true
+  isLoading: false
 };
 
 function authReducer(state, action) {
   switch (action.type) {
-    case "HYDRATE_START":
-      return {
-        ...state,
-        isLoading: true
-      };
     case "HYDRATE_SUCCESS":
     case "LOGIN_SUCCESS":
       return {
@@ -31,10 +26,7 @@ function authReducer(state, action) {
       };
     case "LOGOUT":
     case "HYDRATE_FAIL":
-      return {
-        ...initialState,
-        isLoading: false
-      };
+      return { ...LOGGED_OUT_STATE };
     default:
       return state;
   }
@@ -88,8 +80,7 @@ function retryDelay(attempt) {
   return Math.min(MAX_RETRY_MS, BASE_RETRY_MS * 2 ** attempt);
 }
 
-// Resolve /auth/me, retrying transient failures (network, 5xx, timeout) with backoff.
-// A 401 is the only definite "logged out" signal; everything else is treated as transient.
+// A 401 is the only definite logged-out signal; network and 5xx are retried with backoff.
 async function fetchCurrentUser(shouldStop) {
   for (let attempt = 0; attempt < MAX_HYDRATE_ATTEMPTS; attempt += 1) {
     if (shouldStop()) {
@@ -108,37 +99,38 @@ async function fetchCurrentUser(shouldStop) {
   return { status: "transient" };
 }
 
-export function AuthProvider({ children }) {
-  const [state, dispatch] = useReducer(authReducer, initialState);
+// Trust the stored user immediately so no screen blocks on /auth/me; a 401 still clears it below.
+function createInitialState() {
+  const storedUser = loadStoredUser();
+  return {
+    user: storedUser,
+    isAuthenticated: Boolean(storedUser),
+    isLoading: false
+  };
+}
 
+// Verifies the stored user in the background; a definite 401 is the only thing that clears it.
+function useBackgroundHydration(dispatch) {
   useEffect(() => {
     let ignore = false;
 
     async function hydrateAuth() {
-      dispatch({ type: "HYDRATE_START" });
-
       const storedUser = loadStoredUser();
       if (!storedUser) {
-        if (!ignore) {
-          dispatch({ type: "HYDRATE_FAIL" });
-        }
+        if (!ignore) dispatch({ type: "HYDRATE_FAIL" });
         return;
       }
 
       const result = await fetchCurrentUser(() => ignore);
-      if (ignore || result.status === "aborted") {
-        return;
-      }
+      if (ignore || result.status === "aborted") return;
 
-      // Definite 401: the session is gone, so clear the stored user.
       if (result.status === "unauthorized") {
         persistUser(null);
         dispatch({ type: "HYDRATE_FAIL" });
         return;
       }
 
-      // Fresh confirmation wins; on a transient backend blip keep the stored user (the API
-      // interceptor still forces logout on a real 401 from any later request).
+      // A transient blip keeps the stored user; the API interceptor still forces logout on a real 401.
       const nextUser = result.status === "ok" && result.user ? result.user : storedUser;
       persistUser(nextUser);
       dispatch({ type: "HYDRATE_SUCCESS", payload: { user: nextUser } });
@@ -149,37 +141,39 @@ export function AuthProvider({ children }) {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [dispatch]);
+}
 
-  const value = useMemo(
-    () => ({
-      ...state,
-      login: ({ user }) => {
-        const normalizedUser = normalizeUser(user);
-        persistUser(normalizedUser);
-        dispatch({ type: "LOGIN_SUCCESS", payload: { user: normalizedUser } });
-      },
-      logout: async () => {
-        try {
-          await authService.logout();
-        } catch {
-          // Best-effort server logout. Always clear local auth state.
-        } finally {
-          persistUser(null);
-          dispatch({ type: "LOGOUT" });
-        }
-      },
-      setUser: (user) => {
-        const normalizedUser = normalizeUser({
-          ...(state.user || {}),
-          ...(user || {})
-        });
-        persistUser(normalizedUser);
-        dispatch({ type: "UPDATE_USER", payload: normalizedUser });
+function buildAuthActions(dispatch, currentUser) {
+  return {
+    login: ({ user }) => {
+      const normalizedUser = normalizeUser(user);
+      persistUser(normalizedUser);
+      dispatch({ type: "LOGIN_SUCCESS", payload: { user: normalizedUser } });
+    },
+    logout: async () => {
+      try {
+        await authService.logout();
+      } catch {
+        // Best-effort server logout. Always clear local auth state.
+      } finally {
+        persistUser(null);
+        dispatch({ type: "LOGOUT" });
       }
-    }),
-    [state]
-  );
+    },
+    setUser: (user) => {
+      const normalizedUser = normalizeUser({ ...(currentUser || {}), ...(user || {}) });
+      persistUser(normalizedUser);
+      dispatch({ type: "UPDATE_USER", payload: normalizedUser });
+    }
+  };
+}
+
+export function AuthProvider({ children }) {
+  const [state, dispatch] = useReducer(authReducer, undefined, createInitialState);
+  useBackgroundHydration(dispatch);
+
+  const value = useMemo(() => ({ ...state, ...buildAuthActions(dispatch, state.user) }), [state]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
