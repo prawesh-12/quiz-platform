@@ -3,7 +3,7 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
-  { ignores: ["**/node_modules/**", "client/dist/**", "client/public/**"] },
+  { ignores: ["**/node_modules/**", "client/dist/**", "client/public/**", "extras/**"] },
 
   js.configs.recommended,
 
@@ -42,5 +42,11 @@ export default [
   {
     files: ["client/*.config.js"],
     languageOptions: { sourceType: "module", globals: globals.node },
+  },
+
+  {
+    // Root-level config files: ecosystem.config.cjs, this file.
+    files: ["*.cjs", "*.mjs"],
+    languageOptions: { globals: globals.node },
   },
 ];
