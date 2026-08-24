@@ -38,7 +38,8 @@ function StatTile({ tile }) {
           <Icon className={ICON_SIZE} />
         </span>
       ) : (
-        <span className={`mb-2 ${ICON_SIZE}`} aria-hidden="true" />
+        // Keeps tiles aligned side by side, but it is dead height on a phone.
+        <span className={`mb-2 hidden sm:block ${ICON_SIZE}`} aria-hidden="true" />
       )}
       <p className="text-[12px]" style={{ color: theme.text.muted }}>
         {tile.label}

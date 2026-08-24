@@ -8,7 +8,7 @@ import { MIN_COUNTDOWN_SECONDS, QUIZ_STATE_ACTIVE, QUIZ_STATE_SCHEDULED } from "
 const NO_SECONDS = 0;
 const PAGE_WASH = `linear-gradient(180deg, ${theme.accent.tint} 0%, ${theme.bg.page} 40%, ${theme.bg.page} 100%)`;
 // The page is its own scroller because html/body are locked to 100% with overflow hidden.
-const PAGE_CLASS = "h-screen w-full overflow-y-auto px-4 pt-4";
+const PAGE_CLASS = "ds-viewport-h w-full overflow-y-auto px-4 pt-4";
 const PAGE_STYLE = { background: PAGE_WASH, fontFamily: theme.font.family };
 
 export function QuizPageShell({ bottomSpacing, children }) {

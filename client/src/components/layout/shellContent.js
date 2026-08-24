@@ -4,6 +4,7 @@ const DASHBOARD_PADDING = "24px 28px";
 const DEFAULT_CONTENT = {
   isScrollable: true,
   paddingClass: "",
+  contentClass: "",
   style: undefined
 };
 
@@ -11,6 +12,7 @@ const DEFAULT_CONTENT = {
 const DASHBOARD_CONTENT = {
   isScrollable: false,
   paddingClass: "h-full",
+  contentClass: "ds-dashboard-shell-content",
   style: {
     height: "100%",
     overflow: "hidden",

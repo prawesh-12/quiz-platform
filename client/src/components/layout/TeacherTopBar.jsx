@@ -89,7 +89,7 @@ export default function TeacherTopBar({ onMobileMenuToggle }) {
 
   return (
     <header
-      className="flex h-12 shrink-0 items-center border-b px-6"
+      className="flex h-12 shrink-0 items-center border-b px-4 sm:px-6"
       style={{ borderBottomColor: theme.border.default, backgroundColor: theme.bg.card }}
     >
       <div className="flex min-w-0 items-center gap-3">

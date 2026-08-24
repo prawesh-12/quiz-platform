@@ -41,12 +41,24 @@ export default function ShellFrame({ sidebar, mobileSidebar, content, children }
           <div
             className={cn(
               "ds-shell-content min-h-0 flex-1",
+              content.contentClass,
               content.isScrollable ? "overflow-y-auto" : "overflow-y-hidden"
             )}
             style={{ backgroundColor: theme.bg.content, padding: CONTENT_PADDING, ...content.style }}
           >
             <div className={cn("min-h-full", content.paddingClass)}>{children}</div>
           </div>
+
+          <footer
+            className="flex h-8 shrink-0 items-center justify-center border-t text-[11px]"
+            style={{
+              borderTopColor: theme.border.default,
+              backgroundColor: theme.bg.card,
+              color: theme.text.subtle
+            }}
+          >
+            © {new Date().getFullYear()} QuizLoom
+          </footer>
         </main>
       </div>
     </div>

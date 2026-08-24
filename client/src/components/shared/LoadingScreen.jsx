@@ -12,7 +12,7 @@ const PAGE_WASH = `linear-gradient(180deg, ${theme.accent.tint} 0%, ${theme.bg.p
 export default function LoadingScreen({ message = "Loading" }) {
   return (
     <div
-      className="flex h-screen w-screen flex-col items-center justify-center px-6 text-center"
+      className="ds-viewport-h flex w-screen flex-col items-center justify-center px-6 text-center"
       style={{ background: PAGE_WASH, fontFamily: theme.font.family }}
       role="status"
       aria-live="polite"

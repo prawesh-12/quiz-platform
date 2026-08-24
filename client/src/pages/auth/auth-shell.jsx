@@ -57,7 +57,7 @@ function BackLink({ to, label }) {
 export default function AuthShell({ children, backTo = "", backLabel = "Back", footer = null }) {
   return (
     <div
-      className="h-screen w-full overflow-y-auto px-4 py-8 sm:py-12"
+      className="ds-viewport-h w-full overflow-y-auto px-4 py-8 sm:py-12"
       style={{ background: PAGE_WASH, fontFamily: theme.font.family }}
     >
       <div className="mx-auto flex w-full max-w-md flex-col gap-6">

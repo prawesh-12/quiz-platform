@@ -113,7 +113,7 @@ export default function EntryPage() {
 
   return (
     <div
-      className="h-screen w-full overflow-y-auto px-4 py-8"
+      className="ds-viewport-h w-full overflow-y-auto px-4 py-8"
       style={{ background: PAGE_WASH, fontFamily: theme.font.family }}
     >
       <div

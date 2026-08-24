@@ -89,15 +89,16 @@ function ActivityRow({ item }) {
       style={{ height: ROW_HEIGHT_PX, borderBottomColor: theme.border.light, color: theme.text.secondary }}
     >
       <td
+        data-label="Quiz"
         className="max-w-[220px] truncate px-3 text-[14px] font-medium"
         style={{ color: theme.text.primary }}
       >
         {item.name}
       </td>
-      <td className="px-3 text-[13px]">{item.subject}</td>
-      <td className="whitespace-nowrap px-3 text-[13px]">{formatDateLabel(item.date)}</td>
-      <td className="px-3 text-[13px]">{formatNumber(item.participantCount)}</td>
-      <td className="px-3 text-[14px] font-semibold" style={{ color: theme.text.primary }}>
+      <td data-label="Subject" className="px-3 text-[13px]">{item.subject}</td>
+      <td data-label="Date" className="whitespace-nowrap px-3 text-[13px]">{formatDateLabel(item.date)}</td>
+      <td data-label="Participants" className="px-3 text-[13px]">{formatNumber(item.participantCount)}</td>
+      <td data-label="Avg Score" className="px-3 text-[14px] font-semibold" style={{ color: theme.text.primary }}>
         {formatAverageScore(item.averageScore)}
       </td>
     </tr>

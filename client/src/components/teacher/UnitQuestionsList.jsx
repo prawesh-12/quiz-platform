@@ -26,19 +26,21 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const DEFAULT_TRUNCATE = 60;
-const OPTION_TRUNCATE = 15;
+const OPTION_KEYS = ["a", "b", "c", "d"];
 
-function truncate(value, maxLength = DEFAULT_TRUNCATE) {
-  if (!value) {
-    return "";
-  }
-
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  return `${value.slice(0, maxLength)}...`;
+function OptionLines({ question }) {
+  return (
+    <div className="space-y-0.5">
+      {OPTION_KEYS.map((key) => {
+        const value = question[`option_${key}`];
+        return value ? (
+          <p key={key}>
+            <span className="uppercase">{key}</span>: {value}
+          </p>
+        ) : null;
+      })}
+    </div>
+  );
 }
 
 const emptyQuestion = {
@@ -82,25 +84,29 @@ export default function UnitQuestionsList({ questions, onDelete, onEdit }) {
 
   return (
     <>
-      <Table>
+      {/* On a phone the columns squeeze until every row is six lines tall, so hold their
+          width and let the wrapper scroll sideways instead. */}
+      <Table className="max-sm:min-w-[860px]">
         <TableHeader>
           <TableRow>
-            <TableHead>Question</TableHead>
-            <TableHead>Options</TableHead>
-            <TableHead>Correct</TableHead>
-            <TableHead>Points</TableHead>
+            <TableHead className="max-sm:w-[320px] max-sm:min-w-[320px]">Question</TableHead>
+            <TableHead className="max-sm:w-[260px] max-sm:min-w-[260px]">Options</TableHead>
+            <TableHead className="max-sm:w-[74px]">Correct</TableHead>
+            <TableHead className="max-sm:w-[64px]">Points</TableHead>
             <TableHead className="w-24">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {questions.map((question) => (
             <TableRow key={question.id}>
-              <TableCell>{truncate(question.question_text)}</TableCell>
-              <TableCell className="text-xs text-muted-foreground">
-                A: {truncate(question.option_a, OPTION_TRUNCATE)} | B: {truncate(question.option_b, OPTION_TRUNCATE)}
+              <TableCell className="align-top max-sm:w-[320px] max-sm:min-w-[320px]">
+                {question.question_text}
               </TableCell>
-              <TableCell className="uppercase">{question.correct_option}</TableCell>
-              <TableCell>{question.points}</TableCell>
+              <TableCell className="align-top text-xs text-muted-foreground max-sm:w-[260px] max-sm:min-w-[260px]">
+                <OptionLines question={question} />
+              </TableCell>
+              <TableCell className="align-top uppercase max-sm:whitespace-nowrap">{question.correct_option}</TableCell>
+              <TableCell className="align-top max-sm:whitespace-nowrap">{question.points}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button

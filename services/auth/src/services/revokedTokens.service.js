@@ -10,8 +10,10 @@ import { getCachedJson, invalidateCache } from "./cache.service.js";
 const TTL_MS = readPositiveIntegerEnv("REVOKED_TOKEN_CACHE_TTL_MS", 60000);
 const NEGATIVE_TTL_MS = readPositiveIntegerEnv("REVOKED_TOKEN_NEGATIVE_TTL_MS", 5000);
 
+// Must not be `revoked:<hash>`: other services treat any key under that prefix as a
+// revocation, so caching "not revoked" there logs everyone out for the negative TTL.
 function cacheKey(tokenHash) {
-  return `revoked:${tokenHash}`;
+  return `revoked_cache:${tokenHash}`;
 }
 
 function ttlForResult(isRevoked) {

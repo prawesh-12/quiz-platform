@@ -61,6 +61,7 @@
     left: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -74,6 +75,7 @@
   .ds-shell-container {
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     border-radius: 0;
     overflow: hidden;
     box-shadow: none;
@@ -123,18 +125,51 @@
   .ds-shell-page {
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     padding: 0;
   }
 
   .ds-shell-container {
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     border-radius: 0;
     box-shadow: none;
   }
 
   .ds-shell-content {
     padding: 16px !important;
+  }
+
+  /* Dashboards are a fixed-height, non-scrolling column on desktop. Stacked on a phone they
+     run past the fold, so the region has to scroll or the rest is unreachable. */
+  .ds-dashboard-shell-content {
+    display: block !important;
+    height: auto !important;
+    /* Not min-height: 100%. That makes the scroller taller than the space it was given, so
+       its own end and the footer below it fall outside the viewport. */
+    min-height: 0 !important;
+    overflow-y: auto !important;
+  }
+
+  /* The inner wrapper is h-full for the desktop layout; left on, it clips the last card. */
+  .ds-dashboard-shell-content > div {
+    height: auto !important;
+    padding-bottom: 8px;
+  }
+
+  .ds-dashboard-page {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .ds-dashboard-page section,
+  .ds-dashboard-page article {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 
   .ds-shell-divider {
@@ -151,6 +186,7 @@
     left: 0;
     width: 260px;
     height: 100vh;
+    height: 100dvh;
     z-index: 100;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
@@ -183,6 +219,7 @@
     width: 260px !important;
     min-width: 260px !important;
     height: 100vh !important;
+    height: 100dvh !important;
   }
 
   .ds-mobile-menu-button {
@@ -210,13 +247,61 @@
     flex-shrink: 1 !important;
   }
 
+  /* Five columns on a 375px screen means seeing two. Each row becomes a labelled card. */
   .ds-dashboard-table-wrap {
-    overflow-x: auto;
+    overflow: visible;
   }
 
-  .ds-dashboard-table {
-    min-width: 600px;
+  .ds-dashboard-table thead {
+    display: none;
   }
+
+  .ds-dashboard-table,
+  .ds-dashboard-table tbody,
+  .ds-dashboard-table tr {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ds-dashboard-table tr {
+    height: auto !important;
+    padding: 8px 0;
+  }
+
+  .ds-dashboard-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    height: auto !important;
+    max-width: none !important;
+    padding: 3px 0 !important;
+    overflow: visible;
+    text-align: right;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .ds-dashboard-table td:not([data-label]) {
+    display: block;
+    text-align: center;
+  }
+
+  .ds-dashboard-table td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    color: var(--ds-text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    text-align: left;
+  }
+}
+
+/* 100vh is taller than what a phone actually shows, so the bottom hides under the browser bar. */
+.ds-viewport-h {
+  height: 100vh;
+  height: 100dvh;
 }
 
 .startup-loading-screen {

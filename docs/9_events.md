@@ -147,7 +147,8 @@ One Redis instance, two roles.
 
 | Key | Owner | Purpose | TTL |
 |---|---|---|---|
-| `revoked:<sha256>` | auth writes, all read | Logged-out token denylist | remaining token life |
+| `revoked:<sha256>` | auth writes, all read | Logged-out token denylist, checked with `EXISTS` | remaining token life |
+| `revoked_cache:<sha256>` | auth only | Cached denylist lookup, never read by others | 60s revoked, 5s not revoked |
 | `rate_limit:<key>` | all | Fixed-window counters | the window |
 | `quiz:<id>:student_snapshot` | exam | Student-safe questions | `QUIZ_SNAPSHOT_TTL_MS`, 4h |
 | `quiz:<id>:live_stats:<teacher>` | exam | Live stats cache | 3s |

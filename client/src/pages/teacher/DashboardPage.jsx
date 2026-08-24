@@ -111,7 +111,10 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ color: theme.text.secondary }}>
+      <div
+        className="ds-dashboard-page flex h-full min-h-0 flex-col overflow-hidden"
+        style={{ color: theme.text.secondary }}
+      >
         <DashboardKpiCards
           stats={kpiStats}
           onOpenScheduled={() => navigate("/teacher/quiz/scheduled")}

@@ -95,7 +95,9 @@ sequenceDiagram
 
 The two sides check differently, on purpose.
 
-**Auth** treats its `revoked_tokens` table as the source of truth and caches the answer. A "revoked" answer is cached for `REVOKED_TOKEN_CACHE_TTL_MS` (60s default) because revocation never reverses. A "not revoked" answer is cached for only `REVOKED_TOKEN_NEGATIVE_TTL_MS` (5s default), which bounds how long a just-revoked token can still pass. The cache is Redis first, with a process-local TTL map as fallback so a Redis outage degrades instead of hammering Postgres.
+**Auth** treats its `revoked_tokens` table as the source of truth and caches the answer under `revoked_cache:<hash>`. A "revoked" answer is cached for `REVOKED_TOKEN_CACHE_TTL_MS` (60s default) because revocation never reverses. A "not revoked" answer is cached for only `REVOKED_TOKEN_NEGATIVE_TTL_MS` (5s default), which bounds how long a just-revoked token can still pass. The cache is Redis first, with a process-local TTL map as fallback so a Redis outage degrades instead of hammering Postgres.
+
+The two prefixes must stay separate. `revoked:<hash>` is the denylist and means "this token is revoked", whatever its value; every other service answers with `EXISTS`. `revoked_cache:<hash>` holds a cached yes-or-no. Caching a "no" under the denylist prefix makes `EXISTS` return 1 and logs the user out of every other service for the length of the negative TTL.
 
 **Every other service** checks Redis only, and treats a Redis failure as "not revoked". That is fail-open by design: if Redis is down, a Postgres round trip on every request across five services would be worse than letting already-issued tokens live out their remaining hours. Tokens still expire on their own.
 

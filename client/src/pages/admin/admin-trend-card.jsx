@@ -28,7 +28,7 @@ function ButtonSpinner() {
 
 function DateField({ id, label, value, onChange }) {
   return (
-    <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
+    <div className="flex w-full flex-col gap-1 sm:w-auto sm:shrink-0 sm:flex-row sm:items-center sm:gap-2">
       <Label
         htmlFor={id}
         className="shrink-0 whitespace-nowrap text-[12px] font-medium"
@@ -99,18 +99,20 @@ export default function AdminTrendCard({ range, trendData, isFetching, summary, 
             Unique Participants
           </h2>
 
-          <DateField
-            id="trend-start-date-admin"
-            label="Start Date"
-            value={range.startInput}
-            onChange={range.setStartInput}
-          />
-          <DateField
-            id="trend-end-date-admin"
-            label="End Date"
-            value={range.endInput}
-            onChange={range.setEndInput}
-          />
+          <div className="grid grid-cols-2 gap-2 sm:contents">
+            <DateField
+              id="trend-start-date-admin"
+              label="Start Date"
+              value={range.startInput}
+              onChange={range.setStartInput}
+            />
+            <DateField
+              id="trend-end-date-admin"
+              label="End Date"
+              value={range.endInput}
+              onChange={range.setEndInput}
+            />
+          </div>
 
           <Button
             type="button"

@@ -6,12 +6,15 @@ const AXIS_FONT_SIZE = 11;
 const AREA_FILL_ID = "participantsAreaFill";
 const FILL_OPACITY_TOP = 0.18;
 const ACTIVE_DOT_RADIUS = 4;
+const Y_AXIS_WIDTH = 30;
+const MIN_TICK_GAP = 24;
+const TICK_MARGIN = 6;
 
 export default function ParticipantsTrendChart({ trendData }) {
   return (
     <div className="h-full min-h-[220px] w-full">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-        <AreaChart data={trendData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <AreaChart data={trendData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={AREA_FILL_ID} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={theme.accent.DEFAULT} stopOpacity={FILL_OPACITY_TOP} />
@@ -24,9 +27,14 @@ export default function ParticipantsTrendChart({ trendData }) {
             tick={{ fill: theme.text.subtle, fontSize: AXIS_FONT_SIZE }}
             axisLine={false}
             tickLine={false}
+            interval="preserveStartEnd"
+            minTickGap={MIN_TICK_GAP}
+            tickMargin={TICK_MARGIN}
           />
           <YAxis
             allowDecimals={false}
+            domain={[0, (dataMax) => Math.max(1, Math.ceil(dataMax))]}
+            width={Y_AXIS_WIDTH}
             tick={{ fill: theme.text.subtle, fontSize: AXIS_FONT_SIZE }}
             axisLine={false}
             tickLine={false}

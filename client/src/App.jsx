@@ -111,7 +111,7 @@ class ErrorBoundary extends Component {
 // Spinner shown while any lazy page loads
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center w-screen h-screen bg-[#EAEAEC]">
+    <div className="ds-viewport-h flex w-screen items-center justify-center bg-[#EAEAEC]">
       <div className="w-9 h-9 border-[3px] border-[#f0f0f0] border-t-[#1C1C1E] rounded-full animate-spin" />
     </div>
   );

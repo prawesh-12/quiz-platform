@@ -23,7 +23,7 @@ function ButtonSpinner() {
 
 function DateField({ id, label, value, onChange }) {
   return (
-    <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
+    <div className="flex w-full flex-col gap-1 sm:w-auto sm:shrink-0 sm:flex-row sm:items-center sm:gap-2">
       <Label
         htmlFor={id}
         className="shrink-0 whitespace-nowrap text-[12px]"
@@ -79,8 +79,10 @@ export default function DashboardTrendCard({
 
         <div className="min-w-0 flex-1" />
 
-        <DateField id="trend-start-date" label="Start Date" value={startDateInput} onChange={onStartDateChange} />
-        <DateField id="trend-end-date" label="End Date" value={endDateInput} onChange={onEndDateChange} />
+        <div className="grid grid-cols-2 gap-2 sm:contents">
+          <DateField id="trend-start-date" label="Start Date" value={startDateInput} onChange={onStartDateChange} />
+          <DateField id="trend-end-date" label="End Date" value={endDateInput} onChange={onEndDateChange} />
+        </div>
 
         <Button
           type="button"
