@@ -1,6 +1,20 @@
 import { captureException } from "../config/observability.js";
 import logger, { serializeError } from "../utils/logger.js";
 
+const DB_WAKING = {
+  statusCode: 503,
+  message: "Database is waking up. Try again in a few seconds."
+};
+
+// pg reports a cold-start connect failure with no error code, only this text.
+function isConnectTimeout(error) {
+  const message = String(error?.message || "");
+  return (
+    message.includes("timeout exceeded when trying to connect") ||
+    message.includes("Connection terminated due to connection timeout")
+  );
+}
+
 export default function errorHandler(err, req, res, next) {
   if (res.headersSent) {
     return next(err);
@@ -25,7 +39,7 @@ export default function errorHandler(err, req, res, next) {
     }
   };
 
-  const mapped = PG_ERROR_MAP[err.code];
+  const mapped = PG_ERROR_MAP[err.code] || (isConnectTimeout(err) ? DB_WAKING : null);
   const statusCode = mapped?.statusCode || err.statusCode || 500;
   const message = mapped?.message || err.message || "Internal server error";
 

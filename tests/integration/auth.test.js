@@ -1,15 +1,20 @@
 import assert from "node:assert/strict";
 import { describe, it, before } from "node:test";
 
-import { createClient, adminCredentials, requireEnv } from "../helpers/client.js";
+import {
+  createClient,
+  adminCredentials,
+  gatewayUnreachable,
+  requireEnv
+} from "../helpers/client.js";
 
 // Covers cookie-based session hydration: login sets the cookie, a fresh /me read
 // (simulating a hard refresh) returns the same user, and a cookie-less client is rejected.
 describe("auth cookie hydration", () => {
   let skipReason = null;
 
-  before(() => {
-    skipReason = requireEnv("TEST_ADMIN_EMAIL", "TEST_ADMIN_PASSWORD");
+  before(async () => {
+    skipReason = (await gatewayUnreachable()) || requireEnv("TEST_ADMIN_EMAIL", "TEST_ADMIN_PASSWORD");
   });
 
   it("rejects /api/auth/me without a session cookie", async (t) => {

@@ -1,4 +1,5 @@
 import { createConnection } from "./redis.js";
+import { readPositiveIntegerEnv } from "../utils/env.js";
 import logger, { serializeError } from "../utils/logger.js";
 
 // Redis Streams consumer group on a DEDICATED connection so the blocking XREADGROUP never
@@ -8,14 +9,16 @@ import logger, { serializeError } from "../utils/logger.js";
 // at "0" so events already in the stream at first bootstrap are not skipped.
 
 const READ_COUNT = 10;
-const BLOCK_MS = 5000;
 const IDLE_BACKOFF_MS = 1000;
-const RECLAIM_MIN_IDLE_MS = 60000;
-const RECLAIM_INTERVAL_MS = 30000;
 const RECLAIM_COUNT = 20;
-const MAX_ATTEMPTS = 5;
-const DEADLETTER_STREAM = "events:deadletter";
 const DEADLETTER_MAXLEN = 10000;
+
+// Defaults suit production; tests shorten them so a retry does not take a minute.
+const BLOCK_MS = readPositiveIntegerEnv("CONSUMER_BLOCK_MS", 5000);
+const RECLAIM_MIN_IDLE_MS = readPositiveIntegerEnv("CONSUMER_RECLAIM_IDLE_MS", 60000);
+const RECLAIM_INTERVAL_MS = readPositiveIntegerEnv("CONSUMER_RECLAIM_INTERVAL_MS", 30000);
+const MAX_ATTEMPTS = readPositiveIntegerEnv("CONSUMER_MAX_ATTEMPTS", 5);
+const DEADLETTER_STREAM = process.env.CONSUMER_DEADLETTER_STREAM || "events:deadletter";
 
 function fieldsToObject(fields) {
   const message = {};

@@ -1,275 +1,127 @@
-# QuizLoom
+<div align="center">
 
-QuizLoom is a quiz and live-exam platform for teachers, students, and administrators —
-quiz authoring, scheduled activation, live monitoring, response analytics, proctoring
-flags, and Excel import/export.
+<h1>
+  <img src="./client/public/icon-512.png" width="38" alt="" valign="middle" />
+  QuizLoom
+</h1>
 
-It runs as **six independent services behind an nginx API gateway**, each owning its own
-PostgreSQL database and communicating over **Redis Streams** (with a transactional outbox),
-plus one guarded internal HTTP call. The React SPA is served by Vercel in production and the
-Vite dev server locally.
+A platform for conducting scheduled online examinations, from quiz creation and student access to live monitoring and automatic evaluation.
+
+Built as an event-driven microservices system.
+
+Teachers create a quiz, define its schedule, and share a single access link. Students join without creating an account, complete the exam, and have their answers saved while they work.
+
+**Every student is graded when the quiz closes, whether or not they pressed Submit.**
+
+![QuizLoom](./public/quizloom_landing_page.png)
+
+</div>
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+  - [One quiz, start to finish](#one-quiz-start-to-finish)
+- [Screenshots](#screenshots)
+- [Tech stack](#tech-stack)
+- [What problem it solves](#what-problem-it-solves)
+- [Project structure](#project-structure)
+- [Getting started](#getting-started)
+- [Environment variables](#environment-variables)
+- [Documentation](#documentation)
+- [Testing](#testing)
+- [Production deployment](#production-deployment)
+- [Design decisions](#design-decisions)
+- [Future improvements](#future-improvements)
+- [License](#license)
 
 ---
 
 ## Features
 
-### Landing page
-
-A static marketing page at `/`. It imports no service client, no auth context and no query
-hooks, so opening it contacts nothing: **Sign in** is what first wakes the backend. Cold
-starts show a plain "Starting QuizLoom" screen rather than a bare spinner.
-
-### Teacher
-
-- Cookie-based auth, profile updates, password changes, avatar upload/removal.
-- Subject / unit / question bank management (including Excel bulk import).
-- Manual and auto-generated quiz creation.
-- Draft → scheduled → active → ended quiz lifecycle.
-- Live quiz insights, response review, violations timeline, leaderboard, and XLSX exports.
-
-### Student
-
-- Enter a quiz via `access_token` + access code (no account needed).
-- Timed attempt with autosaved progress.
-- Manual submit, or automatic submit when the session/quiz ends.
-- Score summary with percentage and scored points.
-- Proctoring-aware flow (tab switch, copy/paste, context-menu events).
-
-### Admin
-
-- Environment-backed admin authentication (no DB row).
-- Dashboards and teacher management.
-- School-wise teacher listing and subject assignment.
-- Global teacher operations: list all, remove from school, delete.
+| Feature                | What it does                                                                 |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| Question bank          | Subjects, units, and reusable questions per unit                             |
+| Excel import           | Upload a spreadsheet of questions into a subject                             |
+| Auto-generated quizzes | Pick N random bank questions per unit                                        |
+| Scheduled quizzes      | Set a start and end time; the quiz opens and closes on its own               |
+| Student entry          | A link and an access code. No account                                        |
+| Autosave               | Answers are saved while the student works                                    |
+| Auto-submit            | When the quiz ends, open sessions are scored from saved answers              |
+| Proctoring flags       | Tab switches, copy attempts, and right clicks are recorded per session       |
+| Live monitoring        | Who has entered, submitted, is still working, or is flagged                  |
+| Results                | Leaderboard, per-student responses, and an XLSX export sorted by roll number |
+| Dashboards             | Quiz counts, participants, and average scores for teachers and admins        |
 
 ---
 
 ## Architecture
 
-The gateway is purely an API router; the SPA is served separately by Vercel, and Caddy
-terminates HTTPS in front of the gateway in production.
+Six microservices behind an nginx gateway. Five own a PostgreSQL database; the scheduler owns none and reads the quiz database. The SPA is on Vercel and is deployed separately.
 
-```mermaid
-flowchart TB
-    B["Browser, React SPA"]
+| Component    | Runs as                       | Owns                                                |
+| ------------ | ----------------------------- | --------------------------------------------------- |
+| gateway      | nginx container, port 8080    | Routes`/api/*`, strips inbound `X-Internal-Key` |
+| auth         | container                     | Teachers, sessions, avatars                         |
+| questionbank | container                     | Subjects, units, questions                          |
+| quiz         | container                     | Quizzes, their questions, the status lifecycle      |
+| exam         | container                     | Student sessions, answers, violations               |
+| exam-worker  | same image,`node worker.js` | Event consumers, auto-submit                        |
+| scheduler    | container, no HTTP            | Nothing. Reads the quiz database                    |
+| analytics    | container                     | Dashboard read-models, rebuilt from events          |
+| redis        | container                     | Event streams, snapshot cache, token denylist       |
+| client       | Vercel                        | The SPA                                             |
 
-    subgraph EDGE ["Edge"]
-        direction TB
-        V["Vercel<br/>serves the SPA<br/>rewrites /api/* to the gateway"]
-        C["Caddy on EC2 :443<br/>Let's Encrypt TLS"]
-        G["nginx gateway :8080<br/>routes /api/* by path<br/>strips inbound X-Internal-Key"]
-        V --> C --> G
-    end
+![QuizLoom architecture](./public/quizloom_hld_dark.png)
 
-    B --> V
+Services publish events to Redis Streams instead of calling each other. Each writes the event into an outbox table in the same transaction as the data change, and a relay pushes it to Redis. There is one synchronous call in the whole system: quiz asks questionbank for bank questions during auto-generate.
 
-    subgraph SVC ["Services"]
-        direction LR
-        AU["auth"]
-        QB["questionbank"]
-        QZ["quiz"]
-        EX["exam"]
-        AN["analytics"]
-    end
+Nothing reads another service's tables. Where a service needs data it does not own, it keeps a local copy filled from events. Details in [docs/9_events.md](./docs/9_events.md).
 
-    G --> AU
-    G --> QB
-    G --> QZ
-    G --> EX
-    G --> AN
+### One quiz, start to finish
 
-    QZ -. "sync HTTP, INTERNAL_KEY<br/>question selection" .-> QB
+![One quiz, start to finish](./public/quizloom_quiz_lifecycle_dark.png)
 
-    subgraph BG ["Background, no HTTP surface"]
-        direction LR
-        EW["exam-worker<br/>auto-submit, outbox relay"]
-        SC["scheduler<br/>polls for due windows"]
-    end
+---
 
-    subgraph DATA ["Postgres, one database per service"]
-        direction LR
-        AUDB[("auth_db<br/>teachers, revoked_tokens<br/>teacher_subjects")]
-        QBDB[("questionbank_db<br/>subjects, units, questions")]
-        QZDB[("quiz_db<br/>quizzes, quiz_questions")]
-        EXDB[("exam_db<br/>sessions, answers<br/>violations, snapshots")]
-        ANDB[("analytics_db<br/>read-models")]
-    end
+## Screenshots
 
-    AU --> AUDB
-    QB --> QBDB
-    QZ --> QZDB
-    EX --> EXDB
-    AN --> ANDB
-    EW --> EXDB
-    SC --> QZDB
-```
-
-Every service owns its database outright; nothing reads another service's tables. The only
-synchronous hop between services is quiz auto-generate asking questionbank to select
-questions, guarded by a shared `INTERNAL_KEY` that the gateway strips from inbound requests.
-
-### Event flow
-
-Each service writes events to a **transactional outbox** in the same DB transaction as the
-domain change, and a relay publishes them to Redis Streams. A Redis outage or a crash mid-write
-therefore cannot lose an event. Consumers ack only after success, with reclaim and a
-dead-letter stream on repeated failure.
-
-```mermaid
-flowchart LR
-    AU["auth"] -->|"teacher.upserted<br/>teacher.deleted"| SA(["events:auth"])
-    QB["questionbank"] -->|"subject.upserted<br/>subject.deleted"| SQB(["events:questionbank"])
-    QZ["quiz"] -->|"quiz.upserted, quiz.ended<br/>quiz.deleted, quiz.snapshot"| SQZ(["events:quiz"])
-    EX["exam"] -->|"session.started<br/>session.submitted"| SS(["events:session"])
-    EX -->|"violation.flagged"| SV(["events:violation"])
-    SC["scheduler"] -->|"quiz.start_due, quiz.prewarm_due<br/>quiz.end_due"| SSC(["events:scheduler"])
-
-    SA --> QB
-    SA --> QZ
-    SQB --> QZ
-    SQB --> EX
-    SQB --> AN["analytics"]
-    SQZ --> EX
-    SQZ --> AN
-    SS --> AN
-    SV --> AN
-    SSC --> QZ
-
-    SA -.-> DL(["events:deadletter"])
-    SQB -.-> DL
-    SQZ -.-> DL
-    SS -.-> DL
-    SV -.-> DL
-    SSC -.-> DL
-```
-
-The scheduler owns no data. It polls quiz_db for windows that have come due and emits the
-timer signals that make a quiz open, pre-warm its cache, and close itself.
-
-### One quiz, end to end
-
-The sequence every other diagram is a slice of. Nothing here is a design sketch; the steps come
-from `scheduler/src/detect.js`, `quiz/src/jobs/schedulerConsumer.js` and
-`exam/src/services/quizEvents.consumer.js`.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor T as Teacher
-    actor S as Student
-    participant GW as nginx gateway
-    participant QZ as quiz
-    participant QB as questionbank
-    participant SC as scheduler
-    participant R as Redis Streams
-    participant EX as exam
-    participant AN as analytics
-
-    Note over T,QB: Author the paper
-    T->>GW: POST /api/quizzes
-    GW->>QZ: create draft
-    QZ->>QB: internal question selection, X-Internal-Key
-    QB-->>QZ: questions drawn from the bank
-    QZ-->>T: draft, each question copied into the quiz
-
-    Note over T,EX: Schedule it
-    T->>GW: set the window on IST and an access code
-    QZ->>QZ: status becomes scheduled, quiz.upserted<br/>written to the outbox in the same transaction
-    QZ->>R: relay publishes to events:quiz
-    R->>EX: quiz.upserted
-    EX->>EX: upsert the local quiz read-model
-
-    Note over SC,EX: Pre-warm, two minutes out
-    SC->>SC: poll quiz_db for windows coming due
-    SC->>R: quiz.prewarm_due on events:scheduler
-    R->>QZ: quiz.prewarm_due
-    QZ->>R: quiz.snapshot
-    R->>EX: quiz.snapshot
-    EX->>EX: cache the question set, so a rush meets a warm system
-
-    Note over SC,EX: Open, at the start time
-    SC->>R: quiz.start_due
-    R->>QZ: quiz.start_due
-    QZ->>QZ: transition to active, enforced, duplicates are no-ops
-    QZ->>R: quiz.upserted and quiz.snapshot
-    R->>EX: quiz is live
-
-    Note over S,AN: The room writes
-    S->>GW: POST /api/sessions/enter, link and access code
-    GW->>EX: rate limited, 30 tries per IP per 5 minutes
-    EX->>R: session.started
-    R->>AN: session.started
-    loop about once a second
-        S->>EX: POST /api/sessions/progress
-    end
-    S->>EX: browser proctoring events
-    EX->>R: violation.flagged
-    R->>AN: violation.flagged
-
-    Note over SC,AN: Close, at the end time
-    SC->>R: quiz.end_due
-    R->>QZ: quiz.end_due
-    QZ->>QZ: transition to ended
-    QZ->>R: quiz.ended
-    R->>EX: quiz.ended
-    EX->>EX: finalize every pending session, score the open papers
-    EX->>R: session.submitted per paper
-    R->>AN: rebuild the dashboard read-models
-
-    Note over T,AN: Results
-    T->>GW: responses, leaderboard, export
-    GW->>EX: scored sessions and violation breakdown
-    EX-->>T: xlsx in roll-number order, flagged rows in red
-```
-
-Two properties fall out of this shape. A student who never presses Submit is still graded,
-because `quiz.ended` drives auto-submit rather than the browser. And a Redis outage delays the
-transition without losing it, because every event is already committed to its service's outbox.
-
-
-| Service                | Owns / database                                                   | Responsibility                                                                 |
-| ---------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| **gateway**      | —                                                                | nginx; routes`/api/*` to services, strips inbound `X-Internal-Key`         |
-| **auth**         | teachers, revoked_tokens, teacher_subjects                        | Login, JWT/cookies, teacher management, avatars                                |
-| **questionbank** | subjects, units, questions                                        | Subjects/units/questions, internal question selection                          |
-| **quiz**         | quizzes, quiz_questions                                           | Quiz CRUD, scheduling, snapshot source                                         |
-| **exam**         | student_sessions, student_answers, violation_flags, quiz_snapshot | Live entry, scoring, violations, monitoring (+ a`worker.js` for auto-submit) |
-| **analytics**    | event-built read-models                                           | Teacher/admin dashboards                                                       |
-| **scheduler**    | none (reads quiz db)                                              | Detects due quizzes, emits timer signals                                       |
-| **redis**        | —                                                                | Event bus (Redis Streams) + cache/denylist                                     |
-
-**Configuration.** Every service reads `CLIENT_URLS` for its CORS allowlist. There is no
-hardcoded fallback and the value is required by the startup Zod schema, so a service refuses
-to boot without it rather than quietly allowing localhost in production.
-
-**Communication.** Services talk asynchronously over Redis Streams (each writes events to a
-**transactional outbox** in the same DB transaction as the domain change; a relay publishes
-them, so a Redis outage or crash can't lose events). Consumers ack only after success, with
-reclaim + dead-letter on failure. The only synchronous cross-service call is quiz
-auto-generate → questionbank question selection, guarded by a shared `INTERNAL_KEY`.
-
-Every service runs its own migrations on boot.
-
-> Full architecture, event tables, gateway routing, and a step-by-step run guide live in
-> [`docs.md`](./docs.md).
+|  |  |
+| --- | --- |
+| ![Sign in](./public/quizloom_auth_page.png) | ![Teacher dashboard](./public/quizloom_Teacher_dashboard_page.png) |
+| One sign-in page with Teacher and Admin tabs. | Teacher dashboard: counts, participant trend, recent quizzes. |
+| ![Admin dashboard](./public/quizloom_Admin_dashboard_page.png) | ![Quiz responses](./public/quizloom_quiz_response_page.png) |
+| Admin dashboard, scoped by school tab. | One quiz's responses: score, submit time, proctoring flags, XLSX export. |
 
 ---
 
 ## Tech stack
 
-| Layer    | Technology                                   | Purpose                                    |
-| -------- | -------------------------------------------- | ------------------------------------------ |
-| Frontend | React 18, Vite, React Router                 | SPA routing and rendering                  |
-| Frontend | TanStack React Query, Axios                  | Data fetching, caching, mutations          |
-| Frontend | Tailwind CSS, Radix UI, React Hook Form, Zod | UI system and validation                   |
-| Frontend | Recharts,`xlsx`, lucide-react              | Charts, spreadsheet workflows, icons       |
-| Backend  | Node.js 20, Express                          | REST APIs and middleware                   |
-| Backend  | PostgreSQL (`pg`)                          | One database per service                   |
-| Backend  | `ioredis` (Redis Streams)                  | Event bus, cache, token denylist           |
-| Backend  | `jsonwebtoken` (HS256), `bcryptjs`       | Cookie-session JWTs, password hashing      |
-| Backend  | `multer` (auth), `exceljs` (exam), Zod   | Avatar upload, XLSX export, validation     |
-| Gateway  | nginx                                        | API routing, body limits, header hardening |
-| Infra    | Docker Compose, Vercel                       | Backend stack, frontend hosting            |
+| Layer | |
+| --- | --- |
+| **Frontend** | ![React 18](https://img.shields.io/badge/React_18-61DAFB?style=flat&logo=react&logoColor=black) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white) ![React Router](https://img.shields.io/badge/React_Router-CA4245?style=flat&logo=reactrouter&logoColor=white) ![TanStack Query](https://img.shields.io/badge/TanStack_Query-FF4154?style=flat&logo=reactquery&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat&logo=tailwindcss&logoColor=white) ![Radix UI](https://img.shields.io/badge/Radix_UI-161618?style=flat&logo=radixui&logoColor=white) ![Axios](https://img.shields.io/badge/Axios-5A29E4?style=flat&logo=axios&logoColor=white) |
+| **Backend** | ![Node.js 20](https://img.shields.io/badge/Node.js_20-5FA04E?style=flat&logo=nodedotjs&logoColor=white) ![Express](https://img.shields.io/badge/Express-000000?style=flat&logo=express&logoColor=white) ![Zod](https://img.shields.io/badge/Zod-3E67B1?style=flat&logo=zod&logoColor=white) |
+| **Databases** | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat&logo=postgresql&logoColor=white) ![Neon](https://img.shields.io/badge/Neon-00E599?style=flat&logo=neon&logoColor=black) ![node-postgres](https://img.shields.io/badge/node--postgres-336791?style=flat&logo=npm&logoColor=white) |
+| **Events and cache** | ![Redis Streams](https://img.shields.io/badge/Redis_Streams-FF4438?style=flat&logo=redis&logoColor=white) ![ioredis](https://img.shields.io/badge/ioredis-D82C20?style=flat&logo=npm&logoColor=white) |
+| **Auth** | ![JWT HS256](https://img.shields.io/badge/JWT_HS256-000000?style=flat&logo=jsonwebtokens&logoColor=white) ![bcrypt](https://img.shields.io/badge/bcrypt-8B5E3C?style=flat&logo=npm&logoColor=white) |
+| **Gateway** | ![nginx](https://img.shields.io/badge/nginx-009639?style=flat&logo=nginx&logoColor=white) |
+| **Files** | ![ExcelJS](https://img.shields.io/badge/ExcelJS-217346?style=flat&logo=npm&logoColor=white) ![Multer](https://img.shields.io/badge/Multer-FF6C37?style=flat&logo=npm&logoColor=white) ![SheetJS](https://img.shields.io/badge/SheetJS-1D6F42?style=flat) |
+| **Infrastructure** | ![Docker Compose](https://img.shields.io/badge/Docker_Compose-2496ED?style=flat&logo=docker&logoColor=white) ![AWS Lightsail](https://img.shields.io/badge/AWS_Lightsail-FF9900?style=flat&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI%2BPHBhdGggZD0iTTYuNzYzIDEwLjAzNmMwIC4yOTYuMDMyLjUzNS4wODguNzEuMDY0LjE3Ni4xNDQuMzY4LjI1Ni41NzYuMDQuMDYzLjA1Ni4xMjcuMDU2LjE4MyAwIC4wOC0uMDQ4LjE2LS4xNTIuMjRsLS41MDMuMzM1YS4zODMuMzgzIDAgMCAxLS4yMDguMDcyYy0uMDggMC0uMTYtLjA0LS4yMzktLjExMmEyLjQ3IDIuNDcgMCAwIDEtLjI4Ny0uMzc1IDYuMTggNi4xOCAwIDAgMS0uMjQ4LS40NzFjLS42MjIuNzM0LTEuNDA1IDEuMTAxLTIuMzQ3IDEuMTAxLS42NyAwLTEuMjA1LS4xOTEtMS41OTYtLjU3NC0uMzkxLS4zODQtLjU5LS44OTQtLjU5LTEuNTMzIDAtLjY3OC4yMzktMS4yMy43MjYtMS42NDQuNDg3LS40MTUgMS4xMzMtLjYyMyAxLjk1NS0uNjIzLjI3MiAwIC41NTEuMDI0Ljg0Ni4wNjQuMjk2LjA0LjYuMTA0LjkxOC4xNzZ2LS41ODNjMC0uNjA3LS4xMjctMS4wMy0uMzc1LTEuMjc3LS4yNTUtLjI0OC0uNjg2LS4zNjctMS4zLS4zNjctLjI4IDAtLjU2OC4wMzEtLjg2My4xMDMtLjI5NS4wNzItLjU4My4xNi0uODYyLjI3MmEyLjI4NyAyLjI4NyAwIDAgMS0uMjguMTA0LjQ4OC40ODggMCAwIDEtLjEyNy4wMjNjLS4xMTIgMC0uMTY4LS4wOC0uMTY4LS4yNDd2LS4zOTFjMC0uMTI4LjAxNi0uMjI0LjA1Ni0uMjhhLjU5Ny41OTcgMCAwIDEgLjIyNC0uMTY3Yy4yNzktLjE0NC42MTQtLjI2NCAxLjAwNS0uMzZhNC44NCA0Ljg0IDAgMCAxIDEuMjQ2LS4xNTFjLjk1IDAgMS42NDQuMjE2IDIuMDkxLjY0Ny40MzkuNDMuNjYyIDEuMDg1LjY2MiAxLjk2M3YyLjU4NnptLTMuMjQgMS4yMTRjLjI2MyAwIC41MzQtLjA0OC44MjItLjE0NC4yODctLjA5Ni41NDMtLjI3MS43NTgtLjUxLjEyOC0uMTUyLjIyNC0uMzIuMjcyLS41MTIuMDQ3LS4xOTEuMDgtLjQyMy4wOC0uNjk0di0uMzM1YTYuNjYgNi42NiAwIDAgMC0uNzM1LS4xMzYgNi4wMiA2LjAyIDAgMCAwLS43NS0uMDQ4Yy0uNTM1IDAtLjkyNi4xMDQtMS4xOS4zMi0uMjYzLjIxNS0uMzkuNTE4LS4zOS45MTcgMCAuMzc1LjA5NS42NTUuMjk1Ljg0Ni4xOTEuMi40Ny4yOTYuODM4LjI5NnptNi40MS44NjJjLS4xNDQgMC0uMjQtLjAyNC0uMzA0LS4wOC0uMDY0LS4wNDgtLjEyLS4xNi0uMTY4LS4zMTFMNy41ODYgNS41NWExLjM5OCAxLjM5OCAwIDAgMS0uMDcyLS4zMmMwLS4xMjguMDY0LS4yLjE5MS0uMmguNzgzYy4xNTEgMCAuMjU1LjAyNS4zMS4wOC4wNjUuMDQ4LjExMy4xNi4xNi4zMTJsMS4zNDIgNS4yODQgMS4yNDUtNS4yODRjLjA0LS4xNi4wODgtLjI2NC4xNTEtLjMxMmEuNTQ5LjU0OSAwIDAgMSAuMzItLjA4aC42MzhjLjE1MiAwIC4yNTYuMDI1LjMyLjA4LjA2My4wNDguMTIuMTYuMTUxLjMxMmwxLjI2MSA1LjM0OCAxLjM4MS01LjM0OGMuMDQ4LS4xNi4xMDQtLjI2NC4xNi0uMzEyYS41Mi41MiAwIDAgMSAuMzExLS4wOGguNzQzYy4xMjcgMCAuMi4wNjUuMi4yIDAgLjA0LS4wMDkuMDgtLjAxNy4xMjhhMS4xMzcgMS4xMzcgMCAwIDEtLjA1Ni4ybC0xLjkyMyA2LjE3Yy0uMDQ4LjE2LS4xMDQuMjYzLS4xNjguMzExYS41MS41MSAwIDAgMS0uMzAzLjA4aC0uNjg3Yy0uMTUxIDAtLjI1NS0uMDI0LS4zMi0uMDgtLjA2My0uMDU2LS4xMTktLjE2LS4xNS0uMzJsLTEuMjM4LTUuMTQ4LTEuMjMgNS4xNGMtLjA0LjE2LS4wODcuMjY0LS4xNS4zMi0uMDY1LjA1Ni0uMTc3LjA4LS4zMi4wOHptMTAuMjU2LjIxNWMtLjQxNSAwLS44My0uMDQ4LTEuMjI5LS4xNDMtLjM5OS0uMDk2LS43MS0uMi0uOTE4LS4zMi0uMTI4LS4wNzEtLjIxNS0uMTUxLS4yNDctLjIyM2EuNTYzLjU2MyAwIDAgMS0uMDQ4LS4yMjR2LS40MDdjMC0uMTY3LjA2NC0uMjQ3LjE4My0uMjQ3LjA0OCAwIC4wOTYuMDA4LjE0NC4wMjQuMDQ4LjAxNi4xMi4wNDguMi4wOC4yNzEuMTIuNTY2LjIxNS44NzguMjc5LjMxOS4wNjQuNjMuMDk2Ljk1LjA5Ni41MDIgMCAuODk0LS4wODggMS4xNjUtLjI2NGEuODYuODYgMCAwIDAgLjQxNS0uNzU4Ljc3Ny43NzcgMCAwIDAtLjIxNS0uNTU5Yy0uMTQ0LS4xNTEtLjQxNi0uMjg3LS44MDctLjQxNWwtMS4xNTctLjM2Yy0uNTgzLS4xODMtMS4wMTQtLjQ1NC0xLjI3Ny0uODEzYTEuOTAyIDEuOTAyIDAgMCAxLS40LTEuMTU4YzAtLjMzNS4wNzMtLjYzLjIxNi0uODg2LjE0NC0uMjU1LjMzNS0uNDc5LjU3NS0uNjU0LjI0LS4xODQuNTEtLjMyLjgzLS40MTUuMzItLjA5Ni42NTUtLjEzNiAxLjAwNi0uMTM2LjE3NSAwIC4zNTkuMDA4LjUzNS4wMzIuMTgzLjAyNC4zNS4wNTYuNTE4LjA4OC4xNi4wNC4zMTIuMDguNDU1LjEyNy4xNDQuMDQ4LjI1Ni4wOTYuMzM2LjE0NGEuNjkuNjkgMCAwIDEgLjI0LjIuNDMuNDMgMCAwIDEgLjA3MS4yNjN2LjM3NWMwIC4xNjgtLjA2NC4yNTYtLjE4NC4yNTZhLjgzLjgzIDAgMCAxLS4zMDMtLjA5NiAzLjY1MiAzLjY1MiAwIDAgMC0xLjUzMi0uMzExYy0uNDU1IDAtLjgxNS4wNzEtMS4wNjIuMjIzLS4yNDguMTUyLS4zNzUuMzgzLS4zNzUuNzEgMCAuMjI0LjA4LjQxNi4yNC41NjcuMTU5LjE1Mi40NTQuMzA0Ljg3Ny40NGwxLjEzNC4zNThjLjU3NC4xODQuOTkuNDQgMS4yMzcuNzY3LjI0Ny4zMjcuMzY3LjcwMi4zNjcgMS4xMTcgMCAuMzQzLS4wNzIuNjU1LS4yMDcuOTI2LS4xNDQuMjcyLS4zMzYuNTExLS41ODMuNzAzLS4yNDguMi0uNTQzLjM0My0uODg2LjQ0Ny0uMzYuMTExLS43MzQuMTY3LTEuMTQyLjE2N3pNMjEuNjk4IDE2LjIwN2MtMi42MjYgMS45NC02LjQ0MiAyLjk2OS05LjcyMiAyLjk2OS00LjU5OCAwLTguNzQtMS43LTExLjg3LTQuNTI2LS4yNDctLjIyMy0uMDI0LS41MjcuMjcyLS4zNTEgMy4zODQgMS45NjMgNy41NTkgMy4xNTMgMTEuODc3IDMuMTUzIDIuOTE0IDAgNi4xMTQtLjYwNyA5LjA2LTEuODUyLjQzOS0uMi44MTQuMjg3LjM4My42MDd6TTIyLjc5MiAxNC45NjFjLS4zMzYtLjQzLTIuMjItLjIwNy0zLjA3NC0uMTAzLS4yNTUuMDMyLS4yOTUtLjE5Mi0uMDYzLS4zNiAxLjUtMS4wNTMgMy45NjctLjc1IDQuMjU0LS4zOTkuMjg3LjM2LS4wOCAyLjgyNi0xLjQ4NSA0LjAwNy0uMjE1LjE4NC0uNDIzLjA4OC0uMzI3LS4xNTEuMzItLjc5IDEuMDMtMi41Ny42OTUtMi45OTR6Ii8%2BPC9zdmc%2B&logoColor=white) ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat&logo=vercel&logoColor=white) ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat&logo=githubactions&logoColor=white) |
+| **Testing** | ![node:test](https://img.shields.io/badge/node:test-5FA04E?style=flat&logo=nodedotjs&logoColor=white) |
+
+---
+
+## What problem it solves
+
+A lecturer runs a 15-minute MCQ test in a lab. Thirty students, all at once, on their own laptops.
+
+Google Forms and Microsoft Forms have no question bank. Every test is typed out from scratch, and neither one imports questions from the Excel sheets lecturers already keep. Nothing carries over to the next division or the next semester.
+
+The window is manual too. Someone pastes the link at 10:00 and closes the form by hand at 10:15, and anyone who did not press Submit has no response at all. Paper means grading thirty sheets by hand.
+
+Here the questions live in a bank. Import a subject's questions from Excel once, split them into units, then pull a random set per unit into each quiz, so two divisions get different papers from the same source. Set the window, share one link, get a scored spreadsheet when it closes. Students never make an account.
 
 ---
 
@@ -277,142 +129,142 @@ Every service runs its own migrations on boot.
 
 ```text
 quiz-platform/
-├── client/                 # React + Vite SPA (Vercel in prod, Vite :5173 in dev)
-│   └── src/pages/marketing/ # landing page at /, imports no service or auth code
-├── gateway/                # nginx API gateway (nginx.conf)
+├── client/                 React SPA
+├── gateway/nginx.conf      every route in the system, in one file
 ├── services/
-│   ├── auth/               # teachers, JWT/cookies, avatars, admin
-│   ├── questionbank/       # subjects, units, questions
-│   ├── quiz/               # quiz CRUD, scheduling, snapshots
-│   ├── exam/               # live entry, scoring, violations (+ worker.js)
-│   ├── analytics/          # dashboard read-models
-│   └── scheduler/          # due-quiz timer signals (no DB)
-├── docker/redis/           # Redis image + redis.conf (AOF, volatile-lru)
-├── tests/                  # node:test integration smoke tests
-├── scripts/                # reset.sh (rebuild stack + flush Redis)
-├── docker-compose.yml      # canonical deploy path (uses .env.production)
-├── docker-compose.dev.yml  # local overlay (points services at .env.local)
-├── ecosystem.config.cjs    # alternative PM2 path (non-canonical)
-└── docs.md                 # full architecture & run guide
+│   ├── auth/               login, cookies, teachers, avatars, admin
+│   ├── questionbank/       subjects, units, questions
+│   ├── quiz/               authoring, status lifecycle, snapshots
+│   ├── exam/               sessions, answers, violations, monitoring
+│   │   └── worker.js       consumers and auto-submit
+│   ├── analytics/          dashboard read-models
+│   └── scheduler/          due detection
+├── docker/redis/           Redis image and config
+├── docker-compose.yml      production stack
+├── docker-compose.dev.yml  local overlay
+├── scripts/                deploy.sh and reset.sh
+├── tests/integration/      run against a live gateway
+└── docs/                   documentation, one file per area
 ```
+
+Every service has the same layout inside `src/`: `config/`, `middleware/`, `routes/`, `controllers/`, `services/`, `repositories/`, `validators/`, `migrations/`, `utils/`.
 
 ---
 
-## Getting started (local, Docker Compose)
+## Getting started
 
-### Prerequisites
-
-- Docker + Docker Compose
-- Node.js 20+ (for the client dev server)
-- PostgreSQL — five databases reachable from the services (local or managed/Neon)
-
-### Quick start
+Needs Docker, Node 20, and five PostgreSQL databases the services can reach.
 
 ```bash
 git clone https://github.com/prawesh-12/quiz-platform.git
 cd quiz-platform
 
-# 1. Create each service's env files from the example and fill them in.
-#    There is no plain .env: every service has .env.local and .env.production,
-#    and the one that loads is chosen by NODE_ENV at startup.
 for s in auth questionbank quiz exam analytics scheduler; do
   cp services/$s/.env.example services/$s/.env.local
-  cp services/$s/.env.example services/$s/.env.production
 done
-# Set per service: DATABASE_URL; the SAME JWT_SECRET everywhere; the SAME
-# INTERNAL_KEY in auth/questionbank/quiz; and in auth the ADMIN_* values.
-# CLIENT_URLS is required and has no fallback, so a service will refuse to
-# start without it. Locally: http://localhost:5173,http://127.0.0.1:5173
+# fill each one in
 
-# 2. Bring the backend up. The dev overlay points every service at .env.local,
-#    so CORS allows localhost and cookies are not marked Secure over plain http.
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-# gateway API on http://localhost:8080
-
-# 3. Run the SPA (proxies /api to the gateway, same-origin cookies)
-npm install --prefix client
-npm run dev --prefix client          # http://localhost:5173
+npm run setup
+npm run dev
 ```
 
-Open **http://localhost:5173**. That is the marketing landing page and it contacts no
-service; **Sign in** is what first wakes the backend. Sign in with the admin credentials
-from `services/auth/.env.local`. The full step-by-step (admin password hash, env reference,
-verify flow) is in [`docs.md`](./docs.md) §5.
+The gateway is on `http://localhost:8080` and the SPA on `http://localhost:5173`. Sign in with the admin credentials from `services/auth/.env.local`.
 
-### Environment files
+Migrations run on boot, so there is no separate migrate step. After changing a migration or an event payload, run `npm run reset` to rebuild and flush Redis.
 
-| File                      | Loaded when                    | Holds                                                        |
-| ------------------------- | ------------------------------ | ------------------------------------------------------------ |
-| `.env.local`              | `NODE_ENV` is not `production` | localhost origins, `COOKIE_SECURE=false`, local Redis        |
-| `.env.production`         | `NODE_ENV=production`          | the deployed origin, `COOKIE_SECURE=true`, in-cluster Redis  |
-| `.env.example`            | never, it is the template      | every key a service needs, with no values                     |
-
-Both real files are gitignored. Plain `docker compose up` uses `.env.production`; add
-`-f docker-compose.dev.yml` for the local pair.
-
-After changing migrations or event schemas, `npm run reset` rebuilds the stack and flushes
-Redis so streams/consumer groups re-bootstrap.
+Step-by-step version, including how to fill in the config: [docs/local_deploy.md](./docs/local_deploy.md). Troubleshooting: [docs/14_troubleshooting.md](./docs/14_troubleshooting.md).
 
 ---
 
-## Scripts (root `package.json`)
+## Environment variables
 
-| Script                            | Does                                                               |
-| --------------------------------- | ------------------------------------------------------------------ |
-| `npm run setup`                 | Install dependencies for every service + the client                |
-| `npm run dev`                   | Dev overlay `docker compose up -d` + start the Vite dev server   |
-| `npm run up` / `npm run down` | Dev overlay `up --build` / `docker compose down`               |
-| `npm run up:prod`               | `docker compose up --build` with `.env.production`             |
-| `npm run reset`                 | Rebuild the stack and flush Redis (`scripts/reset.sh`)           |
-| `npm run build`                 | Build the client (`client/dist`)                                 |
-| `npm test`                      | Integration smoke tests (`node --test`, against a running stack) |
+Each service has a `.env.example` listing every key it reads. Copy it to `.env.local` for development and `.env.production` for deployment; the one that loads is picked by `NODE_ENV`. Both real files are gitignored.
+
+Required keys are checked at startup and the service refuses to boot without them.
+
+Full reference, including the values that have to match across services: [docs/12_deployment.md](./docs/12_deployment.md).
 
 ---
 
-## Auth model
+## Documentation
 
-- **Teacher / admin**: an httpOnly **session cookie** (`quiz_session`) carrying a JWT, signed
-  and verified with the same `JWT_SECRET` (HS256) across all services. Revocation is tracked
-  in the auth DB and mirrored to Redis for fast checks.
-- **Student**: progress/submit and violation reporting use an `X-Session-Token` issued on
-  entry — no account required.
-- **Quiz entry**: `access_token` (in the share link) + access code.
-- **Internal**: the one cross-service HTTP call is guarded by `X-Internal-Key`, which the
-  gateway strips from all inbound requests so it can't be forged.
+**Everything starts at [docs/main_docs.md](./docs/main_docs.md).** It indexes all fourteen documents, says which one answers which question, and gives a reading order.
+
+From there it splits by area: architecture, gateway, authentication, question bank, quiz, exam, scheduler, analytics, events, databases, frontend, deployment, testing, troubleshooting. API endpoints live in the area document that owns them.
+
+Two step-by-step guides, if you would rather follow instructions than read reference:
+
+| Guide | What it covers |
+| --- | --- |
+| [Running on your own machine](./docs/local_deploy.md) | Fresh clone to a quiz you can take yourself |
+| [Putting it on a real server](./docs/prod_deploy.md) | Empty server to a site that updates itself on push |
+
+New to the code: read [architecture](./docs/1_architecture.md), then [events](./docs/9_events.md).
 
 ---
 
 ## Testing
 
-Integration smoke tests run against a live stack through the gateway (no extra deps —
-Node's built-in runner + `fetch`):
-
 ```bash
+npm run test:unit           # 51 cases, nothing needs to be running
+
 export GATEWAY_URL=http://localhost:8080
 export TEST_ADMIN_EMAIL=... TEST_ADMIN_PASSWORD=...
-export TEST_TEACHER_EMAIL=... TEST_TEACHER_PASSWORD=...
-npm test
+npm run test:integration    # 27 cases against a running stack
 ```
 
-Tests whose required env is unset are skipped, never failed. See [`tests/README.md`](./tests/README.md).
+Unit tests cover scoring, quiz timing, the status machine and the cache. They need no database and run on every push and pull request. Integration tests go through the gateway against a live stack and mock nothing. They skip themselves when no gateway answers or a credential is missing, so read the output.
+
+More, including CI: [docs/13_testing.md](./docs/13_testing.md).
 
 ---
 
-## Production
+## Production deployment
 
-Deployment shape: the **backend** runs as the same Docker Compose stack on any Docker host
-(e.g. an Ubuntu EC2 instance, firewall open only on 22/80/443); **[Caddy](https://caddyserver.com)**
-sits in front of the gateway (`localhost:8080`) and terminates HTTPS at `api.your-domain.com`
-with an automatic Let's Encrypt cert; the **frontend** is hosted on Vercel and rewrites
-`/api/*` to that Caddy domain so the SPA calls the API same-origin (keeping the `SameSite=Lax`
-cookie).
+The backend runs as the same Docker Compose stack on AWS Lightsail. The frontend is on Vercel. Databases are Neon. Pushing to `main` deploys the backend.
 
-Set `NODE_ENV=production`, `COOKIE_SECURE=true`, `COOKIE_SAMESITE=lax`, and `CLIENT_URLS` in
-each service `.env`, and put the Caddy domain in [`client/vercel.json`](./client/vercel.json).
-Full step-by-step (EC2 + Docker, Caddy reverse proxy, Vercel) in [`docs.md`](./docs.md) §6.
+```mermaid
+flowchart LR
+    P[push to main] --> GH[GitHub Actions]
+    GH --> C[install, syntax check, build client]
+    C --> TS[join the tailnet]
+    TS --> V[ssh to the VPS, run deploy.sh]
+    V --> H{healthy?}
+    H -->|yes| D[done]
+    H -->|no| RB[roll back to the previous commit, fail the job]
+```
+
+The VPS has no public SSH port. GitHub Actions reaches it over Tailscale. `scripts/deploy.sh` rebuilds the stack, polls the health endpoints, and rolls back to the previous commit if they never answer.
+
+Full walkthrough from an empty server: [docs/prod_deploy.md](./docs/prod_deploy.md). Every setting in one table: [docs/12_deployment.md](./docs/12_deployment.md).
+
+---
+
+## Design decisions
+
+**One database per service.** Five services sharing one schema turns every change into a coordination problem. Each service owns its own database and copies what it needs from other services through events. The cost is no joins across services and read-models that can lag, which is why a teacher can get a 404 on their own quiz if a projection is behind.
+
+**Events go through an outbox.** Writing to Postgres and publishing to Redis are two systems with no shared transaction, so a crash between them loses the event. Events are written to `outbox_events` in the same transaction as the data change, and a relay publishes them. The cost is up to a second of delay.
+
+**Auto-submit is driven by an event, not the browser.** Students close laptops and lose wifi, so anything depending on a final request from the browser loses those attempts. `quiz.ended` triggers the worker, which scores every open session from saved answers. The cost is that "ended" and "everyone scored" are a few seconds apart.
+
+**Questions are copied into the quiz.** If a quiz pointed at bank rows, editing a question next term would change what last term's quiz shows. Every question is copied in at creation. The cost is duplicated content, and a typo fixed in the bank does not reach quizzes already built.
+
+More, per area, in [`docs/`](./docs/main_docs.md).
+
+---
+
+## Future improvements
+
+1. A test for the whole student journey: enter with a code, autosave, submit, auto-submit.
+2. Make the event consumer's retry timings configurable, then finish the skipped consumer-retry tests.
+3. Close the published Redis port.
+4. Drop `plain_password` and add a password reset instead.
+5. Consumer lag metric and a dead-letter alert.
+6. Give the scheduler an endpoint on the quiz service instead of a direct database connection.
 
 ---
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE).
+MIT. See [LICENSE](./LICENSE).

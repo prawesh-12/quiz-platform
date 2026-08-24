@@ -9,11 +9,22 @@ import { theme } from "@/theme";
 
 const ParticipantsTrendChart = lazy(() => import("@/components/teacher/ParticipantsTrendChart"));
 
+const CHART_HEIGHT = "260px";
+
 const CARD_STYLE = {
   borderRadius: theme.radius.lg,
   borderColor: theme.border.default,
   backgroundColor: theme.bg.card
 };
+
+function ButtonSpinner() {
+  return (
+    <span
+      className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+      aria-hidden="true"
+    />
+  );
+}
 
 function DateField({ id, label, value, onChange }) {
   return (
@@ -36,7 +47,7 @@ function DateField({ id, label, value, onChange }) {
   );
 }
 
-function TrendChart({ isLoading, isError, errorMessage, trendData }) {
+function TrendChart({ isLoading, isError, errorMessage, trendData, isFetching }) {
   if (isLoading) {
     return <Spinner className="py-2" label="Loading dashboard analytics..." />;
   }
@@ -54,7 +65,15 @@ function TrendChart({ isLoading, isError, errorMessage, trendData }) {
   }
 
   return (
-    <div className="h-full min-h-[120px] w-full">
+    <div
+      className="w-full"
+      style={{
+        height: CHART_HEIGHT,
+        minHeight: CHART_HEIGHT,
+        opacity: isFetching ? 0.45 : 1,
+        transition: "opacity 150ms ease",
+      }}
+    >
       <Suspense
         fallback={
           <div className="flex h-full items-center justify-center">
@@ -98,9 +117,10 @@ export default function AdminTrendCard({ range, trendData, isFetching, summary, 
             className="h-8 w-full shrink-0 justify-center whitespace-nowrap text-[13px] sm:w-auto"
             onClick={onLoadTrend}
             disabled={isFetching}
+            aria-busy={isFetching}
           >
-            <TrendingUp className="h-3.5 w-3.5" />
-            Load Data
+            {isFetching ? <ButtonSpinner /> : <TrendingUp className="h-3.5 w-3.5" />}
+            {isFetching ? "Loading..." : "Load Data"}
           </Button>
         </div>
 
@@ -110,6 +130,7 @@ export default function AdminTrendCard({ range, trendData, isFetching, summary, 
             isError={summary.isError}
             errorMessage={summary.errorMessage}
             trendData={trendData}
+            isFetching={isFetching}
           />
         </div>
       </article>

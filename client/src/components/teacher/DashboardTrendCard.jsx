@@ -12,6 +12,15 @@ const ParticipantsTrendChart = lazy(() => import("@/components/teacher/Participa
 const CONTROL_HEIGHT = "32px";
 const CHART_HEIGHT = "260px";
 
+function ButtonSpinner() {
+  return (
+    <span
+      className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+      aria-hidden="true"
+    />
+  );
+}
+
 function DateField({ id, label, value, onChange }) {
   return (
     <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
@@ -86,9 +95,10 @@ export default function DashboardTrendCard({
           }}
           onClick={onLoadTrend}
           disabled={isFetching}
+          aria-busy={isFetching}
         >
-          <TrendingUp className="h-3.5 w-3.5" />
-          Load Data
+          {isFetching ? <ButtonSpinner /> : <TrendingUp className="h-3.5 w-3.5" />}
+          {isFetching ? "Loading..." : "Load Data"}
         </Button>
       </div>
 
@@ -101,7 +111,15 @@ export default function DashboardTrendCard({
       ) : null}
 
       {!isLoading && !isError ? (
-        <div className="w-full" style={{ height: CHART_HEIGHT, minHeight: CHART_HEIGHT }}>
+        <div
+          className="w-full"
+          style={{
+            height: CHART_HEIGHT,
+            minHeight: CHART_HEIGHT,
+            opacity: isFetching ? 0.45 : 1,
+            transition: "opacity 150ms ease",
+          }}
+        >
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center">

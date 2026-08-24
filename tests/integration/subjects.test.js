@@ -5,6 +5,7 @@ import {
   createClient,
   adminCredentials,
   teacherCredentials,
+  gatewayUnreachable,
   requireEnv
 } from "../helpers/client.js";
 
@@ -22,7 +23,14 @@ function assertSubjectList(res) {
 }
 
 describe("subject list endpoints", () => {
-  it("requires auth on /api/subjects", async () => {
+  let offline = null;
+
+  before(async () => {
+    offline = await gatewayUnreachable();
+  });
+
+  it("requires auth on /api/subjects", async (t) => {
+    if (offline) return t.skip(offline);
     const res = await createClient().get("/api/subjects");
     assert.equal(res.status, 401);
   });
@@ -30,7 +38,7 @@ describe("subject list endpoints", () => {
   describe("admin", () => {
     let skipReason = null;
     before(() => {
-      skipReason = requireEnv("TEST_ADMIN_EMAIL", "TEST_ADMIN_PASSWORD");
+      skipReason = offline || requireEnv("TEST_ADMIN_EMAIL", "TEST_ADMIN_PASSWORD");
     });
 
     it("lists subjects via /api/admin/subjects", async (t) => {
@@ -49,7 +57,7 @@ describe("subject list endpoints", () => {
   describe("teacher", () => {
     let skipReason = null;
     before(() => {
-      skipReason = requireEnv("TEST_TEACHER_EMAIL", "TEST_TEACHER_PASSWORD");
+      skipReason = offline || requireEnv("TEST_TEACHER_EMAIL", "TEST_TEACHER_PASSWORD");
     });
 
     it("lists assigned subjects via /api/subjects", async (t) => {

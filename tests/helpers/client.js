@@ -1,4 +1,3 @@
-// Minimal HTTP client with a cookie jar, run against a live gateway. Zero deps (Node fetch).
 const BASE_URL = (process.env.GATEWAY_URL || "http://localhost:8080").replace(/\/$/, "");
 
 // Strip attributes; keep name=value so the jar can echo it back on the next request.
@@ -57,6 +56,16 @@ export function adminCredentials() {
 
 export function teacherCredentials() {
   return { email: process.env.TEST_TEACHER_EMAIL, password: process.env.TEST_TEACHER_PASSWORD };
+}
+
+// Probe once so a suite can skip instead of erroring when nothing is running.
+export async function gatewayUnreachable() {
+  try {
+    const res = await createClient().get("/api/health");
+    return res.status === 200 ? null : `gateway at ${BASE_URL} answered ${res.status}`;
+  } catch {
+    return `no gateway at ${BASE_URL}`;
+  }
 }
 
 export function requireEnv(...names) {
