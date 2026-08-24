@@ -126,7 +126,7 @@ From `.github/workflows/ci-cd.yml`:
 
 | Check | When | What it proves |
 |---|---|---|
-| `npm ci` at the root, client, and each service | every push and PR | Lockfiles resolve |
+| `npm install` at the root, client, and each service | every push and PR | Dependencies resolve |
 | `npm run lint` | every push and PR | ESLint finds no errors in services, tests, or the client |
 | `npm run test:unit` | every push and PR | Scoring, timing, the status machine and the cache behave |
 | `npm run test:events` | every push and PR | Retries and dead-lettering work against a real Redis |

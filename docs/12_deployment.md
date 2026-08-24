@@ -62,7 +62,7 @@ which is what `npm run dev` and `npm run up` do.
 
 **Lint and build** runs on every push and pull request:
 
-1. `npm ci` at the root, for the client, and for every service.
+1. `npm install` at the root, for the client, and for every service.
 2. `npm run lint`, which is ESLint over `services/`, `tests/` and `client/src`. Configured in [`eslint.config.mjs`](../eslint.config.mjs).
 3. `npm run test:unit`, then `npm run test:events` against a Redis service container.
 4. Build the client. Vercel does the real build; this only proves it is not broken.

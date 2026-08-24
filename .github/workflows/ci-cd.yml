@@ -38,10 +38,10 @@ jobs:
 
       - name: Install
         run: |
-          npm ci
-          npm ci --prefix client
+          npm install
+          npm install --prefix client
           for service in services/*/; do
-            npm ci --prefix "$service"
+            npm install --prefix "$service"
           done
 
       - name: Lint
