@@ -129,7 +129,7 @@ quiz-platform/
 ├── docker/redis/          Dockerfile + redis.conf
 ├── docker-compose.yml     production stack
 ├── docker-compose.dev.yml overlay pointing services at .env.local
-├── scripts/deploy.sh      runs on the VPS, rolls back on failed health
+├── scripts/deploy.sh      runs on the server, rolls back on failed health
 ├── scripts/reset.sh       local rebuild + Redis flush
 ├── ecosystem.config.cjs   PM2 alternative to Compose, not the deploy path
 ├── tests/                 integration tests against a live gateway

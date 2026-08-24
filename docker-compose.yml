@@ -1,11 +1,9 @@
 services:
   redis:
     build: ./docker/redis
-    image: quizloom-redis
+    image: ${IMAGE_REPO:-quizloom}/redis:${IMAGE_TAG:-dev}
     container_name: quizloom-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -29,7 +27,7 @@ services:
 
   auth:
     build: ./services/auth
-    image: quizloom-auth
+    image: ${IMAGE_REPO:-quizloom}/auth:${IMAGE_TAG:-dev}
     container_name: quizloom-auth
     env_file:
       - ./services/auth/.env.production
@@ -44,7 +42,7 @@ services:
 
   questionbank:
     build: ./services/questionbank
-    image: quizloom-questionbank
+    image: ${IMAGE_REPO:-quizloom}/questionbank:${IMAGE_TAG:-dev}
     container_name: quizloom-questionbank
     env_file:
       - ./services/questionbank/.env.production
@@ -59,7 +57,7 @@ services:
 
   quiz:
     build: ./services/quiz
-    image: quizloom-quiz
+    image: ${IMAGE_REPO:-quizloom}/quiz:${IMAGE_TAG:-dev}
     container_name: quizloom-quiz
     env_file:
       - ./services/quiz/.env.production
@@ -75,7 +73,7 @@ services:
 
   analytics:
     build: ./services/analytics
-    image: quizloom-analytics
+    image: ${IMAGE_REPO:-quizloom}/analytics:${IMAGE_TAG:-dev}
     container_name: quizloom-analytics
     env_file:
       - ./services/analytics/.env.production
@@ -90,7 +88,7 @@ services:
 
   exam:
     build: ./services/exam
-    image: quizloom-exam
+    image: ${IMAGE_REPO:-quizloom}/exam:${IMAGE_TAG:-dev}
     container_name: quizloom-exam
     env_file:
       - ./services/exam/.env.production
@@ -105,7 +103,7 @@ services:
 
   exam-worker:
     build: ./services/exam
-    image: quizloom-exam
+    image: ${IMAGE_REPO:-quizloom}/exam:${IMAGE_TAG:-dev}
     container_name: quizloom-exam-worker
     command: ["node", "worker.js"]
     env_file:
@@ -119,7 +117,7 @@ services:
 
   scheduler:
     build: ./services/scheduler
-    image: quizloom-scheduler
+    image: ${IMAGE_REPO:-quizloom}/scheduler:${IMAGE_TAG:-dev}
     container_name: quizloom-scheduler
     env_file:
       - ./services/scheduler/.env.production

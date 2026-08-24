@@ -45,6 +45,9 @@ describe("redis stream consumer", () => {
       await redis.connect();
       await redis.ping();
     } catch (error) {
+      // Drop the client and stop it retrying, or the test process never exits.
+      redis?.disconnect();
+      redis = null;
       skipReason = `no redis at ${process.env.REDIS_URL}: ${error.message}`;
     }
   });

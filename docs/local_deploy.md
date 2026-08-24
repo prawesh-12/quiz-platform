@@ -179,7 +179,9 @@ If step 8 works, everything works: the scheduler noticed the time, Redis passed 
 | `npm run reset` | Rebuild, restart, and clear Redis |
 | `npm run lint` | Check the code for mistakes |
 | `npm run build` | Build the website, to check it still builds |
-| `npm test` | Run the tests, needs everything running |
+| `npm run test:unit` | Fast tests, nothing needs to be running |
+| `npm run test:events` | Consumer tests, needs Redis |
+| `npm test` | All of them, including the ones needing a running stack |
 
 To watch what a service is doing:
 

@@ -184,7 +184,7 @@ Everything else is left to Rollup's automatic chunking. The chunk size warning l
 Same-origin is what keeps the session cookie host-only and `SameSite=Lax` workable. Two mechanisms make it true:
 
 - Locally, the Vite dev server proxies `/api` to `http://localhost:8080`.
-- In production, `client/vercel.json` rewrites `/api/:path*` to `https://quizloom.duckdns.org/api/:path*`, and everything else to `/index.html` for client-side routing.
+- In production, `client/vercel.json` rewrites `/api/:path*` to `https://your-domain.com/api/:path*`, and everything else to `/index.html` for client-side routing.
 
 `public/_redirects` carries the same SPA fallback for a Netlify-style host.
 

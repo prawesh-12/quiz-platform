@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Runs on the VPS: switch to a commit, rebuild the stack, roll back if it never gets healthy.
+# Runs on the server: pull the images CI built, restart the stack, roll back if it never gets healthy.
 set -euo pipefail
 
 TARGET_SHA="${1:?usage: deploy.sh <commit-sha>}"
 APP_DIR="${APP_DIR:-/opt/quizloom}"
+IMAGE_REPO="${IMAGE_REPO:?IMAGE_REPO is required, e.g. ghcr.io/owner/quizloom}"
 GATEWAY_URL="${GATEWAY_URL:-http://localhost:8080}"
 HEALTH_ATTEMPTS=30
 HEALTH_DELAY_SECONDS=5
@@ -11,10 +12,24 @@ HEALTH_DELAY_SECONDS=5
 cd "$APP_DIR"
 PREVIOUS_SHA="$(git rev-parse HEAD)"
 
+# CI passes a short-lived token so the images can stay private. Without one, the pull only
+# works if the packages are public.
+if [ -n "${GHCR_TOKEN:-}" ]; then
+  printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${GHCR_USER:-x}" --password-stdin
+fi
+
+# Compose reads this file on its own, so later docker compose commands on the box use the
+# same images the deploy did.
+write_env() {
+  printf 'IMAGE_REPO=%s\nIMAGE_TAG=%s\n' "$IMAGE_REPO" "$1" > "$APP_DIR/.env"
+}
+
 # reset --hard is safe: .env.production files are gitignored and stay on the host.
 start_stack() {
   git reset --hard "$1"
-  docker compose up -d --build --remove-orphans
+  write_env "$1"
+  docker compose pull --quiet
+  docker compose up -d --remove-orphans
 }
 
 is_stack_healthy() {
@@ -40,7 +55,9 @@ start_stack "$TARGET_SHA"
 
 if wait_for_health; then
   echo "==> healthy on ${TARGET_SHA}"
-  docker image prune -f >/dev/null
+  # -a, not just dangling: every deploy pulls a new tag and the old ones are still tagged.
+  # A week's grace keeps recent rollback targets on disk.
+  docker image prune -af --filter "until=168h" >/dev/null
   exit 0
 fi
 
